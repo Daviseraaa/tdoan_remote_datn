@@ -1,0 +1,50 @@
+{
+  "command": "npm run start:dev",
+  "durationSec": 5,
+  "matrix": "default",
+  "generatedAt": "2026-04-20T21:01:34.665Z",
+  "results": [
+    {
+      "name": "wrtc-software-baseline",
+      "durationSec": 5,
+      "samples": {
+        "telemetryCount": 0,
+        "cpuCount": 4
+      },
+      "p95": {
+        "cpuPercent": 0
+      },
+      "notes": [
+        "No remote telemetry samples captured. Start a live remote session while benchmark runs."
+      ]
+    },
+    {
+      "name": "wrtc-ffmpeg",
+      "durationSec": 5,
+      "samples": {
+        "telemetryCount": 0,
+        "cpuCount": 4
+      },
+      "p95": {
+        "cpuPercent": 0
+      },
+      "notes": [
+        "No remote telemetry samples captured. Start a live remote session while benchmark runs."
+      ]
+    },
+    {
+      "name": "ndc-ffmpeg",
+      "durationSec": 5,
+      "samples": {
+        "telemetryCount": 0,
+        "cpuCount": 4
+      },
+      "p95": {
+        "cpuPercent": 0
+      },
+      "notes": [
+        "No remote telemetry samples captured. Start a live remote session while benchmark runs."
+      ]
+    }
+  ]
+}

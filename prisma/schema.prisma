@@ -1,0 +1,220 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  USER
+}
+
+enum AgentStatus {
+  ONLINE
+  OFFLINE
+  BUSY
+}
+
+enum TaskType {
+  COMMAND
+  SCRIPT
+  FILE_OPERATION
+  SYSTEM_INFO
+}
+
+enum TaskStatus {
+  PENDING
+  QUEUED
+  RUNNING
+  COMPLETED
+  FAILED
+  TIMEOUT
+  CANCELLED
+}
+
+enum LogLevel {
+  INFO
+  WARN
+  ERROR
+  DEBUG
+}
+
+enum StepType {
+  COMMAND
+  SCRIPT
+  DELAY
+  CONDITION
+}
+
+enum OnFailure {
+  STOP
+  SKIP
+  RETRY
+}
+
+enum RemoteSessionStatus {
+  PENDING
+  ACTIVE
+  ENDED
+  FAILED
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String
+  role      Role     @default(USER)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  agents    Agent[]
+  tasks     Task[]
+  workflows Workflow[]
+  remoteSessions RemoteSession[] @relation("RemoteOperator")
+
+  @@map("users")
+}
+
+model Agent {
+  id         String      @id @default(uuid())
+  name       String
+  agentKey   String      @unique @default(uuid())
+  status     AgentStatus @default(OFFLINE)
+  os         String?
+  hostname   String?
+  ip         String?
+  metadata   Json?
+  lastSeenAt DateTime?
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  tasks Task[]
+  remoteSessions RemoteSession[]
+
+  @@index([userId])
+  @@index([status])
+  @@map("agents")
+}
+
+model Task {
+  id          String     @id @default(uuid())
+  type        TaskType
+  command     String?
+  payload     Json?
+  status      TaskStatus @default(PENDING)
+  result      String?    @db.Text
+  exitCode    Int?
+  priority    Int        @default(0)
+  retryCount  Int        @default(0)
+  maxRetries  Int        @default(3)
+  timeout     Int        @default(300000) // 5 minutes in ms
+  scheduledAt DateTime?
+  startedAt   DateTime?
+  completedAt DateTime?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  userId  String
+  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  agentId String
+  agent   Agent  @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  logs TaskLog[]
+
+  @@index([userId])
+  @@index([agentId])
+  @@index([status])
+  @@map("tasks")
+}
+
+model TaskLog {
+  id        String   @id @default(uuid())
+  level     LogLevel @default(INFO)
+  message   String   @db.Text
+  createdAt DateTime @default(now())
+
+  taskId String
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
+  @@map("task_logs")
+}
+
+model Workflow {
+  id             String   @id @default(uuid())
+  name           String
+  description    String?
+  isActive       Boolean  @default(true)
+  cronExpression String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  steps WorkflowStep[]
+
+  @@index([userId])
+  @@map("workflows")
+}
+
+model WorkflowStep {
+  id        String    @id @default(uuid())
+  order     Int
+  type      StepType
+  config    Json
+  onFailure OnFailure @default(STOP)
+
+  workflowId String
+  workflow   Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+
+  @@index([workflowId])
+  @@map("workflow_steps")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  actorId    String?
+  actorEmail String?
+  action     String
+  resource   String
+  resourceId String?
+  metadata   Json?
+  ip         String?
+  createdAt  DateTime @default(now())
+
+  @@index([actorId])
+  @@index([action])
+  @@index([resource])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+model RemoteSession {
+  id               String              @id @default(uuid())
+  status           RemoteSessionStatus @default(PENDING)
+  controlMode      String              @default("full")
+  lastHeartbeatAt  DateTime?
+  startedAt        DateTime?
+  endedAt          DateTime?
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  agentId String
+  agent   Agent  @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  operatorId String
+  operator   User   @relation("RemoteOperator", fields: [operatorId], references: [id], onDelete: Cascade)
+
+  @@index([agentId, status])
+  @@index([operatorId])
+  @@map("remote_sessions")
+}
