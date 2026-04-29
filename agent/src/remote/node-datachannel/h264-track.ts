@@ -17,7 +17,6 @@ export class H264TrackFeeder {
   private readonly rtcpNack: RtcpNackResponder;
   private readonly pacing: PacingHandler;
   private carry: any = Buffer.alloc(0);
-  private trackClosed = false;
 
   constructor(
     private readonly track: Track,
@@ -44,7 +43,6 @@ export class H264TrackFeeder {
   }
 
   pushChunk(chunk: Buffer): boolean {
-    if (this.trackClosed) return false;
     if (!chunk.length) return true;
     const merged = new Uint8Array(this.carry.length + chunk.length);
     merged.set(this.carry, 0);
@@ -60,9 +58,9 @@ export class H264TrackFeeder {
         } catch (err) {
           const msg = String((err as Error)?.message || err);
           if (msg.includes('Track is not open')) {
-            this.trackClosed = true;
+            // Track có thể chưa open tạm thời; drop chunk hiện tại, không kill feeder.
             this.carry = Buffer.alloc(0);
-            logger.warn('ndc video track is not open; dropping remaining chunks');
+            logger.warn('ndc video track is not open; dropping current chunks');
             return false;
           }
           throw err;

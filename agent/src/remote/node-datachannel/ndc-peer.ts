@@ -130,6 +130,8 @@ export class NdcPeerSession {
       this.opened = state === 'connected';
       if (!this.opened) {
         this.trackClosedLogged = false;
+      } else {
+        this.trackClosedLogged = false;
       }
       this.callbacks.onStateChange?.(state);
     });
@@ -171,8 +173,7 @@ export class NdcPeerSession {
         const ok = this.feeder?.pushChunk(buf);
         if (!ok && !this.trackClosedLogged) {
           this.trackClosedLogged = true;
-          logger.warn({ sessionId: this.cfg.sessionId }, 'ndc video track closed; stopping ffmpeg session');
-          this.ffmpeg?.stop();
+          logger.warn({ sessionId: this.cfg.sessionId }, 'ndc video track is not open yet; dropping chunk');
         }
       },
       onExit: (code, err) => {
