@@ -5,6 +5,7 @@ import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { BullModule } from '@nestjs/bullmq';
 import { ScheduleModule } from '@nestjs/schedule';
 import { LoggerModule } from 'nestjs-pino';
+import { createPinoTelegramHook } from './common/logging/telegram-log';
 
 import configuration from './config/configuration';
 import { PrismaModule } from './prisma/prisma.module';
@@ -35,6 +36,9 @@ import { RemoteModule } from './modules/remote/remote.module';
           process.env.NODE_ENV !== 'production'
             ? { target: 'pino-pretty', options: { colorize: true } }
             : undefined,
+        hooks: {
+          logMethod: createPinoTelegramHook('server'),
+        },
       },
     }),
 

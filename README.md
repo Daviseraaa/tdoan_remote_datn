@@ -165,3 +165,59 @@ npm run lint          # ESLint
 npm run format        # Prettier
 npm run prisma:studio # Prisma Studio GUI
 ```
+
+## Logging thresholds and Telegram forwarding
+
+### Code locations
+
+- Backend logger setup: `src/app.module.ts` (`LoggerModule.forRoot`)
+- Backend Telegram hook logic: `src/common/logging/telegram-log.ts`
+- Agent logger setup: `agent/src/logger.ts`
+- Agent Telegram hook logic: `agent/src/telegram-log.ts`
+
+### Environment variables
+
+- `LOG_LEVEL`: threshold of logger itself (`trace|debug|info|warn|error|fatal`)
+- `TELEGRAM_LOG_ENABLED`: enable/disable Telegram forwarding
+- `TELEGRAM_BOT_TOKEN`: Telegram bot token
+- `TELEGRAM_CHAT_ID`: chat/channel ID to receive logs
+- `TELEGRAM_LOG_MIN_LEVEL`: threshold for Telegram forwarding (`trace|debug|info|warn|error|fatal`)
+
+### How the 2 thresholds work
+
+Pino levels order:
+
+`trace(10) < debug(20) < info(30) < warn(40) < error(50) < fatal(60)`
+
+A log is sent to Telegram only when it passes both gates:
+
+1. Gate 1 (`LOG_LEVEL`): logger accepts only levels `>= LOG_LEVEL`
+2. Gate 2 (`TELEGRAM_LOG_MIN_LEVEL`): Telegram hook forwards only levels `>= TELEGRAM_LOG_MIN_LEVEL`
+
+Effective minimum level for Telegram:
+
+`max(LOG_LEVEL, TELEGRAM_LOG_MIN_LEVEL)`
+
+### Typical cases
+
+- `LOG_LEVEL=info`, `TELEGRAM_LOG_MIN_LEVEL=error`
+  - Console: `info|warn|error|fatal`
+  - Telegram: `error|fatal`
+- `LOG_LEVEL=warn`, `TELEGRAM_LOG_MIN_LEVEL=trace`
+  - Console: `warn|error|fatal`
+  - Telegram: `warn|error|fatal` (trace/debug/info already dropped at gate 1)
+- `LOG_LEVEL=trace`, `TELEGRAM_LOG_MIN_LEVEL=trace`
+  - Console: all levels
+  - Telegram: all levels (very noisy; use for short-term debugging)
+- `LOG_LEVEL=error`, `TELEGRAM_LOG_MIN_LEVEL=warn`
+  - Console: `error|fatal`
+  - Telegram: `error|fatal`
+- `TELEGRAM_LOG_ENABLED=false`
+  - No Telegram messages regardless of thresholds
+
+### Backend vs Agent (separate process)
+
+- Backend reads variables from root `.env`
+- Agent reads variables from `agent/.env`
+- You can use different thresholds for each process
+  - Example: backend strict (`info/error`), agent verbose (`debug/warn`)

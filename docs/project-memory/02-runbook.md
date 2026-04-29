@@ -218,7 +218,7 @@ Lưu ý quan trọng:
   - `REMOTE_TILE_SIZE=64`
   - `REMOTE_TILE_DIFF_THRESHOLD=22`
 
-## 11) Tile patch overlay (RGBA qua DataChannel)
+## 11) Tile patch overlay (RGBA qua DataChannel)  
 
 Agent (cần `REMOTE_MEDIA_ENGINE=wrtc`, `REMOTE_VIDEO_PIPELINE=software`):
 
