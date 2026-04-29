@@ -16,6 +16,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { RemoteService } from './remote.service';
 import { AgentsGateway } from '../agents/agents.gateway';
 import { AuditService } from '../admin/audit.service';
+import { TelegramActionNotifierService } from '../../common/logging/telegram-action-notifier.service';
 
 type RemoteSocket = Socket & {
   data: {
@@ -53,6 +54,7 @@ export class RemoteGateway implements OnGatewayConnection, OnGatewayDisconnect {
     private readonly agentsGateway: AgentsGateway,
     private readonly config: ConfigService,
     private readonly audit: AuditService,
+    private readonly actionNotifier: TelegramActionNotifierService,
   ) {}
 
   async handleConnection(client: RemoteSocket) {
@@ -115,10 +117,22 @@ export class RemoteGateway implements OnGatewayConnection, OnGatewayDisconnect {
     await this.remote.touchHeartbeat(session.id);
     client.emit(WS_EVENTS.REMOTE_READY, { sessionId: session.id });
     this.logger.log(`remote ws connected ${claims.role} session=${session.id}`);
+    await this.actionNotifier.notify('remote.client.connected', {
+      sessionId: session.id,
+      role: claims.role,
+      agentId: session.agentId,
+    });
   }
 
-  handleDisconnect(client: RemoteSocket) {
+  async handleDisconnect(client: RemoteSocket) {
     this.controlBuckets.delete(client.id);
+    if (client.data.sessionId) {
+      await this.actionNotifier.notify('remote.client.disconnected', {
+        sessionId: client.data.sessionId,
+        role: client.data.role,
+        agentId: client.data.agentId,
+      });
+    }
   }
 
   @SubscribeMessage(WS_EVENTS.REMOTE_OFFER)

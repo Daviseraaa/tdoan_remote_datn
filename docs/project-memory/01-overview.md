@@ -44,6 +44,19 @@
 - Agent kết nối server qua Socket.IO client.
 - Có scripts cho Windows service install/uninstall.
 
+## Logging / Telegram Notify
+
+- Backend dùng `nestjs-pino` (`src/app.module.ts`), agent dùng `pino` (`agent/src/logger.ts`).
+- Hook Telegram log stream:
+  - Backend: `src/common/logging/telegram-log.ts`
+  - Agent: `agent/src/telegram-log.ts`
+- Action notifier (backend): `src/common/logging/telegram-action-notifier.service.ts`
+- Env chính:
+  - `TELEGRAM_LOG_ENABLED` bật/tắt gửi Telegram
+  - `TELEGRAM_LOG_MODE=all|action`
+  - `TELEGRAM_LOG_MIN_LEVEL`
+  - `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`
+
 ## Environment Files (templates)
 
 - Root backend: `.env.example`

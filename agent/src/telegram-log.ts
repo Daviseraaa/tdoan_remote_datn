@@ -15,6 +15,8 @@ const LEVELS: Record<string, number> = {
   fatal: 60,
 };
 
+const MODES = new Set(['all', 'action']);
+
 function boolEnv(name: string, fallback: boolean): boolean {
   const raw = process.env[name];
   if (raw == null) return fallback;
@@ -46,8 +48,10 @@ function createSender(serviceName: string): (level: number, args: unknown[]) => 
     .trim()
     .toLowerCase();
   const minLevel = LEVELS[minLevelName] ?? LEVELS.error;
+  const modeRaw = (process.env.TELEGRAM_LOG_MODE || 'all').trim().toLowerCase();
+  const mode = MODES.has(modeRaw) ? modeRaw : 'all';
 
-  if (!enabled || !token || !chatId) {
+  if (!enabled || !token || !chatId || mode !== 'all') {
     return () => undefined;
   }
 

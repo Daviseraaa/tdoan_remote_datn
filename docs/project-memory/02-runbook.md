@@ -73,6 +73,38 @@ npm run service:uninstall
 - Không commit file `.env`.
 - Khi debug realtime, kiểm tra cả backend logs và agent logs cùng lúc.
 
+## 5.1) Logging modes + Telegram
+
+Env dùng chung (backend/agent):
+
+```bash
+TELEGRAM_LOG_ENABLED=true
+TELEGRAM_BOT_TOKEN=<bot-token>
+TELEGRAM_CHAT_ID=<chat-id>
+TELEGRAM_LOG_MIN_LEVEL=info
+TELEGRAM_LOG_MODE=all
+```
+
+Mode:
+
+- `TELEGRAM_LOG_MODE=all`: forward stream log theo level (`TELEGRAM_LOG_MIN_LEVEL`).
+- `TELEGRAM_LOG_MODE=action`: chỉ gửi event quan trọng, bỏ stream log thường.
+
+Danh sách action events hiện có (backend):
+
+- `server.startup`
+- `agent.connected` / `agent.disconnected`
+- `admin.client.connected` / `admin.client.disconnected`
+- `admin.action` (từ `AuditService.record`: add/sửa/xóa user, agent, task cancel, remote control...)
+- `remote.client.connected` / `remote.client.disconnected`
+- `task.dispatched` / `task.result` / `task.timeout`
+
+Ghi chú vận hành:
+
+- Prod nên dùng `mode=action` để tránh spam.
+- Chỉ dùng `mode=all` khi cần debug ngắn hạn.
+- Nếu token bot từng lộ, rotate ngay và không commit `.env`.
+
 ## 6) Benchmark realtime agent
 
 Các env quan trọng (xem `agent/.env.example`):

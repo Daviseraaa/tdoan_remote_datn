@@ -5,6 +5,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { Logger } from 'nestjs-pino';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
+import { TelegramActionNotifierService } from './common/logging/telegram-action-notifier.service';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
@@ -63,6 +64,11 @@ async function bootstrap() {
   const logger = app.get(Logger);
   logger.log(`Server running on http://localhost:${port}`);
   logger.log(`Swagger docs: http://localhost:${port}/api/docs`);
+  const actionNotifier = app.get(TelegramActionNotifierService);
+  await actionNotifier.notify('server.startup', {
+    port,
+    env: nodeEnv,
+  });
 }
 
 bootstrap();

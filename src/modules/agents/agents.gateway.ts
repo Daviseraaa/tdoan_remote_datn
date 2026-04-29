@@ -19,6 +19,7 @@ import {
 } from '../../common/types/ws-protocol';
 import { AgentsService } from './agents.service';
 import { PrismaService } from '../../prisma/prisma.service';
+import { TelegramActionNotifierService } from '../../common/logging/telegram-action-notifier.service';
 
 interface AgentSocket extends Socket {
   data: {
@@ -46,6 +47,7 @@ export class AgentsGateway
   constructor(
     private agentsService: AgentsService,
     private prisma: PrismaService,
+    private readonly actionNotifier: TelegramActionNotifierService,
   ) {}
 
   async handleConnection(client: AgentSocket) {
@@ -78,6 +80,10 @@ export class AgentsGateway
       await this.agentsService.markOnline(agentKey, client.id, metadata);
 
       this.logger.log(`Agent connected: ${agent.name} (${agent.id})`);
+      await this.actionNotifier.notify('agent.connected', {
+        agentId: agent.id,
+        agentName: agent.name,
+      });
 
       client.emit(WS_EVENTS.AGENT_STATUS, {
         status: 'ONLINE',
@@ -94,6 +100,10 @@ export class AgentsGateway
     if (agent) {
       await this.agentsService.markOffline(agent.agentKey);
       this.logger.log(`Agent disconnected: ${agent.name} (${agent.id})`);
+      await this.actionNotifier.notify('agent.disconnected', {
+        agentId: agent.id,
+        agentName: agent.name,
+      });
     }
   }
 
@@ -169,6 +179,13 @@ export class AgentsGateway
     this.logger.log(
       `Task result from ${agent.name}: ${data.taskId} => ${finalStatus}`,
     );
+    await this.actionNotifier.notify('task.result', {
+      taskId: data.taskId,
+      status: finalStatus,
+      exitCode: data.exitCode ?? -1,
+      agentId: agent.id,
+      agentName: agent.name,
+    });
 
     const eventName =
       finalStatus === TaskStatus.COMPLETED

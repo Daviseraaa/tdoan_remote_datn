@@ -41,6 +41,7 @@ export class NdcPeerSession {
   private opened = false;
   private bytesSentAtStart = 0;
   private lastRestartAt = 0;
+  private trackClosedLogged = false;
 
   constructor(
     private cfg: NdcConfig,
@@ -127,6 +128,9 @@ export class NdcPeerSession {
     });
     this.pc.onStateChange((state) => {
       this.opened = state === 'connected';
+      if (!this.opened) {
+        this.trackClosedLogged = false;
+      }
       this.callbacks.onStateChange?.(state);
     });
     this.pc.onDataChannel((dc) => {
@@ -162,7 +166,15 @@ export class NdcPeerSession {
       qualityProfile: this.cfg.qualityProfile,
       captureInput: 'desktop',
       output: 'h264',
-      onChunk: (buf) => this.feeder?.pushChunk(buf),
+      onChunk: (buf) => {
+        if (!this.opened) return;
+        const ok = this.feeder?.pushChunk(buf);
+        if (!ok && !this.trackClosedLogged) {
+          this.trackClosedLogged = true;
+          logger.warn({ sessionId: this.cfg.sessionId }, 'ndc video track closed; stopping ffmpeg session');
+          this.ffmpeg?.stop();
+        }
+      },
       onExit: (code, err) => {
         logger.warn(
           { sessionId: this.cfg.sessionId, code, err },

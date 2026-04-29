@@ -8,6 +8,7 @@ import {
   RtpPacketizationConfig,
   Track,
 } from 'node-datachannel';
+import { logger } from '../../logger';
 
 export class H264TrackFeeder {
   private readonly packetizer: H264RtpPacketizer;
@@ -16,6 +17,7 @@ export class H264TrackFeeder {
   private readonly rtcpNack: RtcpNackResponder;
   private readonly pacing: PacingHandler;
   private carry: any = Buffer.alloc(0);
+  private trackClosed = false;
 
   constructor(
     private readonly track: Track,
@@ -41,20 +43,33 @@ export class H264TrackFeeder {
     this.packetizer.addToChain(this.pacing);
   }
 
-  pushChunk(chunk: Buffer) {
-    if (!chunk.length) return;
+  pushChunk(chunk: Buffer): boolean {
+    if (this.trackClosed) return false;
+    if (!chunk.length) return true;
     const merged = new Uint8Array(this.carry.length + chunk.length);
     merged.set(this.carry, 0);
     merged.set(chunk, this.carry.length);
     this.carry = Buffer.from(merged);
     const nalus = splitAnnexB(this.carry as Uint8Array);
-    if (!nalus.complete.length) return;
+    if (!nalus.complete.length) return true;
     this.carry = nalus.remainder;
     for (const nalu of nalus.complete) {
       if (nalu.length > 0) {
-        this.track.sendMessageBinary(Buffer.from(nalu));
+        try {
+          this.track.sendMessageBinary(Buffer.from(nalu));
+        } catch (err) {
+          const msg = String((err as Error)?.message || err);
+          if (msg.includes('Track is not open')) {
+            this.trackClosed = true;
+            this.carry = Buffer.alloc(0);
+            logger.warn('ndc video track is not open; dropping remaining chunks');
+            return false;
+          }
+          throw err;
+        }
       }
     }
+    return true;
   }
 }
 

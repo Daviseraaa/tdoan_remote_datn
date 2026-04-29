@@ -22,6 +22,7 @@ import { AutomationModule } from './modules/automation/automation.module';
 import { HealthModule } from './modules/health/health.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { RemoteModule } from './modules/remote/remote.module';
+import { LoggingModule } from './common/logging/logging.module';
 
 @Module({
   imports: [
@@ -66,6 +67,7 @@ import { RemoteModule } from './modules/remote/remote.module';
     }),
 
     ScheduleModule.forRoot(),
+    LoggingModule,
 
     PrismaModule,
     AuthModule,

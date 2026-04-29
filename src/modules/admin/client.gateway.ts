@@ -9,6 +9,7 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Server, Socket } from 'socket.io';
 import { Role } from '@prisma/client';
+import { TelegramActionNotifierService } from '../../common/logging/telegram-action-notifier.service';
 
 interface ClientSocket extends Socket {
   data: {
@@ -33,6 +34,7 @@ export class ClientGateway
   constructor(
     private jwtService: JwtService,
     private config: ConfigService,
+    private readonly actionNotifier: TelegramActionNotifierService,
   ) {}
 
   async handleConnection(client: ClientSocket) {
@@ -69,6 +71,12 @@ export class ClientGateway
       this.logger.log(
         `Client connected: ${payload.email} (${payload.role})`,
       );
+      if (payload.role === Role.ADMIN) {
+        await this.actionNotifier.notify('admin.client.connected', {
+          userId: payload.sub,
+          email: payload.email,
+        });
+      }
     } catch (err) {
       this.logger.warn(
         `Client auth failed: ${(err as Error).message}`,
@@ -80,6 +88,12 @@ export class ClientGateway
   handleDisconnect(client: ClientSocket) {
     if (client.data?.email) {
       this.logger.log(`Client disconnected: ${client.data.email}`);
+      if (client.data.role === Role.ADMIN) {
+        void this.actionNotifier.notify('admin.client.disconnected', {
+          userId: client.data.userId,
+          email: client.data.email,
+        });
+      }
     }
   }
 
