@@ -5,12 +5,17 @@ import { AgentStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { PaginatedResponseDto } from '../../common/dto/pagination.dto';
 import { CreateAgentDto, QueryAgentDto } from './dto/index';
+import { AgentTelemetryStore } from './agent-telemetry.store';
 
 @Injectable()
 export class AgentsService {
   private connectedAgents = new Map<string, string>();
+  private lastSeenDbAt = new Map<string, number>();
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private telemetry: AgentTelemetryStore,
+  ) {}
 
   async create(userId: string, dto: CreateAgentDto) {
     return this.prisma.agent.create({
@@ -39,7 +44,11 @@ export class AgentsService {
       this.prisma.agent.count({ where }),
     ]);
 
-    return new PaginatedResponseDto(agents, total, query);
+    return new PaginatedResponseDto(
+      this.telemetry.enrichMany(agents),
+      total,
+      query,
+    );
   }
 
   async findOne(id: string, userId: string) {
@@ -47,7 +56,7 @@ export class AgentsService {
       where: { id, userId },
     });
     if (!agent) throw new NotFoundException('Agent not found');
-    return agent;
+    return this.telemetry.enrich(agent);
   }
 
   async remove(id: string, userId: string) {
@@ -86,16 +95,71 @@ export class AgentsService {
 
   async markOffline(agentKey: string) {
     this.connectedAgents.delete(agentKey);
+    const agent = await this.prisma.agent.findUnique({ where: { agentKey } });
+    if (agent) {
+      this.telemetry.delete(agent.id);
+      this.lastSeenDbAt.delete(agentKey);
+    }
     return this.prisma.agent.update({
       where: { agentKey },
       data: { status: AgentStatus.OFFLINE },
     });
   }
 
-  async heartbeat(agentKey: string) {
+  /**
+   * Cập nhật lastSeenAt tối đa mỗi 30s.
+   * Kèm snapshot telemetry → merge vào `metadata` (để admin đọc khi agent OFFLINE).
+   */
+  async heartbeat(
+    agentKey: string,
+    snapshot?: {
+      ip: string;
+      cpuPercent: number;
+      ramUsedBytes: number;
+      ramTotalBytes: number;
+      ramLabel: string;
+      timestamp: number;
+    },
+  ) {
+    const now = Date.now();
+    const last = this.lastSeenDbAt.get(agentKey) ?? 0;
+    if (now - last < 30_000) return null;
+    this.lastSeenDbAt.set(agentKey, now);
+
+    if (!snapshot) {
+      return this.prisma.agent.update({
+        where: { agentKey },
+        data: { lastSeenAt: new Date() },
+      });
+    }
+
+    const agent = await this.prisma.agent.findUnique({ where: { agentKey } });
+    if (!agent) return null;
+
+    const baseMeta =
+      agent.metadata &&
+      typeof agent.metadata === 'object' &&
+      !Array.isArray(agent.metadata)
+        ? { ...(agent.metadata as Record<string, unknown>) }
+        : {};
+
+    const metadata = {
+      ...baseMeta,
+      ip: snapshot.ip,
+      cpuPercent: snapshot.cpuPercent,
+      ramUsedBytes: snapshot.ramUsedBytes,
+      ramTotalBytes: snapshot.ramTotalBytes,
+      ramLabel: snapshot.ramLabel,
+      liveTelemetryAt: snapshot.timestamp,
+    };
+
     return this.prisma.agent.update({
       where: { agentKey },
-      data: { lastSeenAt: new Date() },
+      data: {
+        lastSeenAt: new Date(),
+        ...(snapshot.ip ? { ip: snapshot.ip } : {}),
+        metadata: metadata as object,
+      },
     });
   }
 

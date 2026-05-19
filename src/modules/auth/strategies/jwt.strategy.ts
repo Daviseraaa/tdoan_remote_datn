@@ -3,7 +3,6 @@ import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { JwtPayload } from '../../../common/decorators/current-user.decorator';
-import { REMOTE_JWT_TYP } from '../../remote/remote.constants';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
@@ -22,7 +21,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     role: string;
     typ?: string;
   }): JwtPayload {
-    if (payload.typ === REMOTE_JWT_TYP) {
+    if (payload.typ) {
       throw new UnauthorizedException('Wrong token type');
     }
     return { sub: payload.sub, email: payload.email, role: payload.role };

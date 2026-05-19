@@ -1,0 +1,107 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-inter: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+
+  /* DATN Console Colors */
+  --color-surface: #0b1326;
+  --color-surface-dim: #0b1326;
+  --color-surface-bright: #31394d;
+  --color-surface-container-lowest: #060e20;
+  --color-surface-container-low: #131b2e;
+  --color-surface-container: #171f33;
+  --color-surface-container-high: #222a3d;
+  --color-surface-container-highest: #2d3449;
+  
+  --color-on-surface: #dae2fd;
+  --color-on-surface-variant: #bbc9cf;
+  
+  --color-primary: #a4e6ff;
+  --color-on-primary: #003543;
+  --color-primary-container: #00d1ff;
+  --color-on-primary-container: #00566a;
+  
+  --color-secondary: #b7c8e1;
+  --color-on-secondary: #213145;
+  --color-secondary-container: #3a4a5f;
+  
+  --color-tertiary: #68f5b8;
+  --color-on-tertiary: #003824;
+  --color-tertiary-container: #46d89d;
+  
+  --color-error: #ffb4ab;
+  --color-on-error: #690005;
+  --color-error-container: #93000a;
+}
+
+@layer base {
+  body {
+    @apply bg-surface text-on-surface font-inter antialiased overflow-x-hidden;
+    background: radial-gradient(circle at top right, #131b2e, #0b1326);
+    min-height: 100vh;
+  }
+}
+
+@layer components {
+  .glass-card {
+    @apply backdrop-blur-xl border border-white/10;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, transparent 100%);
+  }
+  
+  .glass-panel {
+    @apply backdrop-blur-2xl border border-white/10;
+    background: rgba(11, 19, 38, 0.6);
+  }
+  
+  .pulse-primary {
+    @apply relative;
+  }
+  
+  .pulse-primary::after {
+    content: '';
+    @apply absolute inset-0 rounded-full bg-primary-container opacity-0;
+    animation: pulse 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+  }
+  
+  @keyframes pulse {
+    0% {
+      transform: scale(1);
+      opacity: 0.5;
+    }
+    100% {
+      transform: scale(2.5);
+      opacity: 0;
+    }
+  }
+
+  .custom-scrollbar::-webkit-scrollbar {
+    @apply w-1;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    @apply bg-white/10 rounded-full;
+  }
+  
+  .animate-shimmer {
+    animation: shimmer 2s infinite;
+  }
+
+  @keyframes shimmer {
+    0% {
+      transform: translateX(-100%);
+    }
+    100% {
+      transform: translateX(100%);
+    }
+  }
+  
+  .workflow-grid {
+    background-image: radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 0);
+    background-size: 24px 24px;
+  }
+}
+

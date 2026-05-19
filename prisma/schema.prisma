@@ -23,6 +23,8 @@ enum TaskType {
   SCRIPT
   FILE_OPERATION
   SYSTEM_INFO
+  OPEN_APP
+  DESKTOP_AUTOMATION
 }
 
 enum TaskStatus {

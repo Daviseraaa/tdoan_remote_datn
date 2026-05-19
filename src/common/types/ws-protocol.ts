@@ -11,6 +11,12 @@ export interface AgentMetadata {
 
 export interface HeartbeatPayload {
   timestamp: number;
+  ip?: string;
+  cpuPercent?: number;
+  ramUsedBytes?: number;
+  ramTotalBytes?: number;
+  ramLabel?: string;
+  /** @deprecated legacy agent builds */
   uptime?: number;
   cpuUsage?: number;
   memoryUsage?: number;
@@ -18,7 +24,8 @@ export interface HeartbeatPayload {
 
 export interface TaskExecutePayload {
   taskId: string;
-  type: 'COMMAND' | 'SCRIPT' | 'FILE_OPERATION' | 'SYSTEM_INFO';
+  /** Khớp Prisma `TaskType` hoặc giá trị mở rộng sau migration. */
+  type: string;
   command: string;
   payload?: Record<string, unknown> | null;
   timeout: number;

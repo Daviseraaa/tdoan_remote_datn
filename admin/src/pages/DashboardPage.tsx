@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import {
   Row, Col, Card, Statistic, Table, Tag, Spin, Alert, Typography, Grid,
 } from 'antd';
@@ -75,6 +75,24 @@ function useUserRecentTasks() {
   });
 }
 
+function aggregateTaskTrendDaily(
+  trend: AdminStats['taskTrend'],
+): Array<{ date: string; completed: number; failed: number }> {
+  const byDay = new Map<string, { date: string; completed: number; failed: number }>();
+  for (const p of trend) {
+    const d = new Date(p.at);
+    const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+    const label = `${d.getMonth() + 1}/${d.getDate()}`;
+    const cur = byDay.get(key) ?? { date: label, completed: 0, failed: 0 };
+    cur.completed += p.completed;
+    cur.failed += p.failed;
+    byDay.set(key, cur);
+  }
+  return [...byDay.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([, v]) => v);
+}
+
 function AdminDashboard() {
   const screens = Grid.useBreakpoint();
   const isMobile = !screens.md;
@@ -94,6 +112,11 @@ function AdminDashboard() {
       socket.off('task:failed', onTask);
     };
   }, [qc]);
+
+  const taskTrendDaily = useMemo(
+    () => (stats.data ? aggregateTaskTrendDaily(stats.data.taskTrend) : []),
+    [stats.data?.taskTrend],
+  );
 
   if (stats.isLoading) return <Spin />;
   if (stats.error) {
@@ -154,7 +177,7 @@ function AdminDashboard() {
       <Card style={{ marginTop: 16 }} title="Xu hướng task 7 ngày gần nhất">
         <div style={{ width: '100%', height: isMobile ? 220 : 280 }}>
           <ResponsiveContainer>
-            <LineChart data={s.taskTrend}>
+            <LineChart data={taskTrendDaily}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="date" />
               <YAxis allowDecimals={false} />

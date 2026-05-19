@@ -5,7 +5,6 @@ import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { BullModule } from '@nestjs/bullmq';
 import { ScheduleModule } from '@nestjs/schedule';
 import { LoggerModule } from 'nestjs-pino';
-import { createPinoTelegramHook } from './common/logging/telegram-log';
 
 import configuration from './config/configuration';
 import { PrismaModule } from './prisma/prisma.module';
@@ -21,8 +20,6 @@ import { TasksModule } from './modules/tasks/tasks.module';
 import { AutomationModule } from './modules/automation/automation.module';
 import { HealthModule } from './modules/health/health.module';
 import { AdminModule } from './modules/admin/admin.module';
-import { RemoteModule } from './modules/remote/remote.module';
-import { LoggingModule } from './common/logging/logging.module';
 
 @Module({
   imports: [
@@ -37,9 +34,6 @@ import { LoggingModule } from './common/logging/logging.module';
           process.env.NODE_ENV !== 'production'
             ? { target: 'pino-pretty', options: { colorize: true } }
             : undefined,
-        hooks: {
-          logMethod: createPinoTelegramHook('server'),
-        },
       },
     }),
 
@@ -67,7 +61,6 @@ import { LoggingModule } from './common/logging/logging.module';
     }),
 
     ScheduleModule.forRoot(),
-    LoggingModule,
 
     PrismaModule,
     AuthModule,
@@ -77,7 +70,6 @@ import { LoggingModule } from './common/logging/logging.module';
     AutomationModule,
     HealthModule,
     AdminModule,
-    RemoteModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: GlobalExceptionFilter },

@@ -1,6 +1,6 @@
-# DATN Server - Remote PC Control & Automation Platform
+# DATN Server — Automation & Agent Task Platform
 
-Backend server xây dựng bằng **NestJS 11** cho hệ thống điều khiển và tự động hóa máy tính từ xa.
+Backend server xây dựng bằng **NestJS 11** cho hệ thống quản lý agent, hàng đợi task và tự động hóa.
 
 ## Tech Stack
 
@@ -166,58 +166,19 @@ npm run format        # Prettier
 npm run prisma:studio # Prisma Studio GUI
 ```
 
-## Logging thresholds and Telegram forwarding
+## Workstation agent
 
-### Code locations
+Máy trạm: [`agent/README.md`](./agent/README.md) — Rust core (`agent/core`) + Electron desktop (`agent/desktop`). Build: `cd agent && npm run build:core`.
 
-- Backend logger setup: `src/app.module.ts` (`LoggerModule.forRoot`)
-- Backend Telegram hook logic: `src/common/logging/telegram-log.ts`
-- Agent logger setup: `agent/src/logger.ts`
-- Agent Telegram hook logic: `agent/src/telegram-log.ts`
+## Logging
 
-### Environment variables
+- **Backend**: `nestjs-pino` — cấu hình trong `src/app.module.ts` (`LoggerModule.forRoot`); dev dùng `pino-pretty`.
+- **Agent desktop**: `agent/desktop` — Pino; **Rust core**: stdout / `RUST_LOG`.
 
-- `LOG_LEVEL`: threshold of logger itself (`trace|debug|info|warn|error|fatal`)
-- `TELEGRAM_LOG_ENABLED`: enable/disable Telegram forwarding
-- `TELEGRAM_BOT_TOKEN`: Telegram bot token
-- `TELEGRAM_CHAT_ID`: chat/channel ID to receive logs
-- `TELEGRAM_LOG_MIN_LEVEL`: threshold for Telegram forwarding (`trace|debug|info|warn|error|fatal`)
+### Environment
 
-### How the 2 thresholds work
+- `LOG_LEVEL` (`trace|debug|info|warn|error|fatal`): root `.env` cho server; agent dev: `agent/.env`, production: `%ProgramData%\DATN\agent.env`.
 
-Pino levels order:
+### Backend vs Agent
 
-`trace(10) < debug(20) < info(30) < warn(40) < error(50) < fatal(60)`
-
-A log is sent to Telegram only when it passes both gates:
-
-1. Gate 1 (`LOG_LEVEL`): logger accepts only levels `>= LOG_LEVEL`
-2. Gate 2 (`TELEGRAM_LOG_MIN_LEVEL`): Telegram hook forwards only levels `>= TELEGRAM_LOG_MIN_LEVEL`
-
-Effective minimum level for Telegram:
-
-`max(LOG_LEVEL, TELEGRAM_LOG_MIN_LEVEL)`
-
-### Typical cases
-
-- `LOG_LEVEL=info`, `TELEGRAM_LOG_MIN_LEVEL=error`
-  - Console: `info|warn|error|fatal`
-  - Telegram: `error|fatal`
-- `LOG_LEVEL=warn`, `TELEGRAM_LOG_MIN_LEVEL=trace`
-  - Console: `warn|error|fatal`
-  - Telegram: `warn|error|fatal` (trace/debug/info already dropped at gate 1)
-- `LOG_LEVEL=trace`, `TELEGRAM_LOG_MIN_LEVEL=trace`
-  - Console: all levels
-  - Telegram: all levels (very noisy; use for short-term debugging)
-- `LOG_LEVEL=error`, `TELEGRAM_LOG_MIN_LEVEL=warn`
-  - Console: `error|fatal`
-  - Telegram: `error|fatal`
-- `TELEGRAM_LOG_ENABLED=false`
-  - No Telegram messages regardless of thresholds
-
-### Backend vs Agent (separate process)
-
-- Backend reads variables from root `.env`
-- Agent reads variables from `agent/.env`
-- You can use different thresholds for each process
-  - Example: backend strict (`info/error`), agent verbose (`debug/warn`)
+Hai process đọc env khác nhau; có thể chỉnh `LOG_LEVEL` riêng khi debug.

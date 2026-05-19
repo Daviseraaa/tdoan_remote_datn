@@ -8,7 +8,7 @@ import {
   ConnectedSocket,
 } from '@nestjs/websockets';
 import { Logger } from '@nestjs/common';
-import { Server, Socket } from 'socket.io';
+import { Namespace, Server, Socket } from 'socket.io';
 import { TaskStatus } from '@prisma/client';
 import { WS_EVENTS } from '../../common/constants/index';
 import {
@@ -18,8 +18,12 @@ import {
   MAX_RESULT_SIZE,
 } from '../../common/types/ws-protocol';
 import { AgentsService } from './agents.service';
+import { AgentTelemetryStore } from './agent-telemetry.store';
 import { PrismaService } from '../../prisma/prisma.service';
-import { TelegramActionNotifierService } from '../../common/logging/telegram-action-notifier.service';
+import {
+  pickDisplayIp,
+  resolveSocketPeerIp,
+} from '../../common/utils/socket-ip';
 
 interface AgentSocket extends Socket {
   data: {
@@ -46,8 +50,8 @@ export class AgentsGateway
 
   constructor(
     private agentsService: AgentsService,
+    private telemetryStore: AgentTelemetryStore,
     private prisma: PrismaService,
-    private readonly actionNotifier: TelegramActionNotifierService,
   ) {}
 
   async handleConnection(client: AgentSocket) {
@@ -74,16 +78,20 @@ export class AgentsGateway
       client.data = { agent };
       client.join(`agent:${agent.id}`);
 
-      const metadata = client.handshake?.auth?.metadata as
+      const handshakeMeta = client.handshake?.auth?.metadata as
         | Record<string, unknown>
         | undefined;
+      const peerIp = resolveSocketPeerIp(client);
+      const reportedIp =
+        typeof handshakeMeta?.ip === 'string' ? handshakeMeta.ip : '';
+      const displayIp = pickDisplayIp(peerIp, reportedIp);
+      const metadata = {
+        ...(handshakeMeta ?? {}),
+        ...(displayIp ? { ip: displayIp } : {}),
+      };
       await this.agentsService.markOnline(agentKey, client.id, metadata);
 
       this.logger.log(`Agent connected: ${agent.name} (${agent.id})`);
-      await this.actionNotifier.notify('agent.connected', {
-        agentId: agent.id,
-        agentName: agent.name,
-      });
 
       client.emit(WS_EVENTS.AGENT_STATUS, {
         status: 'ONLINE',
@@ -100,22 +108,62 @@ export class AgentsGateway
     if (agent) {
       await this.agentsService.markOffline(agent.agentKey);
       this.logger.log(`Agent disconnected: ${agent.name} (${agent.id})`);
-      await this.actionNotifier.notify('agent.disconnected', {
-        agentId: agent.id,
-        agentName: agent.name,
-      });
     }
   }
 
   @SubscribeMessage(WS_EVENTS.AGENT_HEARTBEAT)
   async handleHeartbeat(
     @ConnectedSocket() client: AgentSocket,
-    @MessageBody() _payload: HeartbeatPayload,
+    @MessageBody() payload: HeartbeatPayload,
   ) {
     const agent = client.data?.agent;
-    if (agent) {
-      await this.agentsService.heartbeat(agent.agentKey);
+    if (!agent) {
+      return { event: WS_EVENTS.AGENT_HEARTBEAT, data: { ok: false } };
     }
+
+    const cpu =
+      typeof payload.cpuPercent === 'number'
+        ? payload.cpuPercent
+        : typeof payload.cpuUsage === 'number'
+          ? payload.cpuUsage
+          : 0;
+    const ramUsed =
+      typeof payload.ramUsedBytes === 'number' ? payload.ramUsedBytes : 0;
+    const ramTotal =
+      typeof payload.ramTotalBytes === 'number' ? payload.ramTotalBytes : 0;
+    const ramLabel =
+      typeof payload.ramLabel === 'string' && payload.ramLabel
+        ? payload.ramLabel
+        : ramTotal > 0
+          ? `${(ramUsed / 1024 ** 3).toFixed(1)}/${(ramTotal / 1024 ** 3).toFixed(1)} GB`
+          : '—';
+    const reportedIp = typeof payload.ip === 'string' ? payload.ip : '';
+    const ip = pickDisplayIp(resolveSocketPeerIp(client), reportedIp);
+    const timestamp =
+      typeof payload.timestamp === 'number' ? payload.timestamp : Date.now();
+
+    const telemetry = {
+      agentId: agent.id,
+      ip,
+      cpuPercent: Math.min(100, Math.max(0, cpu)),
+      ramUsedBytes: ramUsed,
+      ramTotalBytes: ramTotal,
+      ramLabel,
+      timestamp,
+    };
+
+    this.telemetryStore.set(agent.id, telemetry);
+    this.emitToClientRoom(`user:${agent.userId}`, WS_EVENTS.AGENT_TELEMETRY, telemetry);
+    this.emitToClientRoom('admins', WS_EVENTS.AGENT_TELEMETRY, telemetry);
+
+    await this.agentsService.heartbeat(agent.agentKey, {
+      ip,
+      cpuPercent: Math.min(100, Math.max(0, cpu)),
+      ramUsedBytes: ramUsed,
+      ramTotalBytes: ramTotal,
+      ramLabel,
+      timestamp,
+    });
     return { event: WS_EVENTS.AGENT_HEARTBEAT, data: { ok: true } };
   }
 
@@ -179,13 +227,6 @@ export class AgentsGateway
     this.logger.log(
       `Task result from ${agent.name}: ${data.taskId} => ${finalStatus}`,
     );
-    await this.actionNotifier.notify('task.result', {
-      taskId: data.taskId,
-      status: finalStatus,
-      exitCode: data.exitCode ?? -1,
-      agentId: agent.id,
-      agentName: agent.name,
-    });
 
     const eventName =
       finalStatus === TaskStatus.COMPLETED
@@ -227,14 +268,32 @@ export class AgentsGateway
     );
   }
 
+  /** Gateway `/ws/agent`: `server` là Namespace — emit client qua `namespace.server.of(...)`. */
   private emitToClientRoom(room: string, event: string, data: unknown) {
     try {
-      this.server.of('/ws/client').to(room).emit(event, data);
+      const root = this.resolveRootServer();
+      if (!root) {
+        this.logger.warn('Socket.IO root server unavailable for client emit');
+        return;
+      }
+      root.of('/ws/client').to(room).emit(event, data);
     } catch (err) {
       this.logger.warn(
         `Failed to emit cross-namespace: ${(err as Error).message}`,
       );
     }
+  }
+
+  private resolveRootServer(): Server | null {
+    const srv = this.server as Server & Namespace;
+    if (typeof srv.of === 'function') {
+      return srv;
+    }
+    const parent = srv.server;
+    if (parent && typeof parent.of === 'function') {
+      return parent;
+    }
+    return null;
   }
 
   emitToAgent(agentId: string, event: string, data: unknown) {

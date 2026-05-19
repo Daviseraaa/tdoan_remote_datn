@@ -1,6 +1,9 @@
-node_modules
-dist
-build
-.env
-*.log
-daemon/
+node_modules/
+dist/
+bin/
+desktop/dist/
+desktop/release/
+desktop/node_modules/
+core/target/
+*.exe
+!.env.example

@@ -41,17 +41,7 @@ export class TasksService {
       },
     });
 
-    await this.taskQueue.add(
-      'execute',
-      { taskId: task.id },
-      {
-        priority: dto.priority ?? 0,
-        attempts: 3,
-        backoff: { type: 'exponential', delay: 5000 },
-        removeOnComplete: 100,
-        removeOnFail: 200,
-      },
-    );
+    await this.enqueueExecute(task.id, dto.priority ?? 0);
 
     await this.prisma.task.update({
       where: { id: task.id },
@@ -110,6 +100,73 @@ export class TasksService {
 
     await this.addLog(id, 'INFO', 'Task cancelled by user');
     return { message: 'Task cancelled' };
+  }
+
+  /** Chạy lại task đã kết thúc — xếp hàng BullMQ và gửi lại agent. */
+  async retry(id: string, userId?: string) {
+    const task = await this.prisma.task.findFirst({
+      where: userId ? { id, userId } : { id },
+    });
+    if (!task) throw new NotFoundException('Task not found');
+
+    const retriable: TaskStatus[] = [
+      TaskStatus.COMPLETED,
+      TaskStatus.FAILED,
+      TaskStatus.TIMEOUT,
+      TaskStatus.CANCELLED,
+    ];
+    if (!retriable.includes(task.status)) {
+      throw new BadRequestException(
+        'Chỉ chạy lại task đã kết thúc (COMPLETED, FAILED, TIMEOUT, CANCELLED)',
+      );
+    }
+
+    await this.prisma.task.update({
+      where: { id },
+      data: {
+        status: TaskStatus.PENDING,
+        result: null,
+        exitCode: null,
+        startedAt: null,
+        completedAt: null,
+        retryCount: { increment: 1 },
+      },
+    });
+
+    await this.enqueueExecute(id, task.priority);
+
+    await this.prisma.task.update({
+      where: { id },
+      data: { status: TaskStatus.QUEUED },
+    });
+
+    await this.addLog(id, 'INFO', 'Task re-queued (manual retry)');
+
+    if (userId) {
+      return this.findOne(id, userId);
+    }
+
+    return this.prisma.task.findUniqueOrThrow({
+      where: { id },
+      include: {
+        agent: { select: { name: true, status: true } },
+        logs: { orderBy: { createdAt: 'asc' } },
+      },
+    });
+  }
+
+  private async enqueueExecute(taskId: string, priority: number) {
+    await this.taskQueue.add(
+      'execute',
+      { taskId },
+      {
+        priority,
+        attempts: 3,
+        backoff: { type: 'exponential', delay: 5000 },
+        removeOnComplete: 100,
+        removeOnFail: 200,
+      },
+    );
   }
 
   async updateTaskStatus(

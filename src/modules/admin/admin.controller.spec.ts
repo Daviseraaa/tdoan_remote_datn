@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { AdminController } from './admin.controller';
 import { AdminService } from './admin.service';
 import { AuditService } from './audit.service';
+import { TasksService } from '../tasks/tasks.service';
 
 describe('AdminController', () => {
   let controller: AdminController;
@@ -22,6 +23,9 @@ describe('AdminController', () => {
     record: jest.fn(),
     list: jest.fn(),
   };
+  const tasksService = {
+    retry: jest.fn(),
+  };
 
   beforeEach(async () => {
     jest.clearAllMocks();
@@ -30,6 +34,7 @@ describe('AdminController', () => {
       providers: [
         { provide: AdminService, useValue: adminService },
         { provide: AuditService, useValue: auditService },
+        { provide: TasksService, useValue: tasksService },
       ],
     }).compile();
 

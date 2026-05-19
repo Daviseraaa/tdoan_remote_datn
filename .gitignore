@@ -24,3 +24,6 @@ dist-ssr
 *.sw?
 
 .env
+
+# Agent core binary (build: `cd agent && npm run build:core` → agent/bin/)
+agent/bin/

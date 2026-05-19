@@ -19,6 +19,7 @@ import {
 import { Roles } from '../../common/decorators/roles.decorator';
 import { AdminService } from './admin.service';
 import { AuditService } from './audit.service';
+import { TasksService } from '../tasks/tasks.service';
 import { CreateUserDto, UpdateUserDto } from './dto/admin-user.dto';
 import { QueryTasksDto } from './dto/query-tasks.dto';
 import { QueryAgentsAdminDto } from './dto/query-agents.dto';
@@ -33,6 +34,7 @@ export class AdminController {
   constructor(
     private readonly admin: AdminService,
     private readonly audit: AuditService,
+    private readonly tasks: TasksService,
   ) {}
 
   @Get('stats')
@@ -162,6 +164,26 @@ export class AdminController {
       actorId: actor.sub,
       actorEmail: actor.email,
       action: 'task.cancel',
+      resource: 'task',
+      resourceId: id,
+      ip,
+    });
+    return res;
+  }
+
+  @Post('tasks/:id/retry')
+  @Throttle({ default: { limit: 60, ttl: 60_000 } })
+  @ApiOperation({ summary: 'Re-run a finished task (Admin)' })
+  async retryTask(
+    @CurrentUser() actor: JwtPayload,
+    @Param('id') id: string,
+    @Ip() ip: string,
+  ) {
+    const res = await this.tasks.retry(id);
+    await this.audit.record({
+      actorId: actor.sub,
+      actorEmail: actor.email,
+      action: 'task.retry',
       resource: 'task',
       resourceId: id,
       ip,

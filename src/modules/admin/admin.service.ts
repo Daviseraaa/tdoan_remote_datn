@@ -19,6 +19,7 @@ import {
 } from '../../common/dto/pagination.dto';
 import { CreateUserDto, UpdateUserDto } from './dto/admin-user.dto';
 import { QueryTasksDto } from './dto/query-tasks.dto';
+import { AgentTelemetryStore } from '../agents/agent-telemetry.store';
 
 const USER_SELECT = {
   id: true,
@@ -32,7 +33,10 @@ const USER_SELECT = {
 
 @Injectable()
 export class AdminService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private telemetry: AgentTelemetryStore,
+  ) {}
 
   async getStats() {
     const [
@@ -96,39 +100,49 @@ export class AdminService {
     };
   }
 
+  /** Bucket 5 phút trong `days` ngày — client lọc 1H / 24H / 7D, không gọi lại API. */
   private async buildTaskTrend(days: number) {
-    const result: Array<{ date: string; completed: number; failed: number }> =
-      [];
+    const BUCKET_MS = 5 * 60 * 1000;
     const now = new Date();
-    for (let i = days - 1; i >= 0; i--) {
-      const start = new Date(now);
-      start.setDate(now.getDate() - i);
-      start.setHours(0, 0, 0, 0);
-      const end = new Date(start);
-      end.setDate(start.getDate() + 1);
+    const rangeStart = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
+    const startMs = Math.floor(rangeStart.getTime() / BUCKET_MS) * BUCKET_MS;
+    const endMs = Math.floor(now.getTime() / BUCKET_MS) * BUCKET_MS;
 
-      const [completed, failed] = await Promise.all([
-        this.prisma.task.count({
-          where: {
-            status: TaskStatus.COMPLETED,
-            completedAt: { gte: start, lt: end },
-          },
-        }),
-        this.prisma.task.count({
-          where: {
-            status: { in: [TaskStatus.FAILED, TaskStatus.TIMEOUT] },
-            completedAt: { gte: start, lt: end },
-          },
-        }),
-      ]);
-
-      result.push({
-        date: `${start.getMonth() + 1}/${start.getDate()}`,
-        completed,
-        failed,
-      });
+    const buckets = new Map<number, { completed: number; failed: number }>();
+    for (let t = startMs; t <= endMs; t += BUCKET_MS) {
+      buckets.set(t, { completed: 0, failed: 0 });
     }
-    return result;
+
+    const tasks = await this.prisma.task.findMany({
+      where: {
+        completedAt: { gte: new Date(startMs), lte: now },
+        status: {
+          in: [TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.TIMEOUT],
+        },
+      },
+      select: { status: true, completedAt: true },
+    });
+
+    for (const task of tasks) {
+      if (!task.completedAt) continue;
+      const key = Math.floor(task.completedAt.getTime() / BUCKET_MS) * BUCKET_MS;
+      const bucket = buckets.get(key);
+      if (!bucket) continue;
+      if (task.status === TaskStatus.COMPLETED) bucket.completed += 1;
+      else bucket.failed += 1;
+    }
+
+    return [...buckets.entries()]
+      .sort(([a], [b]) => a - b)
+      .map(([t, counts]) => {
+        const d = new Date(t);
+        return {
+          at: d.toISOString(),
+          date: `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`,
+          completed: counts.completed,
+          failed: counts.failed,
+        };
+      });
   }
 
   async createUser(dto: CreateUserDto) {
@@ -177,13 +191,17 @@ export class AdminService {
       }),
       this.prisma.agent.count({ where }),
     ]);
-    return new PaginatedResponseDto(data, total, pagination);
+    return new PaginatedResponseDto(
+      this.telemetry.enrichMany(data),
+      total,
+      pagination,
+    );
   }
 
   async getAgentById(id: string) {
     const agent = await this.prisma.agent.findUnique({ where: { id } });
     if (!agent) throw new NotFoundException('Agent not found');
-    return agent;
+    return this.telemetry.enrich(agent);
   }
 
   async deleteAgent(id: string) {

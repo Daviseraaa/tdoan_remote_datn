@@ -135,7 +135,12 @@ export interface AdminStats {
     cancelled: number;
   };
   workflows: { total: number; active: number };
-  taskTrend: Array<{ date: string; completed: number; failed: number }>;
+  taskTrend: Array<{
+    at: string;
+    date: string;
+    completed: number;
+    failed: number;
+  }>;
 }
 
 export interface LoginResponse {

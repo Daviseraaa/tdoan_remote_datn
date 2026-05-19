@@ -41,4 +41,10 @@ export class TasksController {
   cancel(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
     return this.tasksService.cancel(id, user.sub);
   }
+
+  @Post(':id/retry')
+  @ApiOperation({ summary: 'Re-run a finished task' })
+  retry(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
+    return this.tasksService.retry(id, user.sub);
+  }
 }

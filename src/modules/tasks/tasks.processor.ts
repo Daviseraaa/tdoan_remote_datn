@@ -6,7 +6,6 @@ import { TASK_QUEUE, WS_EVENTS } from '../../common/constants/index';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AgentsGateway } from '../agents/agents.gateway';
 import { TasksService } from './tasks.service';
-import { TelegramActionNotifierService } from '../../common/logging/telegram-action-notifier.service';
 
 @Processor(TASK_QUEUE)
 export class TasksProcessor extends WorkerHost {
@@ -16,7 +15,6 @@ export class TasksProcessor extends WorkerHost {
     private prisma: PrismaService,
     private agentsGateway: AgentsGateway,
     private tasksService: TasksService,
-    private readonly actionNotifier: TelegramActionNotifierService,
   ) {
     super();
   }
@@ -47,12 +45,6 @@ export class TasksProcessor extends WorkerHost {
 
     await this.tasksService.updateTaskStatus(taskId, TaskStatus.RUNNING);
     await this.tasksService.addLog(taskId, 'INFO', `Dispatching to agent: ${task.agent.name}`);
-    await this.actionNotifier.notify('task.dispatched', {
-      taskId: task.id,
-      agentId: task.agentId,
-      agentName: task.agent.name,
-      type: task.type,
-    });
 
     this.agentsGateway.emitToAgent(task.agentId, WS_EVENTS.TASK_EXECUTE, {
       taskId: task.id,
@@ -72,11 +64,6 @@ export class TasksProcessor extends WorkerHost {
     } else {
       await this.tasksService.updateTaskStatus(taskId, TaskStatus.TIMEOUT);
       await this.tasksService.addLog(taskId, 'ERROR', 'Task timed out');
-      await this.actionNotifier.notify('task.timeout', {
-        taskId,
-        agentId: task.agentId,
-        agentName: task.agent.name,
-      });
     }
   }
 

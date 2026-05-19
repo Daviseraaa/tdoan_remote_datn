@@ -1,7 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
-import { TelegramActionNotifierService } from '../../common/logging/telegram-action-notifier.service';
 
 export interface AuditEntry {
   actorId?: string | null;
@@ -17,10 +16,7 @@ export interface AuditEntry {
 export class AuditService {
   private readonly logger = new Logger(AuditService.name);
 
-  constructor(
-    private prisma: PrismaService,
-    private readonly actionNotifier: TelegramActionNotifierService,
-  ) {}
+  constructor(private prisma: PrismaService) {}
 
   async record(entry: AuditEntry): Promise<void> {
     try {
@@ -34,14 +30,6 @@ export class AuditService {
           metadata: (entry.metadata ?? null) as Prisma.InputJsonValue,
           ip: entry.ip ?? null,
         },
-      });
-      await this.actionNotifier.notify('admin.action', {
-        action: entry.action,
-        resource: entry.resource,
-        resourceId: entry.resourceId ?? undefined,
-        actorEmail: entry.actorEmail ?? undefined,
-        metadata: entry.metadata ?? undefined,
-        ip: entry.ip ?? undefined,
       });
     } catch (err) {
       this.logger.warn(
