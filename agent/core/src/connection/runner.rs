@@ -59,7 +59,7 @@ fn build_metadata(
         "platform": std::env::consts::OS,
         "arch": std::env::consts::ARCH,
         "ip": snap.ip,
-        "cpuCount": sysinfo::System::new().cpus().len(),
+        "cpuCount": sampler.logical_cpu_count(),
         "totalMemory": snap.ram_total,
         "agentVersion": cfg.agent_version,
         "capabilities": capabilities,

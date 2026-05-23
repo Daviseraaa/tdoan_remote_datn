@@ -25,6 +25,10 @@ import { QueryTasksDto } from './dto/query-tasks.dto';
 import { QueryAgentsAdminDto } from './dto/query-agents.dto';
 import { QueryAuditDto } from './dto/query-audit.dto';
 import { PaginationDto } from '../../common/dto/pagination.dto';
+import {
+  CreateTaskTemplateDto,
+  UpdateTaskTemplateDto,
+} from '../tasks/dto/index';
 
 @ApiTags('Admin')
 @ApiBearerAuth()
@@ -143,6 +147,52 @@ export class AdminController {
   listTasks(@Query() query: QueryTasksDto) {
     this.admin.validateFilters(query);
     return this.admin.listTasks(query);
+  }
+
+  @Get('tasks/templates')
+  @ApiOperation({ summary: 'List all task templates (Admin)' })
+  listTaskTemplates(@Query() query: PaginationDto) {
+    return this.tasks.findAllTemplatesAdmin(query);
+  }
+
+  @Post('tasks/templates')
+  @Throttle({ default: { limit: 60, ttl: 60_000 } })
+  @ApiOperation({ summary: 'Create task template as current admin user' })
+  createTaskTemplate(
+    @CurrentUser() user: JwtPayload,
+    @Body() dto: CreateTaskTemplateDto,
+  ) {
+    return this.tasks.createTemplate(user.sub, dto);
+  }
+
+  @Get('tasks/templates/:id')
+  @ApiOperation({ summary: 'Get task template by id (Admin)' })
+  getTaskTemplate(@Param('id') id: string) {
+    return this.tasks.getTemplateOrThrow(id, '', true);
+  }
+
+  @Patch('tasks/templates/:id')
+  @Throttle({ default: { limit: 60, ttl: 60_000 } })
+  @ApiOperation({ summary: 'Update task template (Admin)' })
+  updateTaskTemplate(
+    @Param('id') id: string,
+    @Body() dto: UpdateTaskTemplateDto,
+  ) {
+    return this.tasks.updateTemplate(id, '', true, dto);
+  }
+
+  @Delete('tasks/templates/:id')
+  @Throttle({ default: { limit: 60, ttl: 60_000 } })
+  @ApiOperation({ summary: 'Delete task template (Admin)' })
+  deleteTaskTemplate(@Param('id') id: string) {
+    return this.tasks.deleteTemplate(id, '', true);
+  }
+
+  @Post('tasks/templates/:id/run')
+  @Throttle({ default: { limit: 60, ttl: 60_000 } })
+  @ApiOperation({ summary: 'Run task from template (Admin, uses template owner context)' })
+  runTaskTemplate(@Param('id') id: string) {
+    return this.tasks.runTemplate(id, '', true);
   }
 
   @Get('tasks/:id')

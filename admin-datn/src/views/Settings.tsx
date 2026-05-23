@@ -17,6 +17,7 @@ import { Pagination } from '@/src/components/Pagination';
 import { useUsersList, useUserMutations } from '@/src/hooks/useUsers';
 import { mapUserToTableRow } from '@/src/lib/mappers';
 import { apiErrorMessage } from '@/src/lib/api';
+import { t } from '@/src/i18n/t';
 
 const PAGE_LIMIT = 20;
 
@@ -101,13 +102,13 @@ export default function Settings() {
       <div className="flex justify-between items-end">
         <div>
           <nav className="flex items-center gap-2 mb-2 text-xs font-bold uppercase tracking-widest text-on-surface-variant opacity-60">
-            <span>Settings</span>
+            <span>{t('settings.title')}</span>
             <ChevronRight size={12} />
-            <span className="text-primary opacity-100">User Management</span>
+            <span className="text-primary opacity-100">{t('settings.breadcrumbUserManagement')}</span>
           </nav>
-          <h2 className="text-4xl font-bold tracking-tight text-on-surface">System Access Control</h2>
+          <h2 className="text-4xl font-bold tracking-tight text-on-surface">{t('settings.accessControl')}</h2>
           <p className="text-on-surface-variant text-body-md mt-1 italic">
-            Manage platform participants, assign granular roles, and audit security sessions.
+            {t('settings.subtitle')}
           </p>
         </div>
         <button
@@ -116,7 +117,7 @@ export default function Settings() {
           className="flex items-center gap-2.5 px-8 py-3.5 bg-primary-container text-on-primary-container rounded-2xl font-bold hover:brightness-110 active:scale-[0.98] transition-all shadow-xl shadow-primary-container/20"
         >
           <UserPlus size={20} />
-          <span>Invite New User</span>
+          <span>{t('settings.inviteUser')}</span>
         </button>
       </div>
 
@@ -127,7 +128,7 @@ export default function Settings() {
       <div className="glass-panel rounded-3xl overflow-hidden shadow-2xl">
         <div className="flex items-center justify-between p-6 border-b border-white/5 bg-white/[0.02]">
           <div className="text-[11px] font-mono text-on-surface-variant uppercase tracking-widest font-bold opacity-60">
-            {total} registered users
+            {t('settings.registeredUsers', { n: total })}
           </div>
         </div>
 
@@ -135,10 +136,10 @@ export default function Settings() {
           <table className="w-full text-left">
             <thead>
               <tr className="bg-white/[0.01] border-b border-white/5">
-                <th className="px-8 py-5 text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-on-surface-variant opacity-60">Identity</th>
-                <th className="px-8 py-5 text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-on-surface-variant opacity-60">Access Role</th>
-                <th className="px-8 py-5 text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-on-surface-variant opacity-60">Status</th>
-                <th className="px-8 py-5 text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-on-surface-variant opacity-60">Last Session</th>
+                <th className="px-8 py-5 text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-on-surface-variant opacity-60">{t('settings.identity')}</th>
+                <th className="px-8 py-5 text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-on-surface-variant opacity-60">{t('settings.accessRole')}</th>
+                <th className="px-8 py-5 text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-on-surface-variant opacity-60">{t('common.status')}</th>
+                <th className="px-8 py-5 text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-on-surface-variant opacity-60">{t('settings.lastSession')}</th>
                 <th className="px-8 py-5 text-right" />
               </tr>
             </thead>
@@ -146,7 +147,7 @@ export default function Settings() {
               {isLoading && (
                 <tr>
                   <td colSpan={5} className="px-8 py-8 text-on-surface-variant">
-                    Loading users…
+                    {t('settings.loadingUsers')}
                   </td>
                 </tr>
               )}
@@ -187,7 +188,7 @@ export default function Settings() {
                           : 'bg-white/5 text-on-surface-variant border border-white/10',
                       )}
                     >
-                      {user.role}
+                      {t(`status.${user.role}` as 'status.ADMIN' | 'status.USER')}
                     </div>
                   </td>
                   <td className="px-8 py-5">
@@ -197,7 +198,7 @@ export default function Settings() {
                         user.status === 'Active' ? 'text-tertiary' : 'text-on-surface-variant opacity-60',
                       )}
                     >
-                      {user.status}
+                      {user.status === 'Active' ? t('common.active') : t('common.disabled')}
                     </div>
                   </td>
                   <td className="px-8 py-5 font-mono text-xs text-on-surface-variant opacity-80">{user.lastSession}</td>
@@ -219,7 +220,7 @@ export default function Settings() {
                           }}
                           className="w-full px-4 py-2.5 text-left text-xs font-bold flex items-center gap-2 hover:bg-white/5"
                         >
-                          <Pencil size={14} /> Edit
+                          <Pencil size={14} /> {t('common.edit')}
                         </button>
                         <button
                           type="button"
@@ -227,7 +228,7 @@ export default function Settings() {
                           className="w-full px-4 py-2.5 text-left text-xs font-bold flex items-center gap-2 hover:bg-white/5"
                         >
                           {user.status === 'Active' ? <UserX size={14} /> : <UserCheck size={14} />}
-                          {user.status === 'Active' ? 'Deactivate' : 'Activate'}
+                          {user.status === 'Active' ? t('settings.deactivate') : t('settings.activate')}
                         </button>
                         <button
                           type="button"
@@ -237,7 +238,7 @@ export default function Settings() {
                           }}
                           className="w-full px-4 py-2.5 text-left text-xs font-bold flex items-center gap-2 hover:bg-error/10 text-error"
                         >
-                          <Trash2 size={14} /> Delete
+                          <Trash2 size={14} /> {t('common.delete')}
                         </button>
                       </div>
                     )}
@@ -259,9 +260,9 @@ export default function Settings() {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {[
-          { label: 'Administrator Ratio', value: '12.5%', sub: 'Target: <15%', icon: Shield, trend: '-2%' },
-          { label: '2FA Compliance', value: '100%', sub: 'Global Policy Active', icon: ShieldCheck, trend: 'SECURE' },
-          { label: 'Invitation Expiry', value: '03', sub: 'Pendings < 24h', icon: Key, trend: '3 NEW' },
+          { label: t('settings.adminRatio'), value: '12.5%', sub: t('settings.adminRatioTarget'), icon: Shield, trend: '-2%' },
+          { label: t('settings.twoFa'), value: '100%', sub: t('settings.twoFaPolicy'), icon: ShieldCheck, trend: t('settings.secure') },
+          { label: t('settings.inviteExpiry'), value: '03', sub: t('settings.pendings24h'), icon: Key, trend: t('settings.newBadge', { n: 3 }) },
         ].map((stat) => (
           <div key={stat.label} className="glass-card p-6 rounded-3xl relative overflow-hidden group">
             <stat.icon
@@ -293,24 +294,24 @@ export default function Settings() {
       {showInvite && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="glass-card rounded-2xl p-8 w-full max-w-md border border-white/10 space-y-4">
-            <h3 className="text-xl font-bold">Invite New User</h3>
+            <h3 className="text-xl font-bold">{t('settings.inviteTitle')}</h3>
             {error && <p className="text-error text-sm">{error}</p>}
             <input
               className="w-full px-4 py-3 rounded-xl bg-surface-container-low border border-white/10"
-              placeholder="Name"
+              placeholder={t('common.name')}
               value={inviteForm.name}
               onChange={(e) => setInviteForm({ ...inviteForm, name: e.target.value })}
             />
             <input
               className="w-full px-4 py-3 rounded-xl bg-surface-container-low border border-white/10"
-              placeholder="Email"
+              placeholder={t('common.email')}
               type="email"
               value={inviteForm.email}
               onChange={(e) => setInviteForm({ ...inviteForm, email: e.target.value })}
             />
             <input
               className="w-full px-4 py-3 rounded-xl bg-surface-container-low border border-white/10"
-              placeholder="Password"
+              placeholder={t('common.password')}
               type="password"
               value={inviteForm.password}
               onChange={(e) => setInviteForm({ ...inviteForm, password: e.target.value })}
@@ -320,15 +321,15 @@ export default function Settings() {
               value={inviteForm.role}
               onChange={(e) => setInviteForm({ ...inviteForm, role: e.target.value as 'ADMIN' | 'USER' })}
             >
-              <option value="USER">USER</option>
-              <option value="ADMIN">ADMIN</option>
+              <option value="USER">{t('status.USER')}</option>
+              <option value="ADMIN">{t('status.ADMIN')}</option>
             </select>
             <div className="flex gap-3 pt-2">
               <button type="button" onClick={() => setShowInvite(false)} className="flex-1 py-3 rounded-xl border border-white/10">
-                Cancel
+                {t('common.cancel')}
               </button>
               <button type="button" onClick={() => void handleInvite()} className="flex-1 py-3 rounded-xl bg-primary text-on-primary font-bold">
-                Create
+                {t('settings.createUser')}
               </button>
             </div>
           </div>
@@ -338,11 +339,11 @@ export default function Settings() {
       {editUser && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="glass-card rounded-2xl p-8 w-full max-w-md border border-white/10 space-y-4">
-            <h3 className="text-xl font-bold">Edit User</h3>
+            <h3 className="text-xl font-bold">{t('settings.editTitle')}</h3>
             {error && <p className="text-error text-sm">{error}</p>}
             <input
               className="w-full px-4 py-3 rounded-xl bg-surface-container-low border border-white/10"
-              placeholder="Name"
+              placeholder={t('common.name')}
               value={editUser.name}
               onChange={(e) => setEditUser({ ...editUser, name: e.target.value })}
             />
@@ -351,15 +352,15 @@ export default function Settings() {
               value={editUser.role}
               onChange={(e) => setEditUser({ ...editUser, role: e.target.value as 'ADMIN' | 'USER' })}
             >
-              <option value="USER">USER</option>
-              <option value="ADMIN">ADMIN</option>
+              <option value="USER">{t('status.USER')}</option>
+              <option value="ADMIN">{t('status.ADMIN')}</option>
             </select>
             <div className="flex gap-3 pt-2">
               <button type="button" onClick={() => setEditUser(null)} className="flex-1 py-3 rounded-xl border border-white/10">
-                Cancel
+                {t('common.cancel')}
               </button>
               <button type="button" onClick={() => void handleSaveEdit()} className="flex-1 py-3 rounded-xl bg-primary text-on-primary font-bold">
-                Save
+                {t('common.save')}
               </button>
             </div>
           </div>
@@ -369,15 +370,15 @@ export default function Settings() {
       {deleteUserId && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="glass-card rounded-2xl p-8 w-full max-w-md border border-white/10 space-y-4">
-            <h3 className="text-xl font-bold">Delete User</h3>
-            <p className="text-on-surface-variant text-sm">This action cannot be undone.</p>
+            <h3 className="text-xl font-bold">{t('settings.deleteTitle')}</h3>
+            <p className="text-on-surface-variant text-sm">{t('settings.cannotUndo')}</p>
             {error && <p className="text-error text-sm">{error}</p>}
             <div className="flex gap-3 pt-2">
               <button type="button" onClick={() => setDeleteUserId(null)} className="flex-1 py-3 rounded-xl border border-white/10">
-                Cancel
+                {t('common.cancel')}
               </button>
               <button type="button" onClick={() => void handleDelete()} className="flex-1 py-3 rounded-xl bg-error text-on-error font-bold">
-                Delete
+                {t('common.delete')}
               </button>
             </div>
           </div>

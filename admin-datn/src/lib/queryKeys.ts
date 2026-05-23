@@ -8,6 +8,10 @@ export const queryKeys = {
   agent: (admin: boolean, id: string) => ['agents', admin, id] as const,
   tasks: (admin: boolean, params: Record<string, unknown>) =>
     ['tasks', admin, params] as const,
+  taskTemplates: (admin: boolean, params: Record<string, unknown>) =>
+    ['task-templates', admin, params] as const,
+  taskTemplate: (admin: boolean, id: string) =>
+    ['task-template', admin, id] as const,
   workflows: (admin: boolean, params: Record<string, unknown>) =>
     ['workflows', admin, params] as const,
   workflow: (id: string) => ['workflow', id] as const,

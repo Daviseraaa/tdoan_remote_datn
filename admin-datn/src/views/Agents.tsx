@@ -1,34 +1,31 @@
-import React, { useState, useMemo, useEffect } from 'react';
+﻿import React, { useState, useMemo, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { 
   Plus, 
   Terminal, 
-  Monitor, 
-  Laptop, 
+  Monitor,
+  Laptop,
+  Globe,
+  Cpu,
+  Database,
+  Clock,
   CheckCircle2, 
   AlertCircle, 
-  Clock, 
   Copy, 
   ArrowRight, 
   RotateCcw, 
-  Send, 
-  ExternalLink, 
   Trash2,
   Filter,
   Users,
-  Activity,
-  Cpu,
-  Database,
-  Globe,
-  HardDrive
 } from 'lucide-react';
+import { AgentCard } from '@/src/components/AgentCard';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@/src/lib/utils';
 import { Pagination } from '@/src/components/Pagination';
 import { useAgentDetail, useAgentsList, useAgentMutations } from '@/src/hooks/useAgents';
 import type { Agent } from '@/src/types/api';
 import { useTasksList } from '@/src/hooks/useTasks';
-import { mapAgentToCard } from '@/src/lib/mappers';
+import { mapAgentToCard, mapAgentToDetails } from '@/src/lib/mappers';
 import {
   clusterFilterLabel,
   filterAgentsByCluster,
@@ -41,13 +38,7 @@ import {
   type AgentStatusFilter,
 } from '@/src/lib/agentFilters';
 import { apiErrorMessage } from '@/src/lib/api';
-import { 
-  ResponsiveContainer, 
-  AreaChart, 
-  Area, 
-  YAxis, 
-  Tooltip 
-} from 'recharts';
+import { t } from '@/src/i18n/t';
 
 const AGENT_OS_OPTIONS = ['Windows 11', 'Windows 10', 'Linux', 'macOS', 'Other'] as const;
 
@@ -64,176 +55,6 @@ function shortAgentId(id: string): string {
   return id.length > 12 ? `${id.slice(0, 8)}…` : id;
 }
 
-type AgentCardProps = {
-  name: string;
-  status: 'ONLINE' | 'BUSY' | 'OFFLINE' | 'IDLE';
-  hostname: string;
-  os: string;
-  ip: string;
-  activeTask: 'Yes' | 'No';
-  cpuPercent: number;
-  cpuLabel: string;
-  showCpuBar: boolean;
-  ramPercent: number;
-  ramLabel: string;
-  showRamBar: boolean;
-  lastSeen: string;
-  icon: React.ComponentType<{ size?: number; className?: string }>;
-  onClick: () => void;
-};
-
-const AgentCard = ({
-  name,
-  status,
-  hostname,
-  os,
-  ip,
-  activeTask,
-  cpuPercent,
-  cpuLabel,
-  showCpuBar,
-  ramPercent,
-  ramLabel,
-  showRamBar,
-  lastSeen,
-  icon: Icon,
-  onClick,
-}: AgentCardProps) => (
-  <motion.div
-    layout
-    initial={{ opacity: 0, y: 20 }}
-    animate={{ opacity: 1, y: 0 }}
-    whileHover={{ y: -4, scale: 1.01 }}
-    onClick={onClick}
-    className="glass-card p-6 rounded-2xl group cursor-pointer transition-all duration-300 border border-white/5 hover:border-primary/40 relative overflow-hidden flex flex-col h-full shadow-lg hover:shadow-primary/5"
-  >
-    <motion.div className="flex justify-between items-start mb-6">
-      <motion.div className="flex gap-4 min-w-0">
-        <motion.div className="w-14 h-14 shrink-0 rounded-2xl bg-surface-container-highest flex items-center justify-center text-on-surface-variant group-hover:text-primary transition-colors ring-1 ring-white/5 group-hover:ring-primary/20 shadow-inner">
-          <Icon size={28} />
-        </motion.div>
-        <motion.div className="space-y-1 min-w-0">
-          <h4 className="text-xl font-bold text-on-surface group-hover:text-primary transition-colors leading-tight truncate">
-            {name}
-          </h4>
-          <p className="text-[11px] font-mono text-on-surface-variant/60 truncate" title={hostname}>
-            {hostname}
-          </p>
-        </motion.div>
-      </motion.div>
-      <motion.div
-        className={cn(
-          'shrink-0 px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 border',
-          status === 'ONLINE'
-            ? 'bg-tertiary/10 text-tertiary border-tertiary/20'
-            : status === 'BUSY'
-              ? 'bg-primary/10 text-primary border-primary/20'
-              : 'bg-white/5 text-on-surface-variant border-white/10',
-        )}
-      >
-        <motion.div
-          className={cn(
-            'w-1.5 h-1.5 rounded-full',
-            status === 'ONLINE'
-              ? 'bg-tertiary shadow-[0_0_8px_#68f5b8]'
-              : status === 'BUSY'
-                ? 'bg-primary animate-pulse shadow-[0_0_8px_#a4e6ff]'
-                : 'bg-on-surface-variant/40',
-          )}
-        />
-        {status}
-      </motion.div>
-    </motion.div>
-
-    <div className="space-y-4 flex-1">
-      <motion.div className="flex justify-between items-center text-xs">
-        <span className="text-on-surface-variant/70 font-medium">Active Task</span>
-        <span
-          className={cn(
-            'font-bold py-1 px-2 rounded-lg border text-[10px] uppercase tracking-wider',
-            activeTask === 'Yes'
-              ? 'bg-primary/10 text-primary border-primary/20'
-              : 'bg-white/5 text-on-surface-variant/60 border-white/10',
-          )}
-        >
-          {activeTask}
-        </span>
-      </motion.div>
-
-      <motion.div className="grid grid-cols-2 gap-4">
-        <motion.div className="space-y-1">
-          <motion.div className="flex items-center gap-1.5 opacity-60">
-            <Cpu size={12} className="text-primary" />
-            <span className="text-[9px] font-mono font-bold uppercase tracking-widest">CPU</span>
-          </motion.div>
-          <motion.div className="text-sm font-bold text-on-surface font-mono">{cpuLabel}</motion.div>
-          {showCpuBar ? (
-            <motion.div className="h-1 w-full bg-white/5 rounded-full overflow-hidden">
-              <motion.div
-                className={cn(
-                  'h-full rounded-full transition-all duration-500',
-                  cpuPercent > 80 ? 'bg-error' : cpuPercent > 50 ? 'bg-primary' : 'bg-tertiary',
-                )}
-                style={{ width: `${cpuPercent}%` }}
-              />
-            </motion.div>
-          ) : null}
-        </motion.div>
-        <motion.div className="space-y-1">
-          <motion.div className="flex items-center gap-1.5 opacity-60">
-            <Database size={12} className="text-tertiary" />
-            <span className="text-[9px] font-mono font-bold uppercase tracking-widest">RAM</span>
-          </motion.div>
-          <motion.div className="text-sm font-bold text-on-surface font-mono">{ramLabel}</motion.div>
-          {showRamBar ? (
-            <motion.div className="h-1 w-full bg-white/5 rounded-full overflow-hidden">
-              <motion.div
-                className="h-full bg-tertiary rounded-full transition-all duration-500"
-                style={{ width: `${ramPercent}%` }}
-              />
-            </motion.div>
-          ) : null}
-        </motion.div>
-      </motion.div>
-
-      <motion.div className="grid grid-cols-2 gap-4 py-2 border-y border-white/5">
-        <motion.div className="space-y-1 min-w-0">
-          <motion.div className="flex items-center gap-1.5 opacity-60">
-            <Monitor size={12} className="text-primary" />
-            <span className="text-[9px] font-mono font-bold uppercase tracking-widest">OS</span>
-          </motion.div>
-          <motion.div className="text-sm font-medium text-on-surface truncate" title={os}>
-            {os}
-          </motion.div>
-        </motion.div>
-        <motion.div className="space-y-1 min-w-0">
-          <motion.div className="flex items-center gap-1.5 opacity-60">
-            <Globe size={12} className="text-tertiary" />
-            <span className="text-[9px] font-mono font-bold uppercase tracking-widest">IP</span>
-          </motion.div>
-          <motion.div className="text-sm font-medium text-on-surface font-mono truncate" title={ip}>
-            {ip}
-          </motion.div>
-        </motion.div>
-      </motion.div>
-    </div>
-
-    <motion.div className="mt-6 pt-5 border-t border-white/5 flex justify-between items-center text-[10px] font-mono tracking-[0.1em] text-on-surface-variant/50">
-      <motion.div className="flex items-center gap-2 min-w-0">
-        <Clock size={12} className="opacity-60 shrink-0" />
-        <span className="truncate">
-          <span className="uppercase tracking-wider text-on-surface-variant/40 mr-1.5">Last seen</span>
-          {lastSeen}
-        </span>
-      </motion.div>
-      <motion.div className="flex items-center gap-1.5 text-primary font-bold opacity-0 group-hover:opacity-100 transition-all translate-x-2 group-hover:translate-x-0 shrink-0">
-        <span>Manage</span>
-        <ArrowRight size={12} />
-      </motion.div>
-    </motion.div>
-  </motion.div>
-);
-
 export default function Agents() {
   const [selectedAgent, setSelectedAgent] = useState<any>(null);
   const [showDecommissionConfirm, setShowDecommissionConfirm] = useState(false);
@@ -241,17 +62,6 @@ export default function Agents() {
   const [regStep, setRegStep] = useState(1);
   const [regData, setRegData] = useState(defaultRegForm);
   const [regCreated, setRegCreated] = useState<Agent | null>(null);
-
-  // Mock performance data for charts
-  const performanceData = useMemo(() => {
-    return Array.from({ length: 20 }).map((_, i) => ({
-      time: i,
-      cpu: 30 + Math.random() * 40,
-      memory: 45 + Math.random() * 20,
-      network: 10 + Math.random() * 80,
-      disk: 5 + Math.random() * 15
-    }));
-  }, [selectedAgent]);
 
   const [searchParams] = useSearchParams();
   const [page, setPage] = useState(1);
@@ -320,6 +130,11 @@ export default function Agents() {
   const activeAgentKey =
     selectedAgent?._raw?.id ? revealedKeys[selectedAgent._raw.id] : undefined;
 
+  const agentDetails = useMemo(
+    () => (selectedAgent?._raw ? mapAgentToDetails(selectedAgent._raw) : null),
+    [selectedAgent],
+  );
+
   const regAgentKey = regCreated?.id
     ? (revealedKeys[regCreated.id] ?? regCreated.agentKey)
     : undefined;
@@ -364,7 +179,7 @@ export default function Agents() {
     try {
       await navigator.clipboard.writeText(regAgentKey);
     } catch {
-      setApiError('Could not copy to clipboard.');
+      setApiError(t('common.couldNotCopy'));
     }
   };
 
@@ -398,7 +213,7 @@ export default function Agents() {
     try {
       await navigator.clipboard.writeText(activeAgentKey);
     } catch {
-      setApiError('Could not copy to clipboard.');
+      setApiError(t('common.couldNotCopy'));
     }
   };
 
@@ -407,9 +222,11 @@ export default function Agents() {
       {/* Page Header */}
       <div className="mb-10 flex justify-between items-end">
         <div>
-          <h2 className="text-4xl font-bold tracking-tight text-on-surface">Agent Fleet</h2>
+          <h2 className="text-4xl font-bold tracking-tight text-on-surface">{t('agents.fleetTitle')}</h2>
           <p className="text-on-surface-variant text-body-md mt-1">
-            Monitor and manage {displayTotal} compute instance{displayTotal === 1 ? '' : 's'}
+            {displayTotal === 1
+              ? t('agents.fleetSubtitleOne')
+              : t('agents.fleetSubtitle', { count: displayTotal })}
             {clusterFilter !== 'all' ? ` (${clusterFilterLabel(clusterFilter)})` : ''}.
           </p>
         </div>
@@ -420,7 +237,7 @@ export default function Agents() {
              className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-white/10 hover:bg-white/5 transition-all text-sm font-bold tracking-tight"
            >
              <Filter size={16} className="text-on-surface-variant" />
-             Status: {statusFilterLabel(statusFilter)}
+             {t('filters.statusLabel', { value: statusFilterLabel(statusFilter) })}
            </button>
            <button
              type="button"
@@ -428,7 +245,7 @@ export default function Agents() {
              className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-white/10 hover:bg-white/5 transition-all text-sm font-bold tracking-tight"
            >
              <Users size={16} className="text-on-surface-variant" />
-             Cluster: {clusterFilterLabel(clusterFilter)}
+             {t('filters.clusterLabel', { value: clusterFilterLabel(clusterFilter) })}
            </button>
         </div>
       </div>
@@ -436,13 +253,13 @@ export default function Agents() {
        {/* Agent Grid */}
        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
           {isLoading && (
-            <p className="text-on-surface-variant col-span-3">Loading agents…</p>
+            <p className="text-on-surface-variant col-span-3">{t('agents.loading')}</p>
           )}
           {!isLoading && agents.length === 0 && (
             <p className="text-on-surface-variant col-span-3">
               {statusFilter !== 'all' || clusterFilter !== 'all'
-                ? 'No agents match the current filters.'
-                : 'No agents registered yet.'}
+                ? t('agents.noMatch')
+                : t('agents.noRegistered')}
             </p>
           )}
           {agents.map((agent) => (
@@ -470,9 +287,9 @@ export default function Agents() {
           <div className="max-w-2xl">
             <div className="flex items-center gap-3 mb-3">
               <Terminal className="text-primary" size={24} />
-              <h3 className="text-2xl font-bold">Quick Registration</h3>
+              <h3 className="text-2xl font-bold">{t('agents.quickRegistration')}</h3>
             </div>
-            <p className="text-on-surface-variant text-body-md leading-relaxed mb-6">Scale your agent fleet in seconds. Run this installation script on your remote host to connect it to the DATN Console ecosystem automatically.</p>
+            <p className="text-on-surface-variant text-body-md leading-relaxed mb-6">{t('agents.quickRegistrationDesc')}</p>
             <div className="bg-surface-container-lowest/80 rounded-xl border border-white/5 p-4 flex items-center gap-4 group/box ring-1 ring-transparent hover:ring-primary/20 transition-all">
               <code className="font-mono text-xs text-primary flex-1 truncate">curl -sSL https://get.datn.io/install.sh | bash -s -- --token=eyJhbGciOiJIUzI1NiI...</code>
               <button className="p-2.5 bg-white/5 hover:bg-white/10 rounded-lg text-on-surface-variant transition-all hover:text-primary">
@@ -487,7 +304,7 @@ export default function Agents() {
               className="px-10 py-5 bg-primary text-on-primary rounded-2xl font-bold text-lg shadow-2xl shadow-primary/30 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center gap-3"
              >
                <Plus size={24} />
-               Register New Agent
+               {t('agents.registerNew')}
              </button>
           </div>
        </section>
@@ -518,86 +335,67 @@ export default function Agents() {
                   >
                     <ArrowRight size={20} />
                   </button>
-                  <h3 className="text-2xl font-bold">Agent Details</h3>
-                </div>
-                <div className="flex items-center gap-2 px-3 py-1 bg-tertiary/10 rounded-full border border-tertiary/20">
-                   <CheckCircle2 size={14} className="text-tertiary" />
-                   <span className="font-mono text-[10px] font-bold text-tertiary uppercase tracking-tighter">Verified</span>
+                  <div className="min-w-0">
+                    <h3 className="text-2xl font-bold truncate">{selectedAgent.name}</h3>
+                    <p className="text-xs text-on-surface-variant font-mono mt-0.5">
+                      {t(`status.${selectedAgent.status}` as 'status.ONLINE')} · {t('time.lastSeenShort', { time: selectedAgent.lastSeen })}
+                    </p>
+                  </div>
                 </div>
               </div>
 
               <div className="flex-1 overflow-y-auto p-10 space-y-10 custom-scrollbar">
-                {/* Stats Grid */}
-                <div className="grid grid-cols-2 gap-4">
-                  {[
-                    { label: 'Uptime', value: '12d 04h', color: 'text-on-surface' },
-                    { label: 'Success Rate', value: '99.8%', color: 'text-tertiary' },
-                    { label: 'Latency', value: '42ms', color: 'text-primary' },
-                    { label: 'Memory', value: '1.2 / 8GB', color: 'text-on-surface' },
-                  ].map((stat) => (
-                    <div key={stat.label} className="bg-surface-container-high/50 p-5 rounded-2xl border border-white/5 group hover:border-primary/20 transition-all">
-                      <p className="text-[10px] font-mono text-on-surface-variant uppercase tracking-widest mb-1 opacity-60">{stat.label}</p>
-                      <p className={cn("text-xl font-bold", stat.color)}>{stat.value}</p>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Performance Metrics */}
-                <div className="space-y-6">
-                  <div className="flex justify-between items-center px-1">
-                    <h4 className="text-[10px] font-mono text-primary font-bold uppercase tracking-[0.2em]">Telemetry Feed (1H)</h4>
-                    <Activity size={14} className="text-primary/50" />
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-4">
-                    {[
-                      { label: 'CPU Usage', key: 'cpu', icon: Cpu, color: '#a4e6ff', unit: '%' },
-                      { label: 'RAM Utility', key: 'memory', icon: Database, color: '#68f5b8', unit: '%' },
-                      { label: 'Net Throughput', key: 'network', icon: Globe, color: '#d0bcff', unit: 'MB/s' },
-                      { label: 'Disk I/O', key: 'disk', icon: HardDrive, color: '#facc15', unit: 'OPS' },
-                    ].map((metric) => (
-                      <div key={metric.label} className="bg-surface-container-low border border-white/5 rounded-2xl p-4 space-y-3">
-                        <div className="flex justify-between items-center">
-                          <div className="flex items-center gap-2">
-                            <metric.icon size={12} className="text-on-surface-variant/60" />
-                            <span className="text-[9px] font-bold text-on-surface-variant uppercase tracking-widest">{metric.label}</span>
+                {agentDetails ? (
+                  <motion.div className="space-y-3">
+                    <h4 className="text-[10px] font-mono text-primary font-bold uppercase tracking-[0.2em] px-1">
+                      {t('agents.machineInfo')}
+                    </h4>
+                    <div className="bg-surface-container-high/50 rounded-2xl border border-white/5 divide-y divide-white/5">
+                      {(
+                        [
+                          { label: t('common.hostname'), value: agentDetails.hostname, icon: Monitor },
+                          { label: t('common.os'), value: agentDetails.os, icon: Laptop },
+                          { label: t('common.ip'), value: agentDetails.ip, icon: Globe },
+                          { label: t('common.cpu'), value: agentDetails.cpu, icon: Cpu },
+                          { label: t('common.ram'), value: agentDetails.ram, icon: Database },
+                        ] as const
+                      ).map((row) => (
+                        <div
+                          key={row.label}
+                          className="flex items-center justify-between gap-4 px-5 py-4"
+                        >
+                          <div className="flex items-center gap-2 text-on-surface-variant shrink-0">
+                            <row.icon size={14} className="opacity-60" />
+                            <span className="text-[10px] font-mono font-bold uppercase tracking-widest">
+                              {row.label}
+                            </span>
                           </div>
-                          <span className="text-[10px] font-mono font-bold" style={{ color: metric.color }}>
-                            {performanceData[performanceData.length - 1][metric.key as keyof typeof performanceData[0]].toFixed(1)}{metric.unit}
+                          <span
+                            className={cn(
+                              'text-sm font-medium text-on-surface text-right break-all',
+                              row.label === t('common.ip') || row.label === t('common.cpu') || row.label === t('common.ram')
+                                ? 'font-mono'
+                                : '',
+                            )}
+                            title={row.value}
+                          >
+                            {row.value}
                           </span>
                         </div>
-                        <div className="h-16 w-full">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <AreaChart data={performanceData}>
-                              <defs>
-                                <linearGradient id={`gradient-${metric.key}`} x1="0" y1="0" x2="0" y2="1">
-                                  <stop offset="5%" stopColor={metric.color} stopOpacity={0.3}/>
-                                  <stop offset="95%" stopColor={metric.color} stopOpacity={0}/>
-                                </linearGradient>
-                              </defs>
-                              <Area 
-                                type="monotone" 
-                                dataKey={metric.key} 
-                                stroke={metric.color} 
-                                fillOpacity={1} 
-                                fill={`url(#gradient-${metric.key})`} 
-                                strokeWidth={2}
-                                isAnimationActive={false}
-                              />
-                            </AreaChart>
-                          </ResponsiveContainer>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                      ))}
+                    </div>
+                    <p className="text-[10px] text-on-surface-variant/50 px-1 italic">
+                      {t('agents.machineInfoHint')}
+                    </p>
+                  </motion.div>
+                ) : null}
 
                 {/* Secret Key */}
                 <div className="space-y-3">
-                  <h4 className="text-[10px] font-mono text-primary font-bold uppercase tracking-[0.2em] px-1">Agent Secret Key</h4>
+                  <h4 className="text-[10px] font-mono text-primary font-bold uppercase tracking-[0.2em] px-1">{t('agents.agentSecretKey')}</h4>
                   <div className="bg-surface-container-lowest border border-white/5 rounded-2xl p-5 space-y-3">
                     <p className="font-mono text-xs text-on-surface break-all">
-                      {activeAgentKey ?? 'Regenerate to reveal a new key (shown once).'}
+                      {activeAgentKey ?? t('agents.regenerateHint')}
                     </p>
                     <div className="flex gap-2">
                       <button
@@ -607,7 +405,7 @@ export default function Agents() {
                         className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-white/5 hover:bg-white/10 rounded-xl text-xs font-bold font-mono disabled:opacity-30"
                       >
                         <Copy size={16} />
-                        COPY
+                        {t('common.copy')}
                       </button>
                       <button
                         type="button"
@@ -616,73 +414,9 @@ export default function Agents() {
                         className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-primary/20 text-primary hover:bg-primary/30 rounded-xl text-xs font-bold disabled:opacity-30"
                       >
                         <RotateCcw size={16} className={regenerateKey.isPending ? 'animate-spin' : ''} />
-                        Regenerate
+                        {t('agents.regenerate')}
                       </button>
                     </div>
-                  </div>
-                </div>
-
-                {/* Live Logs */}
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center px-1">
-                    <h4 className="text-[10px] font-mono text-primary font-bold uppercase tracking-[0.2em]">Live Agent Logs</h4>
-                    <div className="flex items-center gap-1.5 animate-pulse">
-                      <div className="w-1 h-1 rounded-full bg-tertiary" />
-                      <span className="text-[9px] font-mono text-tertiary font-bold tracking-tight">LIVE</span>
-                    </div>
-                  </div>
-                  <div className="bg-surface-container-lowest border border-white/5 rounded-2xl p-6 font-mono text-[11px] leading-relaxed h-48 overflow-y-auto custom-scrollbar space-y-2">
-                    <div className="flex gap-3">
-                      <span className="text-on-surface-variant opacity-40">[14:32:01]</span>
-                      <span className="text-tertiary font-bold">INFO</span>
-                      <span className="text-on-surface-variant/70">Socket connection established with main cluster.</span>
-                    </div>
-                    <div className="flex gap-3">
-                      <span className="text-on-surface-variant opacity-40">[14:32:05]</span>
-                      <span className="text-primary font-bold">TASK</span>
-                      <span className="text-on-surface-variant/70">Pulled payload for task: <span className="text-on-surface font-bold">{selectedAgent?.task || 'IDLE'}</span></span>
-                    </div>
-                    <div className="flex gap-3">
-                      <span className="text-on-surface-variant opacity-40">[14:32:12]</span>
-                      <span className="text-tertiary font-bold">INFO</span>
-                      <span className="text-on-surface-variant/70">Allocating 480MB VRAM for operation stability.</span>
-                    </div>
-                    <div className="flex gap-3">
-                      <span className="text-on-surface-variant opacity-40">[14:32:45]</span>
-                      <span className={cn("font-bold", selectedAgent?.status === 'BUSY' ? "text-primary" : "text-tertiary")}>
-                        {selectedAgent?.status === 'BUSY' ? 'BUSY' : 'IDLE'}
-                      </span>
-                      <span className="text-on-surface-variant/70">
-                         {selectedAgent?.status === 'BUSY' ? 'Processing batch chunks [102/400]...' : 'Awaiting next execution window...'}
-                      </span>
-                    </div>
-                    <div className="flex gap-3">
-                      <span className="text-on-surface-variant opacity-40">[14:35:10]</span>
-                      <span className="text-on-surface-variant/40">Keep-alive heartbeat sent.</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Actions */}
-                <div className="space-y-4">
-                  <h4 className="text-[10px] font-mono text-primary font-bold uppercase tracking-[0.2em] px-1">Quick Actions</h4>
-                  <div className="space-y-3">
-                    {[
-                      { label: 'Force Restart Session', icon: RotateCcw },
-                      { label: 'Send Ad-hoc Task', icon: Send },
-                      { label: 'Open Linked Automation', icon: ExternalLink },
-                    ].map((action) => (
-                      <button 
-                        key={action.label} 
-                        className="w-full flex items-center justify-between group/item p-5 bg-white/2 hover:bg-white/5 rounded-2xl border border-white/5 transition-all text-sm font-semibold"
-                      >
-                         <div className="flex items-center gap-4">
-                           <action.icon size={18} className="text-primary group-hover/item:scale-110 transition-transform" />
-                           {action.label}
-                         </div>
-                         <ArrowRight size={16} className="text-on-surface-variant opacity-0 group-hover/item:opacity-100 group-hover/item:translate-x-1 transition-all" />
-                      </button>
-                    ))}
                   </div>
                 </div>
 
@@ -693,7 +427,7 @@ export default function Agents() {
                     className="w-full p-5 bg-error-container/10 hover:bg-error-container/20 border border-error/20 rounded-2xl flex items-center justify-center gap-3 text-error transition-all group/delete"
                    >
                      <Trash2 size={20} className="group-hover/delete:rotate-12 transition-transform" />
-                     <span className="font-bold uppercase tracking-widest text-xs">Revoke & Decommission Agent</span>
+                     <span className="font-bold uppercase tracking-widest text-xs">{t('agents.revokeDecommission')}</span>
                    </button>
                 </div>
               </div>
@@ -719,11 +453,11 @@ export default function Agents() {
                     <div className="w-16 h-16 rounded-2xl bg-error/10 flex items-center justify-center text-error mb-6">
                       <AlertCircle size={32} />
                     </div>
-                    <h3 className="text-2xl font-bold text-on-surface mb-2">Critical Action</h3>
+                    <h3 className="text-2xl font-bold text-on-surface mb-2">{t('agents.criticalAction')}</h3>
                     <p className="text-on-surface-variant text-sm leading-relaxed mb-8">
-                      You are about to decommission <span className="text-on-surface font-bold">"{selectedAgent?.name}"</span>. 
-                      This action will revoke all security tokens, terminate active sessions, and wipe local workspace caches. 
-                      <span className="block mt-2 font-bold text-error italic">This process is irreversible.</span>
+                      {t('agents.decommissionConfirm', { name: selectedAgent?.name ?? '' })}{' '}
+                      {t('agents.decommissionWarning')}{' '}
+                      <span className="block mt-2 font-bold text-error italic">{t('common.irreversible')}</span>
                     </p>
                     
                     <div className="flex flex-col gap-3">
@@ -731,13 +465,13 @@ export default function Agents() {
                         onClick={handleDeleteAgent}
                         className="w-full py-4 bg-error text-on-error rounded-xl font-bold hover:brightness-110 active:scale-[0.98] transition-all"
                       >
-                        CONFIRM DECOMMISSION
+                        {t('agents.confirmDecommission')}
                       </button>
                       <button 
                         onClick={() => setShowDecommissionConfirm(false)}
                         className="w-full py-4 bg-white/5 hover:bg-white/10 text-on-surface-variant rounded-xl font-bold border border-white/10 transition-all text-sm uppercase tracking-widest"
                       >
-                        Cancel
+                        {t('common.cancel')}
                       </button>
                     </div>
                   </motion.div>
@@ -778,9 +512,9 @@ export default function Agents() {
                <div className="p-12">
                  <div className="flex justify-between items-start mb-10">
                    <div>
-                     <span className="text-[10px] font-mono font-bold text-primary uppercase tracking-[0.3em]">Step 0{regStep} / 03</span>
+                     <span className="text-[10px] font-mono font-bold text-primary uppercase tracking-[0.3em]">{t('agents.step', { n: regStep })}</span>
                      <h3 className="text-3xl font-bold text-on-surface mt-2">
-                       {regStep === 1 ? 'Identify Your Agent' : regStep === 2 ? 'Establish Connection' : 'Final Configuration'}
+                       {regStep === 1 ? t('agents.step1Title') : regStep === 2 ? t('agents.step2Title') : t('agents.step3Title')}
                      </h3>
                    </div>
                    <button 
@@ -799,21 +533,21 @@ export default function Agents() {
                        className="space-y-8"
                      >
                        <div className="space-y-3">
-                         <label className="text-xs font-mono font-bold text-on-surface-variant uppercase tracking-widest ml-1">Tên agent</label>
+                         <label className="text-lg font-mono font-bold text-on-surface-variant uppercase tracking-widest ml-1">{t('agents.agentName')}</label>
                          <input 
                            type="text"
                            value={regData.name}
                            onChange={(e) => setRegData({...regData, name: e.target.value})}
-                           placeholder="e.g. Máy làm việc phòng IT"
+                           placeholder={t('agents.agentNamePlaceholder')}
                            className="w-full bg-surface-container-highest border border-white/5 rounded-2xl p-5 text-lg font-bold focus:outline-none focus:border-primary/40 focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-on-surface-variant/20"
                          />
                          <p className="text-[10px] text-on-surface-variant/50 ml-1 italic">
-                           Tên hiển thị trên console — hostname thật do agent gửi khi kết nối.
+                           {t('agents.agentNameHint')}
                          </p>
                        </div>
                        <div className="space-y-3">
-                         <label className="text-xs font-mono font-bold text-on-surface-variant uppercase tracking-widest ml-1">
-                           Hệ điều hành
+                         <label className="text-lg font-mono font-bold text-on-surface-variant uppercase tracking-widest ml-1">
+                           {t('common.os')}
                          </label>
                          <select
                            value={regData.os}
@@ -841,11 +575,10 @@ export default function Agents() {
                             <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-on-primary">
                               <Globe size={20} />
                             </div>
-                            <h4 className="font-bold text-on-surface">Secure Connection Token</h4>
+                            <h4 className="font-bold text-on-surface">{t('agents.secureToken')}</h4>
                          </div>
                          <p className="text-sm text-on-surface-variant leading-relaxed mb-6">
-                           Dán <b>agentKey</b> vào cấu hình agent (tray → Cài đặt hoặc{' '}
-                           <code className="text-primary">agent.env</code>), rồi khởi động lại dịch vụ.
+                           {t('agents.step2KeyHelp')}
                            {regCreated?.id ? (
                              <>
                                {' '}
@@ -858,7 +591,7 @@ export default function Agents() {
                          </p>
                          <div className="bg-surface-container-lowest border border-white/5 rounded-2xl p-5 flex items-center justify-between group/token">
                             <code className="font-mono text-xs text-primary truncate mr-4 tracking-widest">
-                              {regAgentKey ?? '—'}
+                              {regAgentKey ?? t('common.emDash')}
                             </code>
                             <button
                               type="button"
@@ -867,7 +600,7 @@ export default function Agents() {
                               className="flex items-center gap-2 text-primary font-bold font-mono text-xs hover:brightness-125 shrink-0 disabled:opacity-40"
                             >
                                <Copy size={16} />
-                               COPY
+                               {t('common.copy')}
                             </button>
                          </div>
                        </div>
@@ -896,22 +629,22 @@ export default function Agents() {
                          <div>
                            <h4 className="font-bold text-on-surface">
                              {isAgentConnected(regAgentSnapshot?.status)
-                               ? 'Agent đã kết nối'
-                               : 'Chưa thấy agent online'}
+                               ? t('agents.connectedTitle')
+                               : t('agents.notConnectedTitle')}
                            </h4>
                            <p className="text-sm text-on-surface-variant mt-1 leading-relaxed">
                              {isAgentConnected(regAgentSnapshot?.status)
-                               ? 'Socket agent đã xác thực với server. Có thể giao task.'
-                               : 'Đang chờ agent chạy với agentKey đúng. Trang tự làm mới mỗi 3 giây.'}
+                               ? t('agents.connectedDesc')
+                               : t('agents.notConnectedDesc')}
                            </p>
                          </div>
                        </motion.div>
 
                        <div className="bg-surface-container-high/50 rounded-3xl p-8 border border-white/5">
-                         <h4 className="font-bold mb-4">Thông tin thực tế</h4>
+                         <h4 className="font-bold mb-4">{t('agents.realInfo')}</h4>
                          <div className="space-y-3 text-sm">
                            <div className="flex justify-between border-b border-white/5 pb-2 gap-4">
-                             <span className="text-on-surface-variant shrink-0">Trạng thái</span>
+                             <span className="text-on-surface-variant shrink-0">{t('common.status')}</span>
                              <span
                                className={cn(
                                  'font-mono font-bold uppercase',
@@ -924,42 +657,42 @@ export default function Agents() {
                              </span>
                            </div>
                            <div className="flex justify-between border-b border-white/5 pb-2 gap-4">
-                             <span className="text-on-surface-variant shrink-0">Agent ID</span>
+                             <span className="text-on-surface-variant shrink-0">{t('agents.agentId')}</span>
                              <span className="text-primary font-mono text-right break-all">
-                               {regCreated?.id ?? '—'}
+                               {regCreated?.id ?? t('common.emDash')}
                              </span>
                            </div>
                            <div className="flex justify-between border-b border-white/5 pb-2 gap-4">
-                             <span className="text-on-surface-variant shrink-0">Tên</span>
-                             <span className="text-on-surface text-right">{regAgentSnapshot?.name ?? '—'}</span>
+                             <span className="text-on-surface-variant shrink-0">{t('agents.displayNameLabel')}</span>
+                             <span className="text-on-surface text-right">{regAgentSnapshot?.name ?? t('common.emDash')}</span>
                            </div>
                            <div className="flex justify-between border-b border-white/5 pb-2 gap-4">
-                             <span className="text-on-surface-variant shrink-0">OS</span>
+                             <span className="text-on-surface-variant shrink-0">{t('common.os')}</span>
                              <span className="text-on-surface text-right">
-                               {regAgentSnapshot?.os ?? regData.os ?? '—'}
+                               {regAgentSnapshot?.os ?? regData.os ?? t('common.emDash')}
                              </span>
                            </div>
                            <div className="flex justify-between border-b border-white/5 pb-2 gap-4">
-                             <span className="text-on-surface-variant shrink-0">Hostname</span>
+                             <span className="text-on-surface-variant shrink-0">{t('common.hostname')}</span>
                              <span className="text-on-surface font-mono text-right">
-                               {regAgentSnapshot?.hostname?.trim() || '—'}
+                               {regAgentSnapshot?.hostname?.trim() || t('common.emDash')}
                              </span>
                            </div>
                            <div className="flex justify-between border-b border-white/5 pb-2 gap-4">
-                             <span className="text-on-surface-variant shrink-0">IP</span>
+                             <span className="text-on-surface-variant shrink-0">{t('common.ip')}</span>
                              <span className="text-on-surface font-mono text-right">
-                               {regAgentSnapshot?.ip?.trim() || '—'}
+                               {regAgentSnapshot?.ip?.trim() || t('common.emDash')}
                              </span>
                            </div>
                            <div className="flex justify-between gap-4">
-                             <span className="text-on-surface-variant shrink-0">Lần thấy gần nhất</span>
+                             <span className="text-on-surface-variant shrink-0">{t('time.lastSeen')}</span>
                              <span className="text-on-surface text-right">
                                {regAgentSnapshot?.lastSeenAt || regAgentSnapshot?.lastHeartbeatAt
                                  ? new Date(
                                      regAgentSnapshot.lastSeenAt ??
                                        regAgentSnapshot.lastHeartbeatAt!,
                                    ).toLocaleString()
-                                 : '—'}
+                                 : t('common.emDash')}
                              </span>
                            </div>
                          </div>
@@ -979,7 +712,7 @@ export default function Agents() {
                        onClick={() => setRegStep(2)}
                        className="flex-1 py-5 bg-white/5 border border-white/10 text-on-surface rounded-2xl font-bold hover:bg-white/10 transition-all"
                      >
-                       XEM LẠI KEY
+                       {t('agents.reviewKey')}
                      </button>
                    ) : null}
                    <button
@@ -1001,10 +734,10 @@ export default function Agents() {
                     className="flex-[2] py-5 bg-primary text-on-primary rounded-2xl font-bold shadow-2xl shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:grayscale disabled:pointer-events-none"
                    >
                      {regStep === 1 && create.isPending
-                       ? 'ĐANG TẠO…'
+                       ? t('agents.creating')
                        : regStep === 3
-                         ? 'HOÀN TẤT'
-                         : 'TIẾP TỤC'}
+                         ? t('agents.finish')
+                         : t('agents.continue')}
                    </button>
                  </div>
                </div>

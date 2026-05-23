@@ -27,6 +27,7 @@ import {
   Line,
 } from 'recharts';
 import { cn } from '@/src/lib/utils';
+import { t } from '@/src/i18n/t';
 import { useDashboard } from '@/src/hooks/useDashboard';
 import {
   mapAgentToHealthCluster,
@@ -284,7 +285,12 @@ export default function Dashboard() {
 
   const availability =
     dash.mode === 'admin' && dash.stats.data
-      ? `${dash.stats.data.agents.total > 0 ? ((dash.stats.data.agents.online / dash.stats.data.agents.total) * 100).toFixed(1) : 0}% availability`
+      ? t('dashboard.availability', {
+          n:
+            dash.stats.data.agents.total > 0
+              ? ((dash.stats.data.agents.online / dash.stats.data.agents.total) * 100).toFixed(1)
+              : 0,
+        })
       : undefined;
 
   const agentsFleetHref = `/agents${agentsPageSearchParams(statusFilter, clusterFilter)}`;
@@ -292,47 +298,50 @@ export default function Dashboard() {
   return (
     <motion.div className="space-y-8 pb-12">
       <motion.div>
-        <h2 className="text-4xl font-bold tracking-tight text-on-surface">System Overview</h2>
+        <h2 className="text-4xl font-bold tracking-tight text-on-surface">{t('dashboard.title')}</h2>
         <p className="text-on-surface-variant text-body-md mt-1">
-          Fleet health for {agentTotal} agent{agentTotal === 1 ? '' : 's'} — telemetry refreshes every second
-          when online.
+          {agentTotal === 1
+            ? t('dashboard.subtitle', { count: 1 })
+            : t('dashboard.subtitle', { count: agentTotal })}
         </p>
       </motion.div>
 
       <section className="grid grid-cols-1 md:grid-cols-5 gap-4">
         <MetricCard
-          label="Total Agents"
+          label={t('dashboard.totalAgents')}
           value={metrics.totalAgents}
           trend={metrics.agentsTrend}
-          subValue="Fleet total"
+          subValue={t('dashboard.fleetTotal')}
         />
         <MetricCard
-          label="Online Agents"
+          label={t('dashboard.onlineAgents')}
           value={
-            dash.mode === 'admin' ? String(dash.stats.data?.agents.online ?? '—') : metrics.onlineAgents
+            dash.mode === 'admin' ? String(dash.stats.data?.agents.online ?? t('common.emDash')) : metrics.onlineAgents
           }
-          subValue={availability ?? 'Tenant scope'}
+          subValue={availability ?? t('dashboard.tenantScope')}
           colorClass="text-on-surface"
         />
         <MetricCard
-          label="Running Tasks"
+          label={t('dashboard.runningTasks')}
           value={metrics.runningTasks}
-          subValue="Active now"
+          subValue={t('dashboard.activeNow')}
           colorClass="text-secondary"
           icon={Activity}
         />
         <MetricCard
-          label="Failed Tasks"
+          label={t('dashboard.failedTasks')}
           value={metrics.failedTasks}
           trend={metrics.failedTrend}
-          subValue="Last 24 hours"
+          subValue={t('dashboard.last24h')}
           colorClass="text-error"
         />
         <MetricCard
-          label="Workflows"
+          label={t('dashboard.workflows')}
           value={metrics.workflows}
           subValue={
-            dash.mode === 'admin' ? `${dash.stats.data?.workflows.active ?? 0} active` : 'Total'
+            dash.mode === 'admin'
+              ? t('dashboard.workflowsActiveSub', { n: dash.stats.data?.workflows.active ?? 0 })
+              : t('dashboard.total')
           }
           colorClass="text-tertiary"
         />
@@ -342,29 +351,29 @@ export default function Dashboard() {
         <section className="col-span-12 lg:col-span-8 glass-card rounded-2xl p-6 flex flex-col">
           <div className="flex justify-between items-center mb-8">
             <div>
-              <h3 className="text-lg font-bold text-on-surface">Task Analytics</h3>
+              <h3 className="text-lg font-bold text-on-surface">{t('dashboard.taskAnalytics')}</h3>
               <p className="text-xs text-on-surface-variant">
                 {dash.mode === 'admin'
-                  ? `${taskTrendRangeLabel(taskTrendRange)} · filtered from 7-day stats`
-                  : 'Admin only — task trend chart'}
+                  ? `${taskTrendRangeLabel(taskTrendRange)} · ${t('time.filteredFrom7Day')}`
+                  : t('dashboard.adminOnlyChart')}
               </p>
             </div>
             <div className="flex p-1 bg-surface-container-high rounded-xl gap-1">
-              {TASK_TREND_RANGES.map((t) => (
+              {TASK_TREND_RANGES.map((range) => (
                 <button
-                  key={t}
+                  key={range}
                   type="button"
-                  onClick={() => setTaskTrendRange(t)}
+                  onClick={() => setTaskTrendRange(range)}
                   disabled={dash.mode !== 'admin'}
                   className={cn(
                     'px-3 py-1.5 rounded-lg font-mono text-[10px] font-bold transition-all',
-                    t === taskTrendRange
+                    range === taskTrendRange
                       ? 'bg-primary text-on-primary shadow-lg shadow-primary/20'
                       : 'text-on-surface-variant hover:text-on-surface',
                     dash.mode !== 'admin' && 'opacity-40 cursor-not-allowed',
                   )}
                 >
-                  {t}
+                  {range}
                 </button>
               ))}
             </div>
@@ -420,7 +429,7 @@ export default function Dashboard() {
 
         <section className="col-span-12 lg:col-span-4 glass-card rounded-2xl p-6 flex flex-col">
           <motion.div className="flex justify-between items-center mb-6">
-            <h3 className="text-lg font-bold text-on-surface">Event Log</h3>
+            <h3 className="text-lg font-bold text-on-surface">{t('dashboard.eventLog')}</h3>
             <button type="button" className="text-on-surface-variant hover:text-primary transition-colors">
               <Filter size={18} />
             </button>
@@ -428,7 +437,7 @@ export default function Dashboard() {
           <div className="flex-1 space-y-5 overflow-y-auto pr-2 custom-scrollbar">
             {(eventLogs.length
               ? eventLogs
-              : [{ icon: User, color: 'text-on-surface-variant', title: 'No recent events', meta: '—' }]
+              : [{ icon: User, color: 'text-on-surface-variant', title: t('dashboard.noRecentEvents'), meta: t('common.emDash') }]
             ).map((log, i) => (
               <div key={i} className="flex gap-4 group cursor-default">
                 <div className="flex flex-col items-center">
@@ -455,13 +464,18 @@ export default function Dashboard() {
       <section className="glass-card rounded-2xl p-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-start mb-6">
           <div>
-            <h3 className="text-lg font-bold text-on-surface">Agent Health Overview</h3>
+            <h3 className="text-lg font-bold text-on-surface">{t('dashboard.agentHealth')}</h3>
             <p className="text-xs text-on-surface-variant mt-1">
               {filteredHealthAgents.length === 0
-                ? 'No agents match filters.'
-                : `Showing ${healthPreview.length} of ${filteredHealthAgents.length} — ${healthCounts.online} online, ${healthCounts.offline} offline`}
+                ? t('dashboard.noAgentsMatch')
+                : t('dashboard.showingSummary', {
+                    preview: healthPreview.length,
+                    total: filteredHealthAgents.length,
+                    online: healthCounts.online,
+                    offline: healthCounts.offline,
+                  })}
               {statusFilter !== 'all' || clusterFilter !== 'all'
-                ? ` · Status ${statusFilterLabel(statusFilter)} · ${clusterFilterLabel(clusterFilter)}`
+                ? ` · ${t('filters.statusLabel', { value: statusFilterLabel(statusFilter) })} · ${t('filters.clusterLabel', { value: clusterFilterLabel(clusterFilter) })}`
                 : ''}
             </p>
           </div>
@@ -472,7 +486,7 @@ export default function Dashboard() {
               className="flex items-center gap-2 px-4 py-2 rounded-xl border border-white/10 hover:bg-white/5 transition-all text-xs font-bold tracking-tight"
             >
               <Filter size={14} className="text-on-surface-variant" />
-              Status: {statusFilterLabel(statusFilter)}
+              {t('filters.statusLabel', { value: statusFilterLabel(statusFilter) })}
             </button>
             <button
               type="button"
@@ -480,25 +494,25 @@ export default function Dashboard() {
               className="flex items-center gap-2 px-4 py-2 rounded-xl border border-white/10 hover:bg-white/5 transition-all text-xs font-bold tracking-tight"
             >
               <Users size={14} className="text-on-surface-variant" />
-              Cluster: {clusterFilterLabel(clusterFilter)}
+              {t('filters.clusterLabel', { value: clusterFilterLabel(clusterFilter) })}
             </button>
             <Link
               to={agentsFleetHref}
               className="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary/10 text-primary border border-primary/20 font-bold text-xs uppercase tracking-wider hover:bg-primary/20 transition-all group"
             >
-              View All Agents
+              {t('dashboard.viewAllAgents')}
               <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
             </Link>
           </div>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {(dash.mode === 'admin' ? dash.healthAgents.isLoading : dash.agentsPreview?.isLoading) ? (
-            <p className="text-on-surface-variant text-sm col-span-full">Loading agents…</p>
+            <p className="text-on-surface-variant text-sm col-span-full">{t('dashboard.loadingAgents')}</p>
           ) : healthPreview.length === 0 ? (
             <p className="text-on-surface-variant text-sm col-span-full">
               {allHealthAgents.length === 0
-                ? 'No agents registered yet.'
-                : 'No agents match the current filters.'}
+                ? t('dashboard.noAgentsRegistered')
+                : t('agents.noMatch')}
             </p>
           ) : (
             healthPreview.map((agent) => (
@@ -508,9 +522,11 @@ export default function Dashboard() {
         </div>
         {filteredHealthAgents.length > HEALTH_PREVIEW_LIMIT ? (
           <p className="text-center text-[11px] text-on-surface-variant mt-4 font-mono">
-            +{filteredHealthAgents.length - HEALTH_PREVIEW_LIMIT} more —{' '}
+            {t('dashboard.moreAgents', {
+              n: filteredHealthAgents.length - HEALTH_PREVIEW_LIMIT,
+            })}{' '}
             <Link to={agentsFleetHref} className="text-primary hover:underline">
-              open Agent Fleet
+              {t('nav.agents')}
             </Link>
           </p>
         ) : null}

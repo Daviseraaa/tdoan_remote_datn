@@ -36,6 +36,10 @@ export function taskRetryPath(admin: boolean, id: string): string {
   return admin ? `/admin/tasks/${id}/retry` : `/tasks/${id}/retry`;
 }
 
+export function taskTemplatesBasePath(admin: boolean): string {
+  return admin ? '/admin/tasks/templates' : '/tasks/templates';
+}
+
 export function workflowsListPath(admin: boolean): string {
   return admin ? '/admin/workflows' : '/workflows';
 }

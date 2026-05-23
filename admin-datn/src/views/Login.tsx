@@ -1,9 +1,10 @@
-ï»¿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { Terminal, AlertCircle } from 'lucide-react';
 import { useAuth } from '@/src/hooks/useAuth';
 import { apiErrorMessage } from '@/src/lib/api';
 import { isAuthenticated } from '@/src/lib/auth';
+import { t } from '@/src/i18n/t';
 
 export default function Login() {
   const { login } = useAuth();
@@ -44,8 +45,8 @@ export default function Login() {
             <Terminal className="text-on-primary-container" size={24} />
           </div>
           <div>
-            <h1 className="font-bold text-xl text-primary">DATN Console</h1>
-            <p className="font-mono text-[10px] text-on-surface-variant opacity-60">Sign in to continue</p>
+            <h1 className="font-bold text-xl text-primary">{t('common.brand')}</h1>
+            <p className="font-mono text-[10px] text-on-surface-variant opacity-60">{t('login.subtitle')}</p>
           </div>
         </div>
         <form onSubmit={handleSubmit} className="space-y-5">
@@ -56,18 +57,22 @@ export default function Login() {
             </div>
           )}
           <div>
-            <label className="block text-[10px] font-mono font-bold uppercase tracking-widest text-on-surface-variant mb-2">Email</label>
+            <label className="block text-[10px] font-mono font-bold uppercase tracking-widest text-on-surface-variant mb-2">
+              {t('common.email')}
+            </label>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
               className="w-full px-4 py-3 rounded-xl bg-surface-container-low border border-white/10 text-on-surface outline-none focus:border-primary/50"
-              placeholder="admin@datn.io"
+              placeholder={t('login.emailPlaceholder')}
             />
           </div>
-                    <div>
-            <label className="block text-[10px] font-mono font-bold uppercase tracking-widest text-on-surface-variant mb-2">Password</label>
+          <div>
+            <label className="block text-[10px] font-mono font-bold uppercase tracking-widest text-on-surface-variant mb-2">
+              {t('common.password')}
+            </label>
             <input
               type="password"
               value={password}
@@ -81,7 +86,7 @@ export default function Login() {
             disabled={loading}
             className="w-full py-3.5 bg-primary text-on-primary rounded-xl font-bold hover:brightness-110 disabled:opacity-50 transition-all"
           >
-            {loading ? 'Signing in…' : 'Sign in'}
+            {loading ? t('login.signingIn') : t('login.signIn')}
           </button>
         </form>
       </div>

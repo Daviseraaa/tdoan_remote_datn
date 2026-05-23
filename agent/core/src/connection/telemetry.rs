@@ -3,7 +3,7 @@
 use std::net::UdpSocket;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
-use sysinfo::System;
+use sysinfo::{CpuRefreshKind, System};
 
 #[derive(Debug, Clone)]
 pub struct TelemetrySnapshot {
@@ -50,6 +50,19 @@ impl TelemetrySampler {
         if let Some(ip) = resolve_local_outbound_ip() {
             self.cached_ip = ip;
         }
+    }
+
+    /// Số CPU logic — dùng cho metadata connect (không tạo `System` mới không refresh).
+    pub fn logical_cpu_count(&mut self) -> u32 {
+        self.sys.refresh_cpu_list(CpuRefreshKind::everything());
+        let n = self.sys.cpus().len();
+        if n > 0 {
+            return n as u32;
+        }
+        std::thread::available_parallelism()
+            .map(|p| p.get() as u32)
+            .unwrap_or(1)
+            .max(1)
     }
 
     pub fn sample(&mut self) -> TelemetrySnapshot {

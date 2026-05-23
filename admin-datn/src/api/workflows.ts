@@ -3,8 +3,11 @@ import { workflowsListPath } from '@/src/lib/apiScope';
 import { normalizePaginated } from '@/src/lib/normalize';
 import type {
   CreateWorkflowDto,
+  ExecuteWorkflowResult,
+  ExecuteWorkflowStartResult,
   PaginatedResponse,
   Workflow,
+  WorkflowRunDetail,
   WorkflowStep,
 } from '@/src/types/api';
 
@@ -40,8 +43,26 @@ export async function deleteWorkflow(id: string): Promise<void> {
   return apiFetch<void>(`/workflows/${id}`, { method: 'DELETE' });
 }
 
-export async function executeWorkflow(id: string): Promise<unknown> {
-  return apiFetch<unknown>(`/workflows/${id}/execute`, { method: 'POST' });
+/** Chạy async (202) — trả runId, poll GET /workflows/runs/:runId */
+export async function executeWorkflow(
+  id: string,
+): Promise<ExecuteWorkflowStartResult> {
+  return apiFetch<ExecuteWorkflowStartResult>(`/workflows/${id}/execute`, {
+    method: 'POST',
+  });
+}
+
+/** Chạy đồng bộ — chờ đến khi xong */
+export async function executeWorkflowSync(
+  id: string,
+): Promise<ExecuteWorkflowResult> {
+  return apiFetch<ExecuteWorkflowResult>(`/workflows/${id}/execute?wait=true`, {
+    method: 'POST',
+  });
+}
+
+export async function getWorkflowRun(runId: string): Promise<WorkflowRunDetail> {
+  return apiFetch<WorkflowRunDetail>(`/workflows/runs/${runId}`);
 }
 
 export type { WorkflowStep };

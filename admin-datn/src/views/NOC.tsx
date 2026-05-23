@@ -26,6 +26,7 @@ import * as adminApi from '@/src/api/admin';
 import { useAuth } from '@/src/hooks/useAuth';
 import { queryKeys } from '@/src/lib/queryKeys';
 import { Link } from 'react-router-dom';
+import { t } from '@/src/i18n/t';
 
 export default function NOC() {
   const [time, setTime] = useState(new Date().toUTCString());
@@ -54,8 +55,8 @@ export default function NOC() {
       <header className="h-24 px-10 flex justify-between items-center relative z-50 pointer-events-none">
         <div className="flex items-center gap-6 pointer-events-auto">
           <div className="flex flex-col">
-            <h1 className="text-3xl font-black text-primary tracking-tighter uppercase italic leading-none">DATN CONSOLE</h1>
-            <span className="text-[10px] font-mono text-primary/60 mt-1 font-bold tracking-[0.3em]">NETWORK OPERATIONS CENTER // v2.4.0-STABLE</span>
+            <h1 className="text-3xl font-black text-primary tracking-tighter uppercase italic leading-none">{t('noc.header')}</h1>
+            <span className="text-[10px] font-mono text-primary/60 mt-1 font-bold tracking-[0.3em]">{t('noc.subtitle')}</span>
           </div>
           <div className="h-10 w-[1px] bg-white/10" />
           <div className="flex items-center gap-3 px-4 py-2 bg-error-container/20 border border-error/30 rounded-full animate-pulse cursor-pointer pointer-events-auto" onClick={() => setShowAlert(true)}>
@@ -64,7 +65,7 @@ export default function NOC() {
                <div className="relative inline-flex rounded-full h-2 w-2 bg-error shadow-[0_0_8px_#ffb4ab]" />
              </div>
              <span className="font-mono text-[11px] font-bold text-error tracking-widest uppercase">
-               {stats?.tasks.failed ?? 0} FAILED TASKS
+               {t('noc.failedTasks', { n: stats?.tasks.failed ?? 0 })}
              </span>
           </div>
         </div>
@@ -72,7 +73,7 @@ export default function NOC() {
         <div className="flex items-center gap-6 pointer-events-auto">
            <Link to="/" className="flex items-center gap-3 px-6 py-2.5 glass-panel rounded-xl text-on-surface-variant hover:text-primary hover:border-primary/50 transition-all font-mono text-[10px] font-bold tracking-[0.2em] uppercase">
              <Maximize2 size={16} />
-             Exit Monitoring Mode
+             {t('noc.exitMonitoring')}
            </Link>
         </div>
       </header>
@@ -83,23 +84,23 @@ export default function NOC() {
         {/* Pulse Metrics */}
         <section className="col-span-12 row-span-1 grid grid-cols-4 gap-6">
           {[
-            { label: 'System Uptime', value: '99.98', unit: '%', icon: Clock, color: 'text-primary' },
+            { label: t('noc.systemUptime'), value: '99.98', unit: '%', icon: Clock, color: 'text-primary' },
             {
-              label: 'Tasks Completed',
+              label: t('noc.tasksCompleted'),
               value: String(stats?.tasks.completed ?? '—'),
               unit: '',
               icon: CheckCircle2,
               color: 'text-tertiary',
             },
             {
-              label: 'Active Agents',
+              label: t('noc.activeAgents'),
               value: String(stats?.agents.online ?? '—'),
               unit: stats ? `/${stats.agents.total}` : '',
               icon: Bot,
               color: 'text-on-surface',
             },
             {
-              label: 'Failed Tasks',
+              label: t('noc.failedTasksMetric'),
               value: String(stats?.tasks.failed ?? '—'),
               unit: '',
               icon: Zap,
@@ -127,14 +128,14 @@ export default function NOC() {
            <div className="flex justify-between items-center mb-8">
              <div className="flex items-center gap-3">
                <Activity className="text-primary" size={20} />
-               <h2 className="text-xl font-bold tracking-tight uppercase italic">Fleet Status Heatmap</h2>
+               <h2 className="text-xl font-bold tracking-tight uppercase italic">{t('noc.fleetHeatmapTitle')}</h2>
              </div>
              <div className="flex items-center gap-6">
                 {[
-                  { l: 'ONLINE', c: 'bg-tertiary' },
-                  { l: 'BUSY', c: 'bg-orange-400' },
-                  { l: 'OFFLINE', c: 'bg-error' },
-                  { l: 'IDLE', c: 'bg-white/10' },
+                  { l: t('status.ONLINE'), c: 'bg-tertiary' },
+                  { l: t('status.BUSY'), c: 'bg-orange-400' },
+                  { l: t('status.OFFLINE'), c: 'bg-error' },
+                  { l: t('status.IDLE'), c: 'bg-white/10' },
                 ].map((s) => (
                   <div key={s.l} className="flex items-center gap-2">
                     <div className={cn("w-2 h-2 rounded-sm", s.c)} />
@@ -143,7 +144,7 @@ export default function NOC() {
                 ))}
                 <div className="w-[1px] h-6 bg-white/10 mx-2" />
                 <button className="flex items-center gap-2 px-3 py-1.5 glass-panel rounded-lg text-[9px] font-bold text-on-surface-variant uppercase tracking-widest hover:text-primary transition-all">
-                  All Clusters <ChevronRight size={12} className="rotate-90" />
+                  {t('noc.allClusters')} <ChevronRight size={12} className="rotate-90" />
                 </button>
              </div>
            </div>
@@ -172,10 +173,10 @@ export default function NOC() {
         <section className="col-span-4 row-span-5 glass-panel rounded-2xl flex flex-col overflow-hidden">
            <div className="p-6 border-b border-white/5 flex items-center gap-3 bg-white/2">
              <Terminal className="text-primary" size={20} />
-             <h2 className="text-xl font-bold tracking-tight uppercase italic">System Live Stream</h2>
+             <h2 className="text-xl font-bold tracking-tight uppercase italic">{t('noc.liveStreamTitle')}</h2>
              <div className="ml-auto flex items-center gap-2 px-2.5 py-1 bg-tertiary/10 rounded-full border border-tertiary/20">
                <div className="w-1.5 h-1.5 rounded-full bg-tertiary animate-pulse" />
-               <span className="text-[9px] font-mono font-bold text-tertiary uppercase tracking-tighter">STREAMING</span>
+               <span className="text-[9px] font-mono font-bold text-tertiary uppercase tracking-tighter">{t('noc.streaming')}</span>
              </div>
            </div>
            
@@ -201,10 +202,10 @@ export default function NOC() {
            </div>
 
            <div className="p-3 border-t border-white/5 flex gap-2 overflow-x-hidden opacity-50 hover:opacity-100 transition-all">
-             {['#ALL_LOGS', '#CLUSTER_01', '#SECURITY', '#WF_ENGINE'].map(tag => (
+             {[t('noc.tagAllLogs'), t('noc.tagCluster01'), t('noc.tagSecurity'), t('noc.tagWfEngine')].map(tag => (
                <span key={tag} className={cn(
                  "px-2.5 py-1 rounded-lg text-[9px] font-mono font-bold tracking-tight uppercase",
-                 tag === '#CLUSTER_01' ? "bg-primary/20 text-primary" : "bg-white/5 text-on-surface-variant"
+                 tag === t('noc.tagCluster01') ? "bg-primary/20 text-primary" : "bg-white/5 text-on-surface-variant"
                )}>{tag}</span>
              ))}
            </div>
@@ -215,15 +216,15 @@ export default function NOC() {
            <div className="flex-1 flex flex-col justify-between">
               <div className="flex items-center gap-3">
                 <Database className="text-primary" size={20} />
-                <h3 className="text-lg font-bold tracking-tighter uppercase italic leading-none">Infrastructure</h3>
+                <h3 className="text-lg font-bold tracking-tighter uppercase italic leading-none">{t('noc.infrastructure')}</h3>
               </div>
               <div className="space-y-4">
                  <div className="bg-white/2 rounded-xl p-3 border border-white/5">
-                   <p className="text-[9px] font-mono font-bold text-on-surface-variant opacity-40 uppercase tracking-widest mb-1.5">LATENCY (P99)</p>
+                   <p className="text-[9px] font-mono font-bold text-on-surface-variant opacity-40 uppercase tracking-widest mb-1.5">{t('noc.latencyP99')}</p>
                    <p className="text-xl font-mono font-black text-primary tracking-tighter">24ms</p>
                  </div>
                  <div className="bg-white/2 rounded-xl p-3 border border-white/5">
-                   <p className="text-[9px] font-mono font-bold text-on-surface-variant opacity-40 uppercase tracking-widest mb-1.5">NETWORK IN/OUT</p>
+                   <p className="text-[9px] font-mono font-bold text-on-surface-variant opacity-40 uppercase tracking-widest mb-1.5">{t('noc.networkInOut')}</p>
                    <p className="text-xl font-mono font-black text-tertiary tracking-tighter">4.2GB/s</p>
                  </div>
               </div>
@@ -238,7 +239,7 @@ export default function NOC() {
                 </svg>
                 <div className="absolute inset-0 flex flex-col items-center justify-center">
                    <span className="text-xl font-black font-mono tracking-tighter">70%</span>
-                   <span className="text-[8px] font-mono font-bold uppercase opacity-40">CPU</span>
+                   <span className="text-[8px] font-mono font-bold uppercase opacity-40">{t('common.cpu')}</span>
                 </div>
               </div>
               <div className="relative w-28 h-28 flex items-center justify-center">
@@ -248,7 +249,7 @@ export default function NOC() {
                 </svg>
                  <div className="absolute inset-0 flex flex-col items-center justify-center">
                    <span className="text-xl font-black font-mono tracking-tighter">40%</span>
-                   <span className="text-[8px] font-mono font-bold uppercase opacity-40">RAM</span>
+                   <span className="text-[8px] font-mono font-bold uppercase opacity-40">{t('common.ram')}</span>
                 </div>
               </div>
            </div>
@@ -259,15 +260,15 @@ export default function NOC() {
            <div className="flex justify-between items-center mb-6">
              <div className="flex items-center gap-3">
                <ShieldAlert className="text-error" size={24} />
-               <h3 className="text-2xl font-bold tracking-tighter uppercase italic text-error leading-none">Critical Alerts</h3>
+               <h3 className="text-2xl font-bold tracking-tighter uppercase italic text-error leading-none">{t('noc.criticalAlerts')}</h3>
              </div>
-             <span className="text-[10px] font-mono font-bold text-error uppercase tracking-[0.2em] border border-error/30 px-2 py-0.5 rounded-full animate-pulse">ACTIVE</span>
+             <span className="text-[10px] font-mono font-bold text-error uppercase tracking-[0.2em] border border-error/30 px-2 py-0.5 rounded-full animate-pulse">{t('noc.active')}</span>
            </div>
            
            <div className="space-y-4">
               {[
-                { title: 'Database Primary Conn Failure', meta: 'Cluster-09 • 14:28:22' },
-                { title: 'High Latency Spike (EU-WEST-2)', meta: 'Network Gateways • 14:24:15' },
+                { title: t('noc.alertDbFailureTitle'), meta: t('noc.alertDbMeta') },
+                { title: t('noc.alertLatencyTitle'), meta: t('noc.alertLatencyMeta') },
               ].map((alert, i) => (
                 <div key={i} className="flex gap-4 p-4 rounded-2xl bg-white/2 border border-white/5 hover:bg-error-container/10 transition-all cursor-pointer group">
                   <div className="w-1.5 h-1.5 rounded-full bg-error mt-1.5 group-hover:scale-150 transition-all shadow-[0_0_8px_#ffb4ab]" />
@@ -280,7 +281,7 @@ export default function NOC() {
            </div>
            
            <button className="w-full mt-6 py-4 bg-error text-on-error font-bold font-mono text-xs uppercase tracking-[0.3em] rounded-2xl hover:brightness-110 active:scale-[0.98] transition-all shadow-xl shadow-error-container/30">
-              Acknowledge All Criticals
+              {t('noc.acknowledgeAll')}
            </button>
         </section>
       </main>
@@ -289,16 +290,16 @@ export default function NOC() {
       <footer className="h-12 border-t border-white/5 bg-surface-container-low/80 backdrop-blur-md px-10 flex justify-between items-center relative z-50">
         <div className="flex items-center gap-8 text-[10px] font-mono font-bold tracking-widest">
            <div className="flex items-center gap-3">
-             <span className="text-on-surface-variant opacity-40 uppercase">Secure Channel:</span>
-             <span className="text-tertiary">ENCRYPTED_TLS_1.3</span>
+             <span className="text-on-surface-variant opacity-40 uppercase">{t('noc.secureChannelLabel')}:</span>
+             <span className="text-tertiary">{t('noc.secureChannelValue')}</span>
            </div>
            <div className="flex items-center gap-3">
-             <span className="text-on-surface-variant opacity-40 uppercase">WS Status:</span>
-             <span className="text-primary">CONNECTED_READY</span>
+             <span className="text-on-surface-variant opacity-40 uppercase">{t('noc.wsStatusLabel')}:</span>
+             <span className="text-primary">{t('noc.wsStatusValue')}</span>
            </div>
            <div className="flex items-center gap-3">
-             <span className="text-on-surface-variant opacity-40 uppercase">Region:</span>
-             <span className="text-on-surface">LONDON_DC_01</span>
+             <span className="text-on-surface-variant opacity-40 uppercase">{t('noc.regionLabel')}:</span>
+             <span className="text-on-surface">{t('noc.regionValue')}</span>
            </div>
         </div>
         <div className="text-[10px] font-mono font-bold text-on-surface-variant opacity-60 uppercase tracking-widest">{time}</div>
@@ -316,7 +317,7 @@ export default function NOC() {
              <div className="p-8 border-b border-white/10 flex justify-between items-center bg-error-container/20">
                 <div className="flex items-center gap-3 text-error">
                   <ShieldAlert size={28} />
-                  <h3 className="text-3xl font-black italic tracking-tighter uppercase">Alert Detail</h3>
+                  <h3 className="text-3xl font-black italic tracking-tighter uppercase">{t('noc.alertDetail')}</h3>
                 </div>
                 <button onClick={() => setShowAlert(false)} className="p-2 hover:bg-white/10 rounded-full transition-all text-on-surface-variant hover:text-on-surface">
                   <X size={24} />
@@ -324,13 +325,13 @@ export default function NOC() {
              </div>
              <div className="flex-1 p-10 overflow-y-auto custom-scrollbar space-y-10">
                 <div>
-                  <span className="text-xs font-mono font-bold text-error uppercase tracking-[0.3em] mb-2 block">SEVERITY: CRITICAL_FAILURE</span>
-                  <h4 className="text-4xl font-bold tracking-tight text-white leading-tight">Database Primary Connection Failure</h4>
-                  <p className="text-on-surface-variant mt-4 leading-relaxed font-medium">Cluster-09 heartbeat sync timeout detected. Secondary failover in progress but handshake rejected from EU-WEST-2 node pool.</p>
+                  <span className="text-xs font-mono font-bold text-error uppercase tracking-[0.3em] mb-2 block">{t('noc.severityCriticalFailure')}</span>
+                  <h4 className="text-4xl font-bold tracking-tight text-white leading-tight">{t('noc.alertDbFailureTitle')}</h4>
+                  <p className="text-on-surface-variant mt-4 leading-relaxed font-medium">{t('noc.alertDbFailureDesc')}</p>
                 </div>
 
                 <div className="space-y-4">
-                  <h5 className="text-[10px] font-mono font-bold text-primary uppercase tracking-[0.3em] px-1">Error Trace</h5>
+                  <h5 className="text-[10px] font-mono font-bold text-primary uppercase tracking-[0.3em] px-1">{t('noc.errorTrace')}</h5>
                   <div className="bg-black/60 p-6 rounded-2xl border border-white/10 font-mono text-xs text-error/80 leading-relaxed shadow-inner">
                     ConnectionTimeoutError: Failed to connect to db-primary.cluster-09 after 30000ms<br/>
                     at Socket.connect (node:net:123:14)<br/>
@@ -341,21 +342,21 @@ export default function NOC() {
 
                 <div className="grid grid-cols-2 gap-8">
                   <div>
-                    <h5 className="text-[10px] font-mono font-bold text-primary uppercase tracking-[0.3em] mb-2">Internal Node ID</h5>
-                    <p className="text-lg font-bold font-mono text-on-surface">DB-PR-01_CL-09</p>
+                    <h5 className="text-[10px] font-mono font-bold text-primary uppercase tracking-[0.3em] mb-2">{t('noc.internalNodeId')}</h5>
+                    <p className="text-lg font-bold font-mono text-on-surface">{t('noc.nodeIdExample')}</p>
                   </div>
                   <div>
-                    <h5 className="text-[10px] font-mono font-bold text-primary uppercase tracking-[0.3em] mb-2">Affected Region</h5>
-                    <p className="text-lg font-bold text-on-surface uppercase tracking-tight">EU-SOUTH-A (MILANO)</p>
+                    <h5 className="text-[10px] font-mono font-bold text-primary uppercase tracking-[0.3em] mb-2">{t('noc.affectedRegion')}</h5>
+                    <p className="text-lg font-bold text-on-surface uppercase tracking-tight">{t('noc.regionMilano')}</p>
                   </div>
                 </div>
              </div>
              <div className="p-8 bg-black/40 border-t border-white/10 flex flex-col gap-4">
                 <button onClick={() => setShowAlert(false)} className="w-full py-5 bg-error text-on-error font-black italic tracking-widest text-sm uppercase rounded-2xl hover:brightness-110 active:scale-[0.98] transition-all">
-                  Acknowledge Component Failure
+                  {t('noc.acknowledgeComponent')}
                 </button>
                 <button className="w-full py-5 glass-panel border border-white/10 text-on-surface-variant hover:text-white font-bold tracking-widest text-xs uppercase rounded-2xl transition-all">
-                  Escalate to On-Call Response Team
+                  {t('noc.escalateOnCall')}
                 </button>
              </div>
           </motion.div>

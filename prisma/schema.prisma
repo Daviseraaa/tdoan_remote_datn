@@ -49,6 +49,28 @@ enum StepType {
   SCRIPT
   DELAY
   CONDITION
+  TELEGRAM
+}
+
+enum WorkflowTriggerType {
+  MANUAL
+  SCHEDULE
+  TELEGRAM
+}
+
+enum ScheduleKind {
+  CRON
+  INTERVAL
+  DAILY
+  HOURLY
+  ONCE
+}
+
+enum TriggerExecutionStatus {
+  STARTED
+  COMPLETED
+  FAILED
+  SKIPPED
 }
 
 enum OnFailure {
@@ -64,6 +86,30 @@ enum RemoteSessionStatus {
   FAILED
 }
 
+enum WorkflowRunStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum FlowRunStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+  STOPPED
+}
+
+enum StepRunStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+  SKIPPED
+}
+
 model User {
   id        String   @id @default(uuid())
   email     String   @unique
@@ -74,9 +120,13 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  agents    Agent[]
-  tasks     Task[]
-  workflows Workflow[]
+  agents         Agent[]
+  tasks          Task[]
+  taskTemplates  TaskTemplate[]
+  workflows      Workflow[]
+  workflowRuns   WorkflowRun[]
+  telegramBots   TelegramBot[]
+  workflowTriggers WorkflowTrigger[]
   remoteSessions RemoteSession[] @relation("RemoteOperator")
 
   @@map("users")
@@ -98,12 +148,34 @@ model Agent {
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  tasks Task[]
+  tasks          Task[]
+  taskTemplates  TaskTemplate[]
   remoteSessions RemoteSession[]
 
   @@index([userId])
   @@index([status])
   @@map("agents")
+}
+
+model TaskTemplate {
+  id        String   @id @default(uuid())
+  name      String
+  type      TaskType
+  command   String
+  payload   Json?
+  timeout   Int      @default(300000)
+  priority  Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userId  String
+  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  agentId String
+  agent   Agent  @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([agentId])
+  @@map("task_templates")
 }
 
 model Task {
@@ -128,6 +200,9 @@ model Task {
   user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   agentId String
   agent   Agent  @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  workflowRunId String?
+  workflowRun   WorkflowRun? @relation(fields: [workflowRunId], references: [id], onDelete: SetNull)
 
   logs TaskLog[]
 
@@ -154,6 +229,9 @@ model Workflow {
   id             String   @id @default(uuid())
   name           String
   description    String?
+  variables      Json?
+  graph          Json?
+  graphEdges     Json?
   isActive       Boolean  @default(true)
   cronExpression String?
   createdAt      DateTime @default(now())
@@ -162,10 +240,152 @@ model Workflow {
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  steps WorkflowStep[]
+  steps    WorkflowStep[]
+  runs     WorkflowRun[]
+  triggers WorkflowTrigger[]
 
   @@index([userId])
   @@map("workflows")
+}
+
+model TelegramBot {
+  id            String   @id @default(uuid())
+  name          String
+  botToken      String
+  botUsername   String?
+  mode          String   @default("webhook")
+  webhookSecret String?
+  enabled       Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  triggers WorkflowTrigger[]
+
+  @@index([userId])
+  @@map("telegram_bots")
+}
+
+model WorkflowTrigger {
+  id         String              @id @default(uuid())
+  name       String?
+  type       WorkflowTriggerType
+  enabled    Boolean             @default(true)
+  timezone   String              @default("Asia/Ho_Chi_Minh")
+
+  scheduleKind      ScheduleKind?
+  cronExpression    String?
+  intervalSeconds   Int?
+  runAt             DateTime?
+  dailyHour         Int?
+  dailyMinute       Int?
+  nextRunAt         DateTime?
+  lastRunAt         DateTime?
+  lastRunStatus     String?
+  lastWorkflowRunId String?
+  maxRetries        Int               @default(0)
+  retryDelaySeconds Int               @default(60)
+
+  telegramBotId String?
+  matchConfig   Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userId     String
+  workflowId String
+  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workflow   Workflow     @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  telegramBot TelegramBot? @relation(fields: [telegramBotId], references: [id], onDelete: SetNull)
+
+  executions TriggerExecution[]
+
+  @@index([userId])
+  @@index([workflowId])
+  @@index([type, enabled])
+  @@index([nextRunAt])
+  @@index([telegramBotId])
+  @@map("workflow_triggers")
+}
+
+model TriggerExecution {
+  id            String                 @id @default(uuid())
+  status        TriggerExecutionStatus @default(STARTED)
+  payload       Json?
+  error         String?                @db.Text
+  startedAt     DateTime               @default(now())
+  completedAt   DateTime?
+
+  triggerId      String
+  workflowRunId  String?
+  trigger        WorkflowTrigger @relation(fields: [triggerId], references: [id], onDelete: Cascade)
+
+  @@index([triggerId])
+  @@index([startedAt])
+  @@map("trigger_executions")
+}
+
+model WorkflowRun {
+  id          String            @id @default(uuid())
+  workflowId  String
+  userId      String
+  status      WorkflowRunStatus @default(PENDING)
+  variables   Json?
+  triggerId   String?
+  triggerType WorkflowTriggerType?
+  triggerPayload Json?
+  startedAt   DateTime          @default(now())
+  completedAt DateTime?
+
+  workflow Workflow          @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  user     User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  flows    WorkflowFlowRun[]
+  stepRuns WorkflowStepRun[]
+  tasks    Task[]
+
+  @@index([workflowId])
+  @@index([userId])
+  @@index([status])
+  @@map("workflow_runs")
+}
+
+model WorkflowFlowRun {
+  id            String        @id @default(uuid())
+  workflowRunId String
+  path          String
+  status        FlowRunStatus @default(PENDING)
+  startedAt     DateTime      @default(now())
+  completedAt   DateTime?
+
+  workflowRun WorkflowRun @relation(fields: [workflowRunId], references: [id], onDelete: Cascade)
+
+  @@unique([workflowRunId, path])
+  @@index([workflowRunId])
+  @@map("workflow_flow_runs")
+}
+
+model WorkflowStepRun {
+  id            String        @id @default(uuid())
+  workflowRunId String
+  flowPath      String?
+  stepId        String
+  order         Int
+  status        StepRunStatus @default(PENDING)
+  taskId        String?
+  exitCode      Int?
+  error         String?       @db.Text
+  depth         Int           @default(0)
+  startedAt     DateTime?
+  completedAt   DateTime?
+
+  workflowRun WorkflowRun @relation(fields: [workflowRunId], references: [id], onDelete: Cascade)
+
+  @@index([workflowRunId])
+  @@index([stepId])
+  @@index([taskId])
+  @@map("workflow_step_runs")
 }
 
 model WorkflowStep {

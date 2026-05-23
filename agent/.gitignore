@@ -1,9 +1,18 @@
 node_modules/
+
+# Build output — không đưa lên git
 dist/
 bin/
+core/target/
+*.exe
+
+# Electron desktop (npm run dev / dist:desktop)
 desktop/dist/
 desktop/release/
 desktop/node_modules/
-core/target/
-*.exe
+# electron-builder phụ
+*.blockmap
+builder-*.yml
+builder-*.yaml
+
 !.env.example

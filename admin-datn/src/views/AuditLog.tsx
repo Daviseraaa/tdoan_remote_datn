@@ -21,6 +21,30 @@ import { cn } from '@/src/lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuditLogs } from '@/src/hooks/useAudit';
 import { mapAuditToLogRow } from '@/src/lib/mappers';
+import { t, type TranslationKey } from '@/src/i18n/t';
+
+const AUDIT_CATEGORIES: { value: string; labelKey: TranslationKey }[] = [
+  { value: 'All Categories', labelKey: 'audit.allCategories' },
+  { value: 'Security', labelKey: 'audit.security' },
+  { value: 'System', labelKey: 'audit.system' },
+  { value: 'Auth', labelKey: 'audit.auth' },
+  { value: 'Automation', labelKey: 'audit.automation' },
+];
+
+const DATE_RANGES: { value: string; labelKey: TranslationKey }[] = [
+  { value: 'All Time', labelKey: 'audit.dateAllTime' },
+  { value: 'Last 24h', labelKey: 'audit.dateLast24h' },
+  { value: 'Last 7 Days', labelKey: 'audit.dateLast7d' },
+  { value: 'Last 30 Days', labelKey: 'audit.dateLast30d' },
+  { value: 'Custom Range', labelKey: 'audit.dateCustom' },
+];
+
+function severityLabel(sev: string): string {
+  if (sev === 'INFO') return t('audit.severityInfo');
+  if (sev === 'WARNING') return t('audit.severityWarning');
+  if (sev === 'CRITICAL') return t('audit.severityCritical');
+  return sev;
+}
 
 const LOG_DATA_FALLBACK = [
   { 
@@ -118,7 +142,7 @@ const LogEntry = ({ time, date, status, title, actor, target, payload, detail, e
               "px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-widest border",
               status === 'CRITICAL' ? "bg-error-container/20 text-error border-error/20" : 
               status === 'WARNING' ? "bg-tertiary-container/10 text-tertiary border-tertiary/20" : "bg-primary-container/10 text-primary border-primary/20"
-            )}>{status}</span>
+            )}>{severityLabel(status)}</span>
           </div>
           <div className="flex items-center gap-3 text-[11px] font-mono text-on-surface-variant leading-none">
             <div className="flex items-center gap-1.5 hover:text-on-surface transition-colors cursor-pointer">
@@ -128,7 +152,7 @@ const LogEntry = ({ time, date, status, title, actor, target, payload, detail, e
             <span className="opacity-20">|</span>
             <div className="flex items-center gap-1.5 hover:text-primary transition-colors cursor-pointer">
               <History size={12} />
-              <span>Target: {target}</span>
+              <span>{t('audit.target', { target })}</span>
             </div>
           </div>
         </div>
@@ -154,9 +178,9 @@ const LogEntry = ({ time, date, status, title, actor, target, payload, detail, e
         <div className="bg-primary/5 rounded-xl p-3 border border-primary/10 flex items-center justify-between">
            <div className="flex items-center gap-3">
              <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-             <span className="text-[10px] font-mono font-bold text-primary uppercase tracking-widest">Task Status: Running</span>
+             <span className="text-[10px] font-mono font-bold text-primary uppercase tracking-widest">{t('audit.taskStatusRunning')}</span>
            </div>
-           <span className="text-[10px] font-mono text-on-surface-variant opacity-60">ETA: {eta}</span>
+           <span className="text-[10px] font-mono text-on-surface-variant opacity-60">{t('audit.eta', { eta })}</span>
         </div>
       )}
     </div>
@@ -181,7 +205,6 @@ export default function AuditLog() {
     return fromApi.length ? fromApi : LOG_DATA_FALLBACK;
   }, [auditPage]);
 
-  const categories = ['All Categories', 'Security', 'System', 'Auth', 'Automation'];
   const severities = ['INFO', 'WARNING', 'CRITICAL'];
 
   const filteredLogs = useMemo(() => {
@@ -221,14 +244,14 @@ export default function AuditLog() {
       {/* Header */}
       <div className="mb-10 flex justify-between items-end">
         <div>
-          <h2 className="text-4xl font-bold tracking-tight text-on-surface">System Audit Log</h2>
+          <h2 className="text-4xl font-bold tracking-tight text-on-surface">{t('audit.title')}</h2>
           <p className="text-on-surface-variant text-body-md mt-2 max-w-2xl leading-relaxed">
-            Real-time immutable ledger of all system interactions, agent deployments, and security escalations within the DATN infrastructure.
+            {t('audit.subtitle')}
           </p>
         </div>
         <button className="flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-xs font-bold text-on-surface hover:bg-white/10 transition-all uppercase tracking-widest active:scale-95">
           <Download size={14} className="text-primary" />
-          Export Data
+          {t('audit.export')}
         </button>
       </div>
 
@@ -241,14 +264,14 @@ export default function AuditLog() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           {/* Search */}
           <div className="md:col-span-2 space-y-2">
-            <label className="text-[10px] font-mono font-bold text-primary uppercase tracking-[0.2em] ml-1">Search Events / Actors</label>
+            <label className="text-[10px] font-mono font-bold text-primary uppercase tracking-[0.2em] ml-1">{t('audit.searchLabel')}</label>
             <div className="relative group">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant/40 group-focus-within:text-primary transition-colors" size={18} />
               <input 
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Find by event name, agent ID, or user..."
+                placeholder={t('audit.searchPlaceholder')}
                 className="w-full bg-surface-container-highest/50 border border-white/5 rounded-2xl py-3.5 pl-12 pr-4 text-sm text-on-surface placeholder:text-on-surface-variant/30 focus:outline-none focus:border-primary/40 focus:ring-1 focus:ring-primary/20 transition-all"
               />
             </div>
@@ -256,15 +279,15 @@ export default function AuditLog() {
 
           {/* Category Dropdown */}
           <div className="space-y-2">
-            <label className="text-[10px] font-mono font-bold text-primary uppercase tracking-[0.2em] ml-1">Category</label>
+            <label className="text-[10px] font-mono font-bold text-primary uppercase tracking-[0.2em] ml-1">{t('audit.category')}</label>
             <div className="relative">
               <select 
                 value={selectedCategory}
                 onChange={(e) => setSelectedCategory(e.target.value)}
                 className="w-full appearance-none bg-surface-container-highest/50 border border-white/5 rounded-2xl py-3.5 px-5 text-sm font-bold text-on-surface focus:outline-none focus:border-primary/40 transition-all"
               >
-                {categories.map(cat => (
-                  <option key={cat} value={cat} className="bg-surface">{cat}</option>
+                {AUDIT_CATEGORIES.map((cat) => (
+                  <option key={cat.value} value={cat.value} className="bg-surface">{t(cat.labelKey)}</option>
                 ))}
               </select>
               <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none" size={16} />
@@ -273,15 +296,15 @@ export default function AuditLog() {
 
           {/* Date Range Dropdown */}
           <div className="space-y-2">
-            <label className="text-[10px] font-mono font-bold text-primary uppercase tracking-[0.2em] ml-1">Time Horizon</label>
+            <label className="text-[10px] font-mono font-bold text-primary uppercase tracking-[0.2em] ml-1">{t('audit.timeHorizon')}</label>
             <div className="relative">
               <select 
                 value={dateRange}
                 onChange={(e) => setDateRange(e.target.value)}
                 className="w-full appearance-none bg-surface-container-highest/50 border border-white/5 rounded-2xl py-3.5 px-5 text-sm font-bold text-on-surface focus:outline-none focus:border-primary/40 transition-all"
               >
-                {['All Time', 'Last 24h', 'Last 7 Days', 'Last 30 Days', 'Custom Range'].map(range => (
-                  <option key={range} value={range} className="bg-surface">{range}</option>
+                {DATE_RANGES.map((range) => (
+                  <option key={range.value} value={range.value} className="bg-surface">{t(range.labelKey)}</option>
                 ))}
               </select>
               <Calendar className="absolute right-4 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none" size={16} />
@@ -291,7 +314,7 @@ export default function AuditLog() {
 
         <div className="mt-8 pt-6 border-t border-white/5 flex flex-wrap items-center justify-between gap-6">
           <div className="flex items-center gap-4">
-            <span className="text-[10px] font-mono font-bold text-on-surface-variant/60 uppercase tracking-widest shrink-0">Severity Level:</span>
+            <span className="text-[10px] font-mono font-bold text-on-surface-variant/60 uppercase tracking-widest shrink-0">{t('audit.severity')}:</span>
             <div className="flex flex-wrap gap-2">
               {severities.map(sev => (
                 <button
@@ -311,7 +334,7 @@ export default function AuditLog() {
                     sev === 'CRITICAL' ? "bg-error" : sev === 'WARNING' ? "bg-tertiary" : "bg-primary",
                     !selectedSeverities.includes(sev) && "opacity-40"
                   )} />
-                  {sev}
+                  {severityLabel(sev)}
                 </button>
               ))}
             </div>
@@ -323,11 +346,11 @@ export default function AuditLog() {
               className="flex items-center gap-2 text-[10px] font-bold text-on-surface-variant hover:text-on-surface transition-colors"
              >
                <X size={14} />
-               RESET FILTERS
+               {t('audit.resetFilters')}
              </button>
              <div className="w-px h-4 bg-white/10" />
              <p className="text-[10px] font-mono font-bold text-primary uppercase tracking-[0.1em]">
-               Matches Found: <span className="text-on-surface">{filteredLogs.length}</span>
+               {t('audit.matchesFound', { n: filteredLogs.length })}
              </p>
           </div>
         </div>
@@ -365,15 +388,15 @@ export default function AuditLog() {
             <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center text-on-surface-variant/30 mb-4">
               <Search size={32} />
             </div>
-            <h3 className="text-xl font-bold text-on-surface mb-2">No logs found</h3>
+            <h3 className="text-xl font-bold text-on-surface mb-2">{t('audit.noLogs')}</h3>
             <p className="text-on-surface-variant text-sm text-center max-w-xs">
-              Try adjusting your filters or search terms to find what you're looking for.
+              {t('audit.noLogsHint')}
             </p>
             <button 
               onClick={clearFilters}
               className="mt-6 px-6 py-2.5 bg-primary text-on-primary rounded-xl font-bold hover:scale-105 active:scale-95 transition-all text-xs"
             >
-              Clear All Filters
+              {t('audit.clearFilters')}
             </button>
           </motion.div>
         )}
@@ -381,9 +404,9 @@ export default function AuditLog() {
 
       {/* Pagination */}
       <div className="mt-12 pt-8 border-t border-white/5 flex justify-between items-center text-on-surface-variant">
-        <p className="text-xs font-medium">Showing 1-10 of 1,248 entries</p>
+        <p className="text-xs font-medium">{t('audit.showingEntries')}</p>
         <div className="flex gap-2 font-mono text-xs">
-          <button className="px-4 py-2 rounded-lg bg-surface-container-high border border-white/5 hover:bg-white/10 transition-all font-bold opacity-30 cursor-not-allowed">PREV</button>
+          <button className="px-4 py-2 rounded-lg bg-surface-container-high border border-white/5 hover:bg-white/10 transition-all font-bold opacity-30 cursor-not-allowed">{t('audit.prev')}</button>
           {[1, 2, 3, '...', 125].map((p, i) => (
             <button 
               key={i} 
@@ -395,7 +418,7 @@ export default function AuditLog() {
               {p}
             </button>
           ))}
-          <button className="px-4 py-2 rounded-lg bg-surface-container-high border border-white/10 hover:bg-white/10 transition-all font-bold text-on-surface">NEXT</button>
+          <button className="px-4 py-2 rounded-lg bg-surface-container-high border border-white/10 hover:bg-white/10 transition-all font-bold text-on-surface">{t('audit.next')}</button>
         </div>
       </div>
     </div>

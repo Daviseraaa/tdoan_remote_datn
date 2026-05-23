@@ -45,7 +45,7 @@ export function useWorkflowMutations() {
   });
 
   const execute = useMutation({
-    mutationFn: (id: string) => workflowsApi.executeWorkflow(id),
+    mutationFn: (id: string) => workflowsApi.executeWorkflowSync(id),
     onSuccess: invalidate,
   });
 

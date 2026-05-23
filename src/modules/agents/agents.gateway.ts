@@ -24,6 +24,7 @@ import {
   pickDisplayIp,
   resolveSocketPeerIp,
 } from '../../common/utils/socket-ip';
+import { notifyTaskCompleted } from '../../common/task-completion-registry';
 
 interface AgentSocket extends Socket {
   data: {
@@ -222,6 +223,14 @@ export class AgentsGateway
         level: finalStatus === TaskStatus.COMPLETED ? 'INFO' : 'ERROR',
         message: `Task ${finalStatus.toLowerCase()} (exit code ${data.exitCode ?? -1})`,
       },
+    });
+
+    notifyTaskCompleted(data.taskId, {
+      status: finalStatus,
+      exitCode: data.exitCode ?? -1,
+      result: truncatedResult,
+      error:
+        finalStatus === TaskStatus.FAILED ? truncatedResult : undefined,
     });
 
     this.logger.log(

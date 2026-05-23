@@ -23,6 +23,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@/src/lib/utils';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '@/src/hooks/useAuth';
+import { t } from '@/src/i18n/t';
 
 export function Sidebar() {
   const navigate = useNavigate();
@@ -30,13 +31,13 @@ export function Sidebar() {
   const { isAdmin } = useAuth();
   
   const navItems = [
-    { icon: LayoutDashboard, label: 'Dashboard', path: '/', adminOnly: false },
-    { icon: Users, label: 'Agents', path: '/agents', adminOnly: false },
-    { icon: ListTodo, label: 'Tasks', path: '/tasks', adminOnly: false },
-    { icon: Share2, label: 'Workflows', path: '/workflows', adminOnly: false },
-    { icon: Zap, label: 'Automations', path: '/automations', adminOnly: false },
-    { icon: History, label: 'Audit Log', path: '/audit-log', adminOnly: true },
-    { icon: Settings, label: 'Settings', path: '/settings', adminOnly: true },
+    { icon: LayoutDashboard, label: t('nav.dashboard'), path: '/', adminOnly: false },
+    { icon: Users, label: t('nav.agents'), path: '/agents', adminOnly: false },
+    { icon: ListTodo, label: t('nav.tasks'), path: '/tasks', adminOnly: false },
+    { icon: Share2, label: t('nav.workflows'), path: '/workflows', adminOnly: false },
+    { icon: Zap, label: t('nav.automations'), path: '/automations', adminOnly: false },
+    { icon: History, label: t('nav.auditLog'), path: '/audit-log', adminOnly: true },
+    { icon: Settings, label: t('nav.settings'), path: '/settings', adminOnly: true },
   ].filter((item) => !item.adminOnly || isAdmin);
 
   return (
@@ -47,16 +48,17 @@ export function Sidebar() {
           <Terminal className="text-on-primary-container" size={24} />
         </div>
         <div>
-          <h1 className="font-bold tracking-tight text-primary leading-tight">DATN Console</h1>
-          <p className="font-mono text-[10px] text-on-surface-variant opacity-60">v2.4.0-stable</p>
+          <h1 className="font-bold tracking-tight text-primary leading-tight">{t('common.brand')}</h1>
+          <p className="font-mono text-[10px] text-on-surface-variant opacity-60">{t('common.version')}</p>
         </div>
       </div>
 
       {/* Nav */}
       <nav className="flex-1 flex flex-col gap-1 mt-4">
         {navItems.map((item) => {
-          const isActive = location.pathname === item.path || 
-                          (item.path !== '/' && location.pathname.startsWith(item.path));
+          const isActive =
+            location.pathname === item.path ||
+            (item.path !== '/' && location.pathname.startsWith(item.path));
           return (
             <Link
               key={item.path}
@@ -89,16 +91,16 @@ export function Sidebar() {
           className="w-full py-3 mb-4 bg-primary text-on-primary rounded-xl font-bold flex items-center justify-center gap-2 hover:brightness-110 active:scale-[0.98] transition-all shadow-lg shadow-primary/20"
         >
           <PlusCircle size={18} />
-          <span>Deploy Agent</span>
+          <span>{t('nav.deployAgent')}</span>
         </button>
         
         <a href="#" className="flex items-center gap-3 px-4 py-2 text-on-surface-variant hover:text-on-surface transition-colors text-xs font-mono">
           <Headphones size={16} />
-          <span>SUPPORT</span>
+          <span>{t('nav.support')}</span>
         </a>
         <a href="#" className="flex items-center gap-3 px-4 py-2 text-on-surface-variant hover:text-on-surface transition-colors text-xs font-mono">
           <BookOpen size={16} />
-          <span>DOCUMENTATION</span>
+          <span>{t('nav.documentation')}</span>
         </a>
       </div>
     </aside>
@@ -112,20 +114,20 @@ export function TopBar() {
   const { user, logout } = useAuth();
 
   const searchResults = [
-    { category: 'Agents', items: [
-      { id: '8821-X99', title: 'PROD-DATN-01', sub: 'Status: Online', path: '/agents' },
-      { id: '4432-Y02', title: 'LINUX-NODE-B', sub: 'Status: Busy', path: '/agents' },
+    { category: t('nav.searchCategoryAgents'), items: [
+      { id: '8821-X99', title: 'PROD-DATN-01', sub: t('nav.mockAgent1Sub'), path: '/agents' },
+      { id: '4432-Y02', title: 'LINUX-NODE-B', sub: t('nav.mockAgent2Sub'), path: '/agents' },
     ]},
-    { category: 'Tasks', items: [
-      { id: 't-1', title: 'Task queue', sub: 'View and dispatch tasks', path: '/tasks' },
+    { category: t('nav.searchCategoryTasks'), items: [
+      { id: 't-1', title: 'Task queue', sub: t('nav.mockTaskSub'), path: '/tasks' },
     ]},
-    { category: 'Workflows', items: [
-      { id: 'wf-1', title: 'Process Analytics', sub: 'Path: Workflow Engine', path: '/workflows' },
-      { id: 'wf-2', title: 'Database Sync', sub: 'Path: Backup Service', path: '/workflows' },
+    { category: t('nav.searchCategoryWorkflows'), items: [
+      { id: 'wf-1', title: 'Process Analytics', sub: t('nav.mockWf1Sub'), path: '/workflows' },
+      { id: 'wf-2', title: 'Database Sync', sub: t('nav.mockWf2Sub'), path: '/workflows' },
     ]},
-    { category: 'Quick Navigation', items: [
-      { id: 'p-1', title: 'System Settings', sub: 'Configure infrastructure', path: '/settings' },
-      { id: 'p-2', title: 'Audit Logs', sub: 'View historical events', path: '/audit-log' },
+    { category: t('nav.searchCategoryQuick'), items: [
+      { id: 'p-1', title: 'System Settings', sub: t('nav.mockSettingsSub'), path: '/settings' },
+      { id: 'p-2', title: 'Audit Logs', sub: t('nav.mockAuditSub'), path: '/audit-log' },
     ]}
   ];
 
@@ -162,7 +164,7 @@ export function TopBar() {
             className="relative w-full group flex items-center bg-surface-container-low/50 border border-white/5 rounded-full pl-12 pr-4 py-2.5 text-sm text-on-surface-variant hover:bg-white/10 transition-all text-left"
           >
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant group-hover:text-primary transition-colors" size={18} />
-            Search systems, agents, or logs...
+            {t('nav.searchPlaceholder')}
             <div className="ml-auto flex items-center gap-1 px-2 py-0.5 rounded bg-white/5 border border-white/10 text-[10px] font-mono opacity-60">
               <span className="text-[8px]">⌘</span>K
             </div>
@@ -174,7 +176,7 @@ export function TopBar() {
         {/* WebSocket Status */}
         <div className="flex items-center gap-2 px-3 py-1 bg-tertiary-container/10 border border-tertiary-container/20 rounded-full">
           <div className="w-2 h-2 rounded-full bg-tertiary animate-pulse shadow-[0_0_8px_rgba(104,245,184,0.6)]"></div>
-          <span className="font-mono text-[11px] text-tertiary font-bold tracking-tight">WS: ACTIVE</span>
+          <span className="font-mono text-[11px] text-tertiary font-bold tracking-tight">{t('nav.wsActive')}</span>
         </div>
 
         <div className="flex items-center gap-2">
@@ -193,21 +195,21 @@ export function TopBar() {
 
         <div className="flex items-center gap-3">
           <div className="text-right hidden xl:block">
-            <p className="text-sm font-semibold text-on-surface leading-none">{user?.name ?? 'User'}</p>
+            <p className="text-sm font-semibold text-on-surface leading-none">{user?.name ?? t('common.user')}</p>
             <p className="text-[10px] text-on-surface-variant font-mono mt-1">{user?.role ?? '—'}</p>
           </div>
           <button
             type="button"
             onClick={() => void logout().then(() => navigate('/login'))}
             className="w-10 h-10 flex items-center justify-center hover:bg-white/5 rounded-full text-on-surface-variant hover:text-error transition-all"
-            title="Logout"
+            title={t('nav.logout')}
           >
             <LogOut size={18} />
           </button>
           <div className="w-10 h-10 rounded-full border-2 border-primary/20 p-0.5 overflow-hidden ring-2 ring-transparent hover:ring-primary/20 transition-all cursor-pointer">
             <img 
-              src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.name ?? 'User'}`}
-              alt={user?.name ?? 'User'}
+              src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.name ?? t('common.user')}`}
+              alt={user?.name ?? t('common.user')}
               className="w-full h-full rounded-full object-cover bg-surface-container-high"
             />
           </div>
@@ -240,14 +242,14 @@ export function TopBar() {
                   type="text"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Type to search..."
+                  placeholder={t('nav.searchTypePlaceholder')}
                   className="flex-1 bg-transparent border-none outline-none text-lg placeholder:text-on-surface-variant/30"
                 />
                 <button 
                   onClick={() => setIsOpen(false)}
                   className="px-2 py-1 rounded bg-white/5 border border-white/10 text-[10px] font-mono text-on-surface-variant"
                 >
-                  ESC
+                  {t('nav.esc')}
                 </button>
               </div>
 
@@ -270,8 +272,8 @@ export function TopBar() {
                           >
                             <div className="flex items-center gap-4">
                               <div className="w-10 h-10 rounded-lg bg-surface-container-high flex items-center justify-center text-on-surface-variant group-hover:text-primary transition-colors">
-                                {category.category === 'Agents' ? <Users size={18} /> : 
-                                 category.category === 'Workflows' ? <Share2 size={18} /> : <ExternalLink size={18} />}
+                                {category.category === t('nav.searchCategoryAgents') ? <Users size={18} /> : 
+                                 category.category === t('nav.searchCategoryWorkflows') ? <Share2 size={18} /> : <ExternalLink size={18} />}
                               </div>
                               <div>
                                 <p className="font-bold text-sm text-on-surface group-hover:text-primary transition-colors">{item.title}</p>
@@ -287,18 +289,18 @@ export function TopBar() {
                 ) : (
                   <div className="py-20 flex flex-col items-center justify-center text-on-surface-variant/40">
                     <History size={40} className="mb-4 opacity-20" />
-                    <p className="text-sm font-medium">No results found for "{query}"</p>
+                    <p className="text-sm font-medium">{t('nav.noResults', { query })}</p>
                   </div>
                 )}
               </div>
 
               <div className="p-4 bg-white/2 border-t border-white/5 flex items-center justify-between text-[10px] font-mono text-on-surface-variant/60">
                 <div className="flex gap-4">
-                  <span className="flex items-center gap-1.5"><span className="px-1.5 py-0.5 rounded bg-white/5 border border-white/10 text-on-surface">↑↓</span> to navigate</span>
-                  <span className="flex items-center gap-1.5"><span className="px-1.5 py-0.5 rounded bg-white/5 border border-white/10 text-on-surface">↵</span> to select</span>
+                  <span className="flex items-center gap-1.5"><span className="px-1.5 py-0.5 rounded bg-white/5 border border-white/10 text-on-surface">↑↓</span> {t('nav.navigateHint')}</span>
+                  <span className="flex items-center gap-1.5"><span className="px-1.5 py-0.5 rounded bg-white/5 border border-white/10 text-on-surface">↵</span> {t('nav.selectHint')}</span>
                 </div>
                 <div>
-                  Search data is decentralized and encrypted.
+                  {t('nav.searchEncrypted')}
                 </div>
               </div>
             </motion.div>

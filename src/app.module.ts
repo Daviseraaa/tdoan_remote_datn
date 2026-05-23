@@ -18,6 +18,7 @@ import { UsersModule } from './modules/users/users.module';
 import { AgentsModule } from './modules/agents/agents.module';
 import { TasksModule } from './modules/tasks/tasks.module';
 import { AutomationModule } from './modules/automation/automation.module';
+import { TriggersModule } from './modules/triggers/triggers.module';
 import { HealthModule } from './modules/health/health.module';
 import { AdminModule } from './modules/admin/admin.module';
 
@@ -68,6 +69,7 @@ import { AdminModule } from './modules/admin/admin.module';
     AgentsModule,
     TasksModule,
     AutomationModule,
+    TriggersModule,
     HealthModule,
     AdminModule,
   ],

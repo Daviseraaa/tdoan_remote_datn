@@ -25,5 +25,8 @@ dist-ssr
 
 .env
 
-# Agent core binary (build: `cd agent && npm run build:core` → agent/bin/)
+# Agent artifacts (build:core → bin/; dist:desktop → desktop/release/)
 agent/bin/
+agent/desktop/release/
+agent/desktop/dist/
+agent/core/target/

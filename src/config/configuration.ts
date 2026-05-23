@@ -38,4 +38,9 @@ export default () => ({
     ttl: parseInt(process.env.THROTTLE_TTL || '60000', 10),
     limit: parseInt(process.env.THROTTLE_LIMIT || '100', 10),
   },
+
+  telegram: {
+    webhookBaseUrl:
+      process.env.PUBLIC_API_BASE_URL || 'http://localhost:3000/api',
+  },
 });

@@ -1,4 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
+import { t } from '@/src/i18n/t';
 import { Laptop, Monitor, Terminal } from 'lucide-react';
 import type {
   AdminStats,
@@ -15,15 +16,17 @@ function shortId(id: string): string {
 }
 
 function formatRelativeTime(iso?: string): string {
-  if (!iso) return '—';
+  if (!iso) return t('common.emDash');
   const diff = Date.now() - new Date(iso).getTime();
   const sec = Math.floor(diff / 1000);
-  if (sec < 60) return sec <= 5 ? 'Just now' : `${sec}s ago`;
+  if (sec < 60) {
+    return sec <= 5 ? t('time.justNow') : t('time.secondsAgo', { n: sec });
+  }
   const min = Math.floor(sec / 60);
-  if (min < 60) return `${min}m ago`;
+  if (min < 60) return t('time.minutesAgo', { n: min });
   const hr = Math.floor(min / 60);
-  if (hr < 24) return `${hr}h ago`;
-  return new Date(iso).toLocaleDateString();
+  if (hr < 24) return t('time.hoursAgo', { n: hr });
+  return new Date(iso).toLocaleDateString('vi-VN');
 }
 
 function pickAgentIcon(name: string, os?: string): LucideIcon {
@@ -40,27 +43,63 @@ export function mapAgentStatusToUi(status: AgentStatus): 'ONLINE' | 'BUSY' | 'OF
   return 'IDLE';
 }
 
+function metaNumber(m: Record<string, unknown>, key: string): number | null {
+  const v = m[key];
+  return typeof v === 'number' && Number.isFinite(v) ? v : null;
+}
+
+/** Số dương (0 cores / 0 bytes coi là thiếu dữ liệu). */
+function metaPositive(m: Record<string, unknown>, key: string): number | null {
+  const n = metaNumber(m, key);
+  return n != null && n > 0 ? n : null;
+}
+
+function formatTotalRamBytes(bytes: number): string {
+  return `${(bytes / 1024 ** 3).toFixed(1)} GB`;
+}
+
+function staticHardwareFromMetadata(m: Record<string, unknown>) {
+  const cpuCount = metaPositive(m, 'cpuCount');
+  const totalMemory =
+    metaPositive(m, 'totalMemory') ?? metaPositive(m, 'ramTotalBytes');
+  return {
+    cpuLabel: cpuCount != null ? t('dashboard.cores', { n: cpuCount }) : t('common.emDash'),
+    ramLabel: totalMemory != null ? formatTotalRamBytes(totalMemory) : t('common.emDash'),
+  };
+}
+
 function parseAgentMetrics(agent: Agent) {
   const m = (agent.metadata ?? {}) as Record<string, unknown>;
-  const num = (v: unknown) =>
-    typeof v === 'number' && Number.isFinite(v) ? v : null;
+  const pick = (key: string) => metaNumber(m, key);
 
   const isOffline = agent.status === 'OFFLINE';
-  const cpuPct = num(m.cpuPercent) ?? num(m.cpuUsage);
-  const ramPct = num(m.ramPercent) ?? num(m.memoryPercent) ?? num(m.memoryUsage);
-  const cpuCount = num(m.cpuCount);
-  const totalMemory = num(m.totalMemory);
+
+  if (isOffline) {
+    const hw = staticHardwareFromMetadata(m);
+    return {
+      cpuPercent: 0,
+      cpuLabel: hw.cpuLabel,
+      showCpuBar: false,
+      ramPercent: 0,
+      ramLabel: hw.ramLabel,
+      showRamBar: false,
+    };
+  }
+
+  const cpuPct = pick('cpuPercent') ?? pick('cpuUsage');
+  const ramPct = pick('ramPercent') ?? pick('memoryPercent') ?? pick('memoryUsage');
+  const cpuCount = metaPositive(m, 'cpuCount');
+  const totalMemory = metaPositive(m, 'totalMemory');
   const hasCpuPercent = cpuPct != null;
 
-  /** Offline và không có % đã lưu → hiển thị số core từ metadata connect, không thanh 0%. */
   const cpuLabel = hasCpuPercent
     ? `${Math.round(cpuPct!)}%`
     : cpuCount != null
-      ? `${cpuCount} cores`
-      : '—';
+      ? t('dashboard.cores', { n: cpuCount })
+      : t('common.emDash');
 
-  const ramUsed = num(m.ramUsedBytes);
-  const ramTotal = num(m.ramTotalBytes);
+  const ramUsed = pick('ramUsedBytes');
+  const ramTotal = pick('ramTotalBytes');
   const ramLabelFromAgent =
     typeof m.ramLabel === 'string' && m.ramLabel.trim()
       ? normalizeRamLabel(m.ramLabel.trim())
@@ -72,11 +111,9 @@ function parseAgentMetrics(agent: Agent) {
       ? `${Math.round(ramPct)}%`
       : ramUsed != null && ramTotal != null && ramTotal > 0
         ? formatRamRatio(ramUsed, ramTotal)
-        : isOffline && totalMemory != null
-          ? `${(totalMemory / 1024 ** 3).toFixed(1)} GB total`
-          : totalMemory != null
-            ? `${(totalMemory / 1024 ** 3).toFixed(1)} GB`
-            : '—');
+        : totalMemory != null
+          ? formatTotalRamBytes(totalMemory)
+          : t('common.emDash'));
 
   const ramPercent =
     ramUsed != null && ramTotal != null && ramTotal > 0
@@ -90,11 +127,9 @@ function parseAgentMetrics(agent: Agent) {
       ? Math.min(100, Math.max(0, Math.round(cpuPct!)))
       : 0,
     cpuLabel,
-    /** Thanh % chỉ khi có cpuPercent (live hoặc snapshot đã lưu trong metadata). */
     showCpuBar: hasCpuPercent,
     ramPercent,
     ramLabel,
-    /** Thanh RAM khi có used/total hoặc %; offline chỉ total → không bar. */
     showRamBar:
       (ramUsed != null && ramTotal != null && ramTotal > 0) || ramPct != null,
   };
@@ -150,11 +185,36 @@ export function mapAgentToCard(agent: Agent, hasRunningTask = false): AgentCardU
         ? String((agent.metadata as Record<string, unknown>).ip).trim()
         : '') ||
       '—',
-    activeTask: busy ? 'Yes' : 'No',
+    activeTask: busy ? t('common.yes') : t('common.no'),
     ...metrics,
     lastSeen: formatRelativeTime(seenAt),
     icon: pickAgentIcon(agent.name, agent.os),
     _raw: agent,
+  };
+}
+
+/** Chi tiết agent — CPU/RAM từ metadata lúc connect (cpuCount, totalMemory), không dùng % live. */
+export interface AgentDetailsUi {
+  hostname: string;
+  os: string;
+  ip: string;
+  cpu: string;
+  ram: string;
+}
+
+export function mapAgentToDetails(agent: Agent): AgentDetailsUi {
+  const m = (agent.metadata ?? {}) as Record<string, unknown>;
+  const hw = staticHardwareFromMetadata(m);
+
+  return {
+    hostname: agent.hostname?.trim() || '—',
+    os: agent.os?.trim() || '—',
+    ip:
+      agent.ip?.trim() ||
+      (typeof m.ip === 'string' && m.ip.trim() ? m.ip.trim() : '') ||
+      '—',
+    cpu: hw.cpuLabel,
+    ram: hw.ramLabel,
   };
 }
 
@@ -260,10 +320,13 @@ export function mapTaskToEventLog(task: Task): {
   const isOk = task.status === 'COMPLETED';
   return {
     title: isOk
-      ? `Task ${shortId(task.id)} successful`
+      ? t('dashboard.taskEventSuccess', { id: shortId(task.id) })
       : isFail
-        ? `Task ${shortId(task.id)} failed`
-        : `Task ${shortId(task.id)} ${task.status.toLowerCase()}`,
+        ? t('dashboard.taskEventFailed', { id: shortId(task.id) })
+        : t('dashboard.taskEventStatus', {
+            id: shortId(task.id),
+            status: task.status.toLowerCase(),
+          }),
     meta: `${formatRelativeTime(task.updatedAt ?? task.createdAt)} • ${agentName}`,
     variant: isOk ? 'success' : isFail ? 'error' : 'info',
   };

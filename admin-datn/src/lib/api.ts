@@ -41,14 +41,49 @@ export function unwrap<T>(envelope: ApiEnvelope<T>): T {
   return envelope.data;
 }
 
-export function apiErrorMessage(err: unknown): string {
-  if (err instanceof Error) return err.message;
-  if (typeof err === 'object' && err !== null && 'message' in err) {
-    const msg = (err as { message: unknown }).message;
-    if (typeof msg === 'string') return msg;
-    if (Array.isArray(msg)) return msg.join(', ');
+function formatApiMessage(message: unknown): string | null {
+  if (typeof message === 'string' && message.trim()) return message;
+  if (Array.isArray(message)) {
+    const parts = message
+      .map((m) => (typeof m === 'string' ? m : formatApiMessage(m)))
+      .filter((m): m is string => Boolean(m));
+    return parts.length ? parts.join(', ') : null;
   }
-  return 'An unexpected error occurred';
+  if (typeof message === 'object' && message !== null) {
+    const nested = message as { message?: unknown };
+    if (nested.message !== undefined) return formatApiMessage(nested.message);
+  }
+  return null;
+}
+
+export function apiErrorMessage(err: unknown): string {
+  if (err instanceof Error) {
+    const msg = err.message?.trim();
+    if (msg && msg !== '[object Object]') return msg;
+  }
+  if (typeof err === 'object' && err !== null) {
+    const direct = formatApiMessage((err as { message?: unknown }).message);
+    if (direct) return direct;
+    const fromError = formatApiMessage((err as { error?: unknown }).error);
+    if (fromError) return fromError;
+  }
+  return 'Đã xảy ra lỗi không mong đợi';
+}
+
+function extractHttpErrorMessage(json: unknown, status: number): string {
+  if (typeof json !== 'object' || json === null) {
+    return `Yêu cầu thất bại (${status})`;
+  }
+  const body = json as Record<string, unknown>;
+  const fromMessage = formatApiMessage(body.message);
+  if (fromMessage) return fromMessage;
+  const errField = body.error;
+  if (typeof errField === 'string') return errField;
+  if (typeof errField === 'object' && errField !== null) {
+    const fromNested = formatApiMessage((errField as { message?: unknown }).message);
+    if (fromNested) return fromNested;
+  }
+  return `Yêu cầu thất bại (${status})`;
 }
 
 export interface ApiFetchOptions extends Omit<RequestInit, 'body'> {
@@ -107,11 +142,7 @@ export async function apiFetch<T>(
   const json = await res.json().catch(() => ({}));
 
   if (!res.ok) {
-    const message =
-      (json as { message?: string | string[] })?.message ??
-      (json as { error?: string })?.error ??
-      `Request failed (${res.status})`;
-    throw new Error(Array.isArray(message) ? message.join(', ') : String(message));
+    throw new Error(extractHttpErrorMessage(json, res.status));
   }
 
   return unwrap<T>(json as ApiEnvelope<T>);

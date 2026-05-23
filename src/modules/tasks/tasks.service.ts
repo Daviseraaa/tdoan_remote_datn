@@ -7,9 +7,9 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { TaskStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
-import { PaginatedResponseDto } from '../../common/dto/pagination.dto';
+import { PaginatedResponseDto, PaginationDto } from '../../common/dto/pagination.dto';
 import { TASK_QUEUE } from '../../common/constants/index';
-import { CreateTaskDto, QueryTaskDto } from './dto/index';
+import { CreateTaskDto, QueryTaskDto, CreateTaskTemplateDto, UpdateTaskTemplateDto } from './dto/index';
 import { AgentsService } from '../agents/agents.service';
 
 @Injectable()
@@ -20,7 +20,11 @@ export class TasksService {
     @InjectQueue(TASK_QUEUE) private taskQueue: Queue,
   ) {}
 
-  async create(userId: string, dto: CreateTaskDto) {
+  async create(
+    userId: string,
+    dto: CreateTaskDto,
+    opts?: { workflowRunId?: string },
+  ) {
     const agent = await this.prisma.agent.findFirst({
       where: { id: dto.agentId, userId },
     });
@@ -38,6 +42,9 @@ export class TasksService {
         status: TaskStatus.PENDING,
         userId,
         agentId: dto.agentId,
+        ...(opts?.workflowRunId
+          ? { workflowRunId: opts.workflowRunId }
+          : {}),
       },
     });
 
@@ -152,6 +159,136 @@ export class TasksService {
         agent: { select: { name: true, status: true } },
         logs: { orderBy: { createdAt: 'asc' } },
       },
+    });
+  }
+
+  async createTemplate(userId: string, dto: CreateTaskTemplateDto) {
+    const agent = await this.prisma.agent.findFirst({
+      where: { id: dto.agentId, userId },
+    });
+    if (!agent) {
+      throw new NotFoundException('Agent not found or not owned by user');
+    }
+
+    return this.prisma.taskTemplate.create({
+      data: {
+        name: dto.name,
+        type: dto.type,
+        command: dto.command,
+        payload: dto.payload as object | undefined,
+        timeout: dto.timeout ?? 300_000,
+        priority: dto.priority ?? 0,
+        userId,
+        agentId: dto.agentId,
+      },
+      include: {
+        agent: { select: { id: true, name: true, status: true } },
+      },
+    });
+  }
+
+  async findAllTemplates(userId: string, query: PaginationDto) {
+    const where = { userId };
+    const [items, total] = await Promise.all([
+      this.prisma.taskTemplate.findMany({
+        where,
+        include: {
+          agent: { select: { id: true, name: true, status: true } },
+        },
+        skip: query.skip,
+        take: query.limit,
+        orderBy: { updatedAt: 'desc' },
+      }),
+      this.prisma.taskTemplate.count({ where }),
+    ]);
+    return new PaginatedResponseDto(items, total, query);
+  }
+
+  async findAllTemplatesAdmin(query: PaginationDto) {
+    const [items, total] = await Promise.all([
+      this.prisma.taskTemplate.findMany({
+        include: {
+          agent: { select: { id: true, name: true, status: true } },
+          user: { select: { id: true, name: true, email: true } },
+        },
+        skip: query.skip,
+        take: query.limit,
+        orderBy: { updatedAt: 'desc' },
+      }),
+      this.prisma.taskTemplate.count(),
+    ]);
+    return new PaginatedResponseDto(items, total, query);
+  }
+
+  findOneTemplate(id: string, userId: string, isAdmin: boolean) {
+    return this.prisma.taskTemplate.findFirst({
+      where: isAdmin ? { id } : { id, userId },
+      include: {
+        agent: { select: { id: true, name: true, status: true } },
+        ...(isAdmin
+          ? { user: { select: { id: true, name: true, email: true } } }
+          : {}),
+      },
+    });
+  }
+
+  async getTemplateOrThrow(id: string, userId: string, isAdmin: boolean) {
+    const template = await this.findOneTemplate(id, userId, isAdmin);
+    if (!template) throw new NotFoundException('Task template not found');
+    return template;
+  }
+
+  async updateTemplate(
+    id: string,
+    userId: string,
+    isAdmin: boolean,
+    dto: UpdateTaskTemplateDto,
+  ) {
+    const existing = await this.getTemplateOrThrow(id, userId, isAdmin);
+    const ownerId = existing.userId;
+    if (dto.agentId) {
+      const agent = await this.prisma.agent.findFirst({
+        where: { id: dto.agentId, userId: ownerId },
+      });
+      if (!agent) {
+        throw new NotFoundException('Agent not found or not owned by template owner');
+      }
+    }
+    return this.prisma.taskTemplate.update({
+      where: { id: existing.id },
+      data: {
+        ...(dto.name !== undefined ? { name: dto.name } : {}),
+        ...(dto.type !== undefined ? { type: dto.type } : {}),
+        ...(dto.command !== undefined ? { command: dto.command } : {}),
+        ...(dto.payload !== undefined ? { payload: dto.payload as object } : {}),
+        ...(dto.timeout !== undefined ? { timeout: dto.timeout } : {}),
+        ...(dto.priority !== undefined ? { priority: dto.priority } : {}),
+        ...(dto.agentId !== undefined ? { agentId: dto.agentId } : {}),
+      },
+      include: {
+        agent: { select: { id: true, name: true, status: true } },
+        ...(isAdmin
+          ? { user: { select: { id: true, name: true, email: true } } }
+          : {}),
+      },
+    });
+  }
+
+  async deleteTemplate(id: string, userId: string, isAdmin: boolean) {
+    const existing = await this.getTemplateOrThrow(id, userId, isAdmin);
+    await this.prisma.taskTemplate.delete({ where: { id: existing.id } });
+    return { message: 'Task template deleted' };
+  }
+
+  async runTemplate(id: string, requesterUserId: string, isAdmin: boolean) {
+    const template = await this.getTemplateOrThrow(id, requesterUserId, isAdmin);
+    return this.create(template.userId, {
+      type: template.type,
+      agentId: template.agentId,
+      command: template.command,
+      payload: template.payload as Record<string, unknown> | undefined,
+      timeout: template.timeout,
+      priority: template.priority,
     });
   }
 

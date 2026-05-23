@@ -7,7 +7,12 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { AgentsGateway } from '../agents/agents.gateway';
 import { TasksService } from './tasks.service';
 
-@Processor(TASK_QUEUE)
+const TASK_WORKER_CONCURRENCY = Math.max(
+  1,
+  parseInt(process.env.TASK_WORKER_CONCURRENCY ?? '10', 10) || 10,
+);
+
+@Processor(TASK_QUEUE, { concurrency: TASK_WORKER_CONCURRENCY })
 export class TasksProcessor extends WorkerHost {
   private readonly logger = new Logger(TasksProcessor.name);
 

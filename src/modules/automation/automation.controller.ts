@@ -3,22 +3,29 @@ import {
   Controller,
   Delete,
   Get,
+  HttpStatus,
   Param,
   Patch,
   Post,
   Query,
+  Res,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { ApiOperation, ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { CurrentUser, JwtPayload } from '../../common/decorators/current-user.decorator';
 import { PaginationDto } from '../../common/dto/pagination.dto';
 import { AutomationService } from './automation.service';
+import { WorkflowRuntimeService } from './workflow-runtime.service';
 import { CreateWorkflowDto, UpdateWorkflowDto } from './dto/index';
 
 @ApiTags('Automation / Workflows')
 @ApiBearerAuth()
 @Controller('workflows')
 export class AutomationController {
-  constructor(private readonly automationService: AutomationService) {}
+  constructor(
+    private readonly automationService: AutomationService,
+    private readonly workflowRuntime: WorkflowRuntimeService,
+  ) {}
 
   @Post()
   @ApiOperation({ summary: 'Create a new workflow' })
@@ -30,6 +37,12 @@ export class AutomationController {
   @ApiOperation({ summary: 'List workflows' })
   findAll(@CurrentUser() user: JwtPayload, @Query() pagination: PaginationDto) {
     return this.automationService.findAll(user.sub, pagination);
+  }
+
+  @Get('runs/:runId')
+  @ApiOperation({ summary: 'Get workflow run status and step runs' })
+  getRun(@CurrentUser() user: JwtPayload, @Param('runId') runId: string) {
+    return this.workflowRuntime.getRun(runId, user.sub);
   }
 
   @Get(':id')
@@ -55,8 +68,20 @@ export class AutomationController {
   }
 
   @Post(':id/execute')
-  @ApiOperation({ summary: 'Execute a workflow manually' })
-  execute(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
-    return this.automationService.execute(id, user.sub);
+  @ApiOperation({
+    summary: 'Execute a workflow (async by default; ?wait=true for sync)',
+  })
+  async execute(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+    @Query('wait') wait: string | undefined,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const sync = wait === 'true' || wait === '1';
+    const result = await this.automationService.execute(id, user.sub, sync);
+    if (!sync) {
+      res.status(HttpStatus.ACCEPTED);
+    }
+    return result;
   }
 }

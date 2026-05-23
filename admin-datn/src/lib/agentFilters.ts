@@ -1,4 +1,5 @@
 import type { Agent, AgentStatus } from '@/src/types/api';
+import { t } from '@/src/i18n/t';
 
 export type AgentStatusFilter = 'all' | Extract<AgentStatus, 'ONLINE' | 'OFFLINE'>;
 export type AgentClusterFilter = 'all' | 'windows' | 'mac' | 'linux';
@@ -18,19 +19,19 @@ export function nextClusterFilter(current: AgentClusterFilter): AgentClusterFilt
 
 export function clusterFilterLabel(cluster: AgentClusterFilter): string {
   const labels: Record<AgentClusterFilter, string> = {
-    all: 'All',
-    windows: 'Windows',
-    mac: 'Mac',
-    linux: 'Linux',
+    all: t('common.all'),
+    windows: t('common.windows'),
+    mac: t('common.mac'),
+    linux: t('common.linux'),
   };
   return labels[cluster];
 }
 
 export function statusFilterLabel(status: AgentStatusFilter): string {
   const labels: Record<AgentStatusFilter, string> = {
-    all: 'All',
-    ONLINE: 'Online',
-    OFFLINE: 'Offline',
+    all: t('common.all'),
+    ONLINE: t('common.online'),
+    OFFLINE: t('common.offline'),
   };
   return labels[status];
 }

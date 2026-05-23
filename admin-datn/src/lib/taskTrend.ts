@@ -1,3 +1,5 @@
+import { t } from '@/src/i18n/t';
+
 export type TaskTrendRange = '1H' | '24H' | '7D';
 
 export interface TaskTrendPoint {
@@ -92,10 +94,10 @@ export function taskTrendToChartData(
 export function taskTrendRangeLabel(range: TaskTrendRange): string {
   switch (range) {
     case '1H':
-      return 'Last hour';
+      return t('time.lastHour');
     case '24H':
-      return 'Last 24 hours';
+      return t('time.last24Hours');
     case '7D':
-      return 'Last 7 days';
+      return t('time.last7Days');
   }
 }
