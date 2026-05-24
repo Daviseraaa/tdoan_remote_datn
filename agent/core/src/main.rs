@@ -64,6 +64,22 @@ fn main() {
                 std::process::exit(1);
             }
         }
+        Some("config-print") => {
+            let path = config::env_load::default_config_path();
+            config::env_load::load_env_files();
+            let cfg = config::AgentConfig::load();
+            let raw = std::env::var("CHROME_EXTENSION_ENABLED").unwrap_or_else(|_| "<unset>".into());
+            let file = config::env_load::read_key_from_active_config("CHROME_EXTENSION_ENABLED")
+                .unwrap_or_else(|| "<missing>".into());
+            println!("config_file={}", path.display());
+            println!("CHROME_EXTENSION_ENABLED file={file}");
+            println!("CHROME_EXTENSION_ENABLED env={raw}");
+            println!(
+                "chrome_extension_enabled (effective)={}",
+                config::settings::chrome_extension_enabled_now()
+            );
+            println!("desktop_automation_enabled={}", cfg.desktop_automation_enabled);
+        }
         Some("ping-console") => {
             let rt = tokio::runtime::Builder::new_multi_thread()
                 .enable_all()
@@ -79,7 +95,7 @@ fn main() {
         }
         _ => {
             eprintln!(
-                "Usage:\n  datn-agent-native [agent]   WebSocket agent (mặc định)\n  datn-agent-native service   Windows Service\n  datn-agent-native worker    Named pipe user + desktop\n  datn-agent-native desktop-exec\n  datn-agent-native ping-console\n"
+                "Usage:\n  datn-agent-native [agent]   WebSocket agent (mặc định)\n  datn-agent-native service   Windows Service\n  datn-agent-native worker    Named pipe user + desktop\n  datn-agent-native desktop-exec\n  datn-agent-native config-print\n  datn-agent-native ping-console\n"
             );
             std::process::exit(2);
         }

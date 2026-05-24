@@ -39,28 +39,82 @@ fn dev_env_candidates() -> Vec<PathBuf> {
     out
 }
 
+/// Đọc một key từ file config đang dùng (fallback nếu dotenv không set biến).
+pub fn read_key_from_active_config(key: &str) -> Option<String> {
+    let path = default_config_path();
+    if path.exists() {
+        read_key_from_file(&path, key)
+    } else {
+        None
+    }
+}
+
 /// Gọi một lần lúc khởi động process (trước `AgentConfig::load`).
 pub fn load_env_files() {
-    if let Ok(path) = env::var("DATN_AGENT_CONFIG") {
-        if Path::new(&path).exists() {
-            let _ = dotenvy::from_filename(&path);
-        }
-        return;
-    }
-
-    if let Some(p) = program_data_config() {
+    let loaded = if let Ok(path) = env::var("DATN_AGENT_CONFIG") {
+        let p = Path::new(&path);
         if p.exists() {
-            let _ = dotenvy::from_path(&p);
-            return;
+            dotenvy::from_filename_override(&path).ok();
+            Some(p.to_path_buf())
+        } else {
+            None
         }
-    }
-
-    for p in dev_env_candidates() {
+    } else if let Some(p) = program_data_config() {
         if p.exists() {
-            let _ = dotenvy::from_path(&p);
-            return;
+            dotenvy::from_path_override(&p).ok();
+            Some(p)
+        } else {
+            None
+        }
+    } else {
+        dev_env_candidates()
+            .into_iter()
+            .find(|p| p.exists())
+            .map(|p| {
+                dotenvy::from_path_override(&p).ok();
+                p
+            })
+    };
+
+    if let Some(p) = loaded {
+        pin_critical_keys_from_file(&p);
+    }
+}
+
+/// Ghi đè trực tiếp các key quan trọng từ file (tránh dotenv/env cũ che mất).
+fn pin_critical_keys_from_file(path: &Path) {
+    const KEYS: &[&str] = &[
+        "CHROME_EXTENSION_ENABLED",
+        "DESKTOP_AUTOMATION_ENABLED",
+    ];
+    for key in KEYS {
+        if let Some(v) = read_key_from_file(path, key) {
+            env::set_var(key, v);
         }
     }
+}
+
+fn read_key_from_file(path: &Path, key: &str) -> Option<String> {
+    let content = std::fs::read_to_string(path).ok()?;
+    for line in content.lines() {
+        let t = line.trim();
+        if t.is_empty() || t.starts_with('#') {
+            continue;
+        }
+        let Some((k, v)) = t.split_once('=') else {
+            continue;
+        };
+        if k.trim() == key {
+            let mut val = v.trim().to_string();
+            if (val.starts_with('"') && val.ends_with('"'))
+                || (val.starts_with('\'') && val.ends_with('\''))
+            {
+                val = val[1..val.len() - 1].to_string();
+            }
+            return Some(val);
+        }
+    }
+    None
 }
 
 /// Đường dẫn config mặc định (để log / tool).

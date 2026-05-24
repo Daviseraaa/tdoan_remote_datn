@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use serde_json::Value;
 
-use crate::config::AgentConfig;
+use crate::config::settings::AgentConfig;
 use crate::platform::Platform;
 use crate::protocol::{tool_result_to_task_wire, TaskWire};
 
@@ -54,16 +54,20 @@ static HANDLERS: &[&dyn TaskHandler] = &[
     &handlers::system_info::Handler,
     &handlers::file_operation::Handler,
     &handlers::open_app::Handler,
+    &handlers::open_browser::Handler,
     &handlers::desktop::Handler,
+    &handlers::chrome_extension::Handler,
 ];
 
-pub fn supported_task_types(platform: &Platform) -> Vec<&'static str> {
+pub fn supported_task_types(platform: &Platform, _cfg: &AgentConfig) -> Vec<&'static str> {
     HANDLERS
         .iter()
         .map(|h| h.task_type())
         .filter(|t| {
             if *t == "DESKTOP_AUTOMATION" {
                 platform.desktop().is_available()
+            } else if *t == "CHROME_EXTENSION" {
+                cfg!(windows) && crate::config::settings::chrome_extension_enabled_now()
             } else {
                 true
             }

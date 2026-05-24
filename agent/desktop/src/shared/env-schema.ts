@@ -119,6 +119,69 @@ export const ENV_FIELDS: readonly EnvFieldDef[] = [
     default: '15000',
     hint: 'Windows — 1000–60000',
   },
+  {
+    key: 'OPEN_BROWSER_HEADLESS',
+    label: 'Cloak headless',
+    type: 'boolean',
+    group: 'Trình duyệt',
+    default: 'false',
+  },
+  {
+    key: 'OPEN_BROWSER_HUMANIZE',
+    label: 'Cloak humanize',
+    type: 'boolean',
+    group: 'Trình duyệt',
+    default: 'true',
+  },
+  {
+    key: 'OPEN_BROWSER_KEEP_OPEN',
+    label: 'Giữ trình duyệt mở sau task',
+    type: 'boolean',
+    group: 'Trình duyệt',
+    default: 'true',
+  },
+  {
+    key: 'OPEN_BROWSER_PROFILE_DIR',
+    label: 'Thư mục profile Cloak',
+    type: 'string',
+    group: 'Trình duyệt',
+    default: 'C:\\ProgramData\\DATN\\browser-profiles\\default',
+  },
+  {
+    key: 'CLOAK_RUNNER_DIR',
+    label: 'Thư mục datn-cloak-runner (tùy chọn)',
+    type: 'string',
+    group: 'Trình duyệt',
+    hint: 'Mặc định: resources/cloak khi cài bản đóng gói',
+  },
+  {
+    key: 'CHROME_EXTENSION_ENABLED',
+    label: 'Bật Chrome extension bridge',
+    type: 'boolean',
+    group: 'Chrome extension',
+    default: 'false',
+  },
+  {
+    key: 'CHROME_EXTENSION_MAX_STEPS',
+    label: 'Số bước tối đa (extension)',
+    type: 'number',
+    group: 'Chrome extension',
+    default: '50',
+  },
+  {
+    key: 'CHROME_EXTENSION_MAX_NODES',
+    label: 'Số node DOM tối đa / snapshot',
+    type: 'number',
+    group: 'Chrome extension',
+    default: '500',
+  },
+  {
+    key: 'CHROME_EXTENSION_ALLOWED_URLS',
+    label: 'URL cho phép (phẩy, rỗng = tất cả)',
+    type: 'string',
+    group: 'Chrome extension',
+    default: '',
+  },
 ] as const;
 
 export const ENV_GROUPS = [
@@ -126,5 +189,7 @@ export const ENV_GROUPS = [
   'Task / Shell',
   'Desktop automation',
   'Mở ứng dụng',
+  'Trình duyệt',
+  'Chrome extension',
   'Khác',
 ] as const;

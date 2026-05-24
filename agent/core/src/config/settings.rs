@@ -22,14 +22,28 @@ fn env_usize(key: &str, default: usize) -> usize {
         .unwrap_or(default)
 }
 
+pub fn parse_env_bool(value: &str) -> bool {
+    let v = value.trim().to_lowercase();
+    matches!(v.as_str(), "1" | "true" | "yes" | "on")
+}
+
 fn env_bool(key: &str, default: bool) -> bool {
     match env::var(key) {
-        Ok(v) => {
-            let v = v.to_lowercase();
-            matches!(v.as_str(), "1" | "true" | "yes" | "on")
-        }
+        Ok(v) => parse_env_bool(&v),
         Err(_) => default,
     }
+}
+
+/// Đọc lại từ agent.env (sau khi user sửa Cài đặt, không cần restart process).
+pub fn chrome_extension_enabled_now() -> bool {
+    env_load::load_env_files();
+    if env_bool("CHROME_EXTENSION_ENABLED", false) {
+        return true;
+    }
+    if let Some(v) = env_load::read_key_from_active_config("CHROME_EXTENSION_ENABLED") {
+        return parse_env_bool(&v);
+    }
+    false
 }
 
 #[derive(Debug, Clone)]
@@ -45,6 +59,14 @@ pub struct AgentConfig {
     pub desktop_automation_max_steps: usize,
     pub desktop_automation_max_delay_ms: u64,
     pub desktop_automation_max_type_chars: usize,
+    pub open_browser_headless: bool,
+    pub open_browser_humanize: bool,
+    pub open_browser_keep_open: bool,
+    pub open_browser_profile_dir: String,
+    pub chrome_extension_enabled: bool,
+    pub chrome_extension_max_steps: usize,
+    pub chrome_extension_max_nodes: usize,
+    pub chrome_extension_allowed_urls: Vec<String>,
     pub agent_version: String,
 }
 
@@ -63,6 +85,22 @@ impl AgentConfig {
             desktop_automation_max_steps: env_usize("DESKTOP_AUTOMATION_MAX_STEPS", 200).clamp(1, 200),
             desktop_automation_max_delay_ms: env_u64("DESKTOP_AUTOMATION_MAX_DELAY_MS", 60_000).min(120_000),
             desktop_automation_max_type_chars: env_usize("DESKTOP_AUTOMATION_MAX_TYPE_CHARS", 8000).clamp(1, 32_000),
+            open_browser_headless: env_bool("OPEN_BROWSER_HEADLESS", false),
+            open_browser_humanize: env_bool("OPEN_BROWSER_HUMANIZE", true),
+            open_browser_keep_open: env_bool("OPEN_BROWSER_KEEP_OPEN", true),
+            open_browser_profile_dir: env_str(
+                "OPEN_BROWSER_PROFILE_DIR",
+                r"C:\ProgramData\DATN\browser-profiles\default",
+            ),
+            chrome_extension_enabled: env_bool("CHROME_EXTENSION_ENABLED", false),
+            chrome_extension_max_steps: env_usize("CHROME_EXTENSION_MAX_STEPS", 50).clamp(1, 200),
+            chrome_extension_max_nodes: env_usize("CHROME_EXTENSION_MAX_NODES", 500).clamp(1, 2000),
+            chrome_extension_allowed_urls: env::var("CHROME_EXTENSION_ALLOWED_URLS")
+                .unwrap_or_default()
+                .split(',')
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty())
+                .collect(),
             agent_version: env_str("AGENT_VERSION", "1.1.0"),
         }
     }

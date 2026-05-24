@@ -97,10 +97,10 @@ export function WorkflowListSidebar({
   }
 
   return (
-    <aside className="w-52 xl:w-56 border-r border-white/5 bg-surface-container-low/50 flex flex-col shrink-0">
+    <aside className="w-52 xl:w-52 border-r border-white/5 bg-surface-container-low/50 flex flex-col shrink-0">
       <div className="p-3 space-y-2 border-b border-white/5">
         <div className="flex items-center justify-between gap-1.5">
-          <h2 className="text-sm font-bold flex items-center gap-1.5 min-w-0">
+          <h2 className="text-lg font-bold flex items-center gap-1.5 min-w-0">
             <Layers size={16} className="text-primary shrink-0" />
             <span className="truncate">{t('workflows.title')}</span>
           </h2>

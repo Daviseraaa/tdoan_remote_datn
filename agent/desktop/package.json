@@ -24,6 +24,11 @@
       {
         "from": "../bin/datn-agent-native.exe",
         "to": "core/datn-agent-native.exe"
+      },
+      {
+        "from": "../bin/cloak",
+        "to": "cloak",
+        "filter": ["**/*"]
       }
     ],
     "win": {

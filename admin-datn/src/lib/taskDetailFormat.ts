@@ -1,4 +1,4 @@
-/** Giống admin/src/lib/format.ts — không thêm dayjs. */
+/** Format task detail — không thêm dayjs. */
 export function formatTaskDateTime(value?: string | Date | null): string {
   if (!value) return '—';
   try {

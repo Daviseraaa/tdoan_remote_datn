@@ -5,10 +5,14 @@
   "description": "DATN workstation agent — Rust core + desktop control panel",
   "scripts": {
     "build:core": "cargo build --release --manifest-path core/Cargo.toml && node scripts/copy-core-bin.js",
+    "build:cloak-runner": "node scripts/build-cloak-runner.js",
+    "build:chrome-bridge": "node scripts/build-chrome-bridge.js",
+    "chrome-bridge:install": "cd desktop && npm run build && node dist/service/install-chrome-bridge.js",
     "build:desktop": "cd desktop && npm install && npm run build",
     "build": "npm run build:core && npm run build:desktop",
+    "build:all": "npm run build:core && npm run build:cloak-runner && npm run build:chrome-bridge && npm run build:desktop",
     "dev": "npm run build:core && cd desktop && npm run dev",
-    "dist:desktop": "npm run build:core && cd desktop && npm run dist",
+    "dist:desktop": "npm run build:core && node scripts/ensure-cloak-dir.js && cd desktop && npm run dist",
     "service:install": "cd desktop && npm run build && node dist/service/install.js",
     "service:uninstall": "cd desktop && npm run build && node dist/service/uninstall.js",
     "clean": "rimraf bin desktop/dist desktop/release desktop/node_modules core/target"

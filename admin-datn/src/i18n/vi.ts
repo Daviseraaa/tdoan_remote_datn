@@ -91,11 +91,17 @@ export const vi = {
     FILE_OPERATION: 'Thao tác file',
     SYSTEM_INFO: 'Thông tin hệ thống',
     OPEN_APP: 'Mở ứng dụng',
+    OPEN_BROWSER: 'Mở trình duyệt',
+    CHROME_EXTENSION: 'Chrome extension (DOM)',
     DESKTOP_AUTOMATION: 'Tự động hóa desktop',
     COMMAND_desc: 'Chạy một lệnh PowerShell, CMD hoặc bash trên agent.',
     SCRIPT_desc: 'Chạy script (đường dẫn file hoặc nội dung inline).',
     SYSTEM_INFO_desc: 'Thu thập hostname, CPU, RAM từ máy agent.',
     OPEN_APP_desc: 'Mở app theo đường dẫn, tên hoặc tìm kiếm.',
+    OPEN_BROWSER_desc:
+      'Mở URL — chọn Cloak hoặc Chrome profile thật trên từng bước workflow. Cần datn-cloak-runner trên agent.',
+    CHROME_EXTENSION_desc:
+      'Snapshot DOM / click / fill trên Chrome thật qua extension + Native Messaging. Cần cài extension và CHROME_EXTENSION_ENABLED=true.',
     DESKTOP_AUTOMATION_desc: 'Chuỗi bước chuột, phím, mở app trên Windows.',
     FILE_OPERATION_desc: 'Chưa hỗ trợ trên agent.',
   },
@@ -409,6 +415,27 @@ export const vi = {
     paletteTitle: 'Thêm bước',
     paletteControl: 'Điều khiển',
     paletteAgent: 'Agent',
+    paletteBrowser: 'Tự động hóa trình duyệt',
+    openBrowserUrlHint: 'URL đích (http/https). Có thể dùng {{workflow.var}}.',
+    openBrowserEngine: 'Trình duyệt',
+    openBrowserEngineCloak: 'CloakBrowser (stealth)',
+    openBrowserEngineChrome: 'Chrome hệ thống (cookies / đăng nhập)',
+    openBrowserEngineHint:
+      'Chọn trên từng bước workflow. Agent không đọc cấu hình Cloak/Chrome từ file .env.',
+    openBrowserChromeProfile: 'Chrome profile',
+    openBrowserChromeProfileHint:
+      'Tên thư mục profile: Default, Profile 1, Profile 2… Đóng Chrome đang mở cùng profile trước khi chạy.',
+    chromeExtensionAction: 'Hành động',
+    chromeExtensionSelector: 'CSS selector',
+    chromeExtensionFillText: 'Nội dung điền',
+    chromeExtensionUrlPattern: 'Lọc tab (URL prefix)',
+    chromeExtensionStepsHint:
+      '[{"action":"snapshotDom","urlPattern":"https://example.com/*","maxNodes":100}]',
+    chromeExtensionAdvancedJson: 'Nhiều bước (JSON, tùy chọn)',
+    chromeExtensionAdvancedJsonHint:
+      'Chỉ dùng khi cần nhiều bước liên tiếp. Thường chỉ cần Hành động + Lọc tab phía trên — không gõ snapshotDom vào đây.',
+    chromeExtensionBanner:
+      'Bật CHROME_EXTENSION_ENABLED=true trên agent. Cài extension và chạy npm run chrome-bridge:install.',
     nodeDelay: 'Chờ {ms} ms',
     nodeTelegram: 'Telegram',
     paletteTelegram: 'Telegram',

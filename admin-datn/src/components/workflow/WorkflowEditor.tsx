@@ -849,19 +849,8 @@ export function WorkflowEditor({
                 upstreamOutputKeys={upstreamOutputKeys}
                 workflowVarKeys={workflowVarKeys}
                 onUpdate={updateSelectedNode}
-                onDelete={deleteSelectedNode}
               />
             )}
-            <div className="p-4 border-t border-white/5 shrink-0 space-y-2">
-              <button
-                type="button"
-                disabled={saving}
-                onClick={() => void handleSave()}
-                className="w-full py-3 rounded-xl bg-primary text-on-primary font-bold text-sm disabled:opacity-40"
-              >
-                {t('workflows.saveWorkflow')}
-              </button>
-            </div>
           </aside>
         ) : null}
       </div>

@@ -5,7 +5,14 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { loadDesktopConfig } from '../shared/config';
 import { getLogger } from '../shared/logger';
-import { openConfigFolder, resolveConfigPath, resolveCoreExe } from '../shared/paths';
+import {
+  agentRoot,
+  openConfigFolder,
+  resolveCloakRunnerDir,
+  resolveCloakRunnerScript,
+  resolveConfigPath,
+  resolveCoreExe,
+} from '../shared/paths';
 import { showSettingsWindow } from '../main/settings-window';
 import { installDatnNativeWindowsService, NATIVE_SVC_NAME } from '../service/native-windows-service';
 import { uninstallDatnNativeWindowsService } from '../service/native-windows-service';
@@ -49,8 +56,19 @@ export function startRustAgent() {
   if (rustAgent && rustAgent.exitCode === null && !rustAgent.killed) {
     return;
   }
+  const root = agentRoot();
+  const childEnv: NodeJS.ProcessEnv = {
+    ...process.env,
+    DATN_AGENT_ROOT: root,
+  };
+  const cloakScript = resolveCloakRunnerScript();
+  if (cloakScript) childEnv.CLOAK_RUNNER_SCRIPT = cloakScript;
+  const cloakDir = resolveCloakRunnerDir();
+  if (cloakDir) childEnv.CLOAK_RUNNER_DIR = cloakDir;
+
   const child = spawn(exe, ['agent'], {
-    env: { ...process.env },
+    env: childEnv,
+    cwd: root,
     windowsHide: true,
     stdio: ['ignore', 'pipe', 'pipe'],
   });

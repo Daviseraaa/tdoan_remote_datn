@@ -17,7 +17,20 @@ export function newTaskNodeData(
     config: {
       agentId: defaultAgentId,
       taskType,
-      command: taskType === 'SYSTEM_INFO' ? 'collect' : '',
+      command:
+        taskType === 'SYSTEM_INFO'
+          ? 'collect'
+          : taskType === 'OPEN_BROWSER'
+            ? 'https://example.com'
+            : taskType === 'CHROME_EXTENSION'
+              ? '[]'
+              : '',
+      payload:
+        taskType === 'OPEN_BROWSER'
+          ? { useChromeProfile: false }
+          : taskType === 'CHROME_EXTENSION'
+            ? { action: 'snapshotDom', maxNodes: 200 }
+            : undefined,
       timeout: 60000,
       stepKey,
       ui: position,

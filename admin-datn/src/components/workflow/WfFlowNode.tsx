@@ -9,6 +9,7 @@ import {
   Info,
   AppWindow,
   MousePointer2,
+  Globe,
   AlertCircle,
   CheckCircle2,
   Loader2,
@@ -35,6 +36,10 @@ function kindIcon(kind: WfNodeData['kind'], taskType?: TaskType) {
       return Info;
     case 'OPEN_APP':
       return AppWindow;
+    case 'OPEN_BROWSER':
+      return Globe;
+    case 'CHROME_EXTENSION':
+      return MousePointer2;
     case 'DESKTOP_AUTOMATION':
       return MousePointer2;
     default:

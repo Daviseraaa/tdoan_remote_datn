@@ -124,11 +124,30 @@ function buildStepFromNode(node: Node<WfNodeData>, order: number): WorkflowStep 
 
   const taskType = d.taskType ?? 'COMMAND';
   const stepType = taskType === 'SCRIPT' ? 'SCRIPT' : 'COMMAND';
+  let config: WorkflowStepConfig = { ...baseConfig, taskType };
+
+  if (taskType === 'CHROME_EXTENSION') {
+    const pl =
+      config.payload && typeof config.payload === 'object' && !Array.isArray(config.payload)
+        ? ({ ...(config.payload as Record<string, unknown>) } as Record<string, unknown>)
+        : ({} as Record<string, unknown>);
+    if (typeof pl.action !== 'string') pl.action = 'snapshotDom';
+    if (pl.maxNodes == null) pl.maxNodes = 200;
+    const cmd = typeof config.command === 'string' ? config.command.trim() : '';
+    const legacyAction =
+      cmd === 'snapshotDom' || cmd === 'click' || cmd === 'fill' || cmd === 'waitFor' || cmd === 'delay';
+    config = {
+      ...config,
+      payload: pl,
+      command: cmd && !legacyAction && (cmd.startsWith('[') || cmd.startsWith('{')) ? cmd : '[]',
+    };
+  }
+
   return {
     id: node.id,
     order,
     type: stepType,
-    config: { ...baseConfig, taskType },
+    config,
     onFailure: d.onFailure,
   };
 }

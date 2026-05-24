@@ -37,7 +37,7 @@ export function Pagination({ page, limit, total, onPageChange, className }: Pagi
         >
           {t('pagination.previous')}
         </button>
-        <span className="px-3 py-2 text-[10px] font-mono font-bold text-on-surface-variant self-center">
+        <span className="px-0 py-2 text-[10px] font-mono font-bold text-on-surface-variant self-center">
           {safePage} / {totalPages}
         </span>
         <button

@@ -45,6 +45,8 @@ export const SELECTABLE_TEMPLATE_TYPES: TaskType[] = [
   'SCRIPT',
   'SYSTEM_INFO',
   'OPEN_APP',
+  'OPEN_BROWSER',
+  'CHROME_EXTENSION',
   'DESKTOP_AUTOMATION',
 ];
 
@@ -221,6 +223,14 @@ export function parseTemplateToForm(tpl: TaskTemplate, agent: Agent | null): Tem
     return base;
   }
 
+  if (tpl.type === 'OPEN_BROWSER') {
+    const p = tpl.payload as Record<string, unknown> | null;
+    if (p?.url && typeof p.url === 'string') {
+      base.command = p.url;
+    }
+    return base;
+  }
+
   return base;
 }
 
@@ -247,6 +257,12 @@ export function buildTemplateDto(state: TemplateEditorState): CreateTaskTemplate
             : { query: v };
       return { ...base, command: v, payload };
     }
+    case 'OPEN_BROWSER':
+      return {
+        ...base,
+        command: state.command.trim() || 'https://',
+        payload: state.command.trim() ? { url: state.command.trim() } : undefined,
+      };
     case 'DESKTOP_AUTOMATION':
       return {
         ...base,
@@ -270,6 +286,9 @@ export function validateTemplateState(state: TemplateEditorState): string | null
       break;
     case 'OPEN_APP':
       if (!state.openAppValue.trim()) return t('templateWizard.openAppRequired');
+      break;
+    case 'OPEN_BROWSER':
+      if (!state.command.trim()) return t('templateWizard.commandRequired');
       break;
     case 'DESKTOP_AUTOMATION':
       if (state.desktopSteps.length === 0) return t('templateWizard.desktopStepsRequired');

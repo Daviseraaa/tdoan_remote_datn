@@ -34,6 +34,17 @@ export function resolveConfigPath(): string {
   return pd;
 }
 
+export function resolveCloakRunnerScript(): string | null {
+  const p = path.join(agentRoot(), 'cloak-runner', 'main.py');
+  return fs.existsSync(p) ? p : null;
+}
+
+export function resolveCloakRunnerDir(): string | null {
+  const dir = path.join(agentRoot(), 'bin', 'cloak');
+  const exe = path.join(dir, 'datn-cloak-runner.exe');
+  return fs.existsSync(exe) ? dir : null;
+}
+
 export function resolveCoreExe(): string {
   try {
     const { app } = require('electron') as typeof import('electron');

@@ -50,7 +50,7 @@ fn build_metadata(
     sampler: &mut TelemetrySampler,
 ) -> serde_json::Value {
     let snap = sampler.sample();
-    let capabilities: Vec<&str> = supported_task_types(platform);
+    let capabilities: Vec<&str> = supported_task_types(platform, cfg);
     json!({
         "os": format!("{} {}", std::env::consts::OS, std::env::consts::ARCH),
         "hostname": hostname::get()
@@ -70,7 +70,15 @@ fn build_metadata(
 pub async fn run_with_stop(stop: Arc<AtomicBool>) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let _ = env_logger::try_init();
     let cfg = AgentConfig::load();
-    info!("Config: {}", env_load::default_config_path().display());
+    let config_path = env_load::default_config_path();
+    info!("Config: {}", config_path.display());
+    info!(
+        "CHROME_EXTENSION_ENABLED={} file={} (config: {})",
+        crate::config::settings::chrome_extension_enabled_now(),
+        env_load::read_key_from_active_config("CHROME_EXTENSION_ENABLED")
+            .unwrap_or_else(|| "?".into()),
+        config_path.display()
+    );
     let platform = Arc::new(Platform::current());
     let mut telemetry_sampler = TelemetrySampler::new();
     telemetry_sampler.refresh_ip_if_needed().await;
@@ -84,6 +92,15 @@ pub async fn run_with_stop(stop: Arc<AtomicBool>) -> Result<(), Box<dyn std::err
     info!("Connecting {} namespace {}", base, NS);
 
     let cfg = Arc::new(cfg);
+
+    #[cfg(windows)]
+    tokio::spawn(async {
+        if let Err(e) = crate::platform::windows::chrome_bridge::run_chrome_bridge_pipe_forever().await
+        {
+            error!("[chrome-bridge] pipe server: {}", e);
+        }
+    });
+
     let sem = Arc::new(Semaphore::new(cfg.task_max_concurrency.max(1)));
 
     let sem_t = sem.clone();

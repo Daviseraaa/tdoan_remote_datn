@@ -5,6 +5,7 @@ import {
   FileCode,
   Info,
   AppWindow,
+  Globe,
   MousePointer2,
   Filter,
   Users,
@@ -54,6 +55,7 @@ const TYPE_ICONS: Record<TaskType, React.ComponentType<{ size?: number; classNam
   FILE_OPERATION: FileCode,
   SYSTEM_INFO: Info,
   OPEN_APP: AppWindow,
+  OPEN_BROWSER: Globe,
   DESKTOP_AUTOMATION: MousePointer2,
 };
 
@@ -351,6 +353,8 @@ export default function TaskTemplateEditor() {
             <SystemInfoTemplateForm state={form} onChange={patch} />
           ) : form.type === 'OPEN_APP' ? (
             <OpenAppTemplateForm state={form} onChange={patch} />
+          ) : form.type === 'OPEN_BROWSER' ? (
+            <CommandTemplateForm state={form} onChange={patch} />
           ) : form.type === 'DESKTOP_AUTOMATION' ? (
             <DesktopAutomationBuilder state={form} onChange={patch} />
           ) : null}

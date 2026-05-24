@@ -108,6 +108,7 @@ export async function executeGraphIndependent(
       pendingParents.set(out.targetId, left);
 
       if (left <= 0) {
+        inFlight += 1;
         void runOne({
           stepId: out.targetId,
           ctx: mergeStepContexts(parentCtxs.get(out.targetId)!),
@@ -120,7 +121,6 @@ export async function executeGraphIndependent(
   };
 
   const runOne = async (item: ReadyItem) => {
-    inFlight += 1;
     const step = stepsById.get(item.stepId);
 
     try {
@@ -182,6 +182,7 @@ export async function executeGraphIndependent(
   }
 
   for (let i = 0; i < starts.length; i++) {
+    inFlight += 1;
     void runOne({
       stepId: starts[i]!,
       ctx: emptyCtx(workflowVars),

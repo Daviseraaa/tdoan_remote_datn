@@ -9,4 +9,4 @@ Tài liệu nội bộ cho monorepo **server_datn**, chia theo **scope** (đọc
 | [flows.md](./flows.md) | Luồng hoạt động chính (sơ đồ Mermaid): auth, agent, task |
 | [code-reference.md](./code-reference.md) | Bản đồ file/thư mục code theo package |
 
-Mẫu env: `.env.example` (root), `admin/.env.example`, `agent/.env.example`. Agent runtime production: `%ProgramData%\DATN\agent.env` (xem [`agent/README.md`](../../agent/README.md)).
+Mẫu env: `.env.example` (root), `agent/.env.example`. Admin UI: `admin-datn/` (cấu hình `VITE_*` trong `.env` local). Agent runtime production: `%ProgramData%\DATN\agent.env` (xem [`agent/README.md`](../../agent/README.md)).

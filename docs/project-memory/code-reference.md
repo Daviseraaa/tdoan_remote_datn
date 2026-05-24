@@ -87,24 +87,24 @@ Mô tả **thư mục / file quan trọng** theo từng package. Đường dẫn
 
 ---
 
-## Admin (`admin/src/`)
+## Admin UI (`admin-datn/src/`)
 
 | Đường dẫn | Vai trò |
 |-----------|---------|
 | `main.tsx` | React root. |
-| `App.tsx` | Router, layout, providers (Query, Antd). |
-| `layouts/AdminLayout.tsx` | Shell menu. |
-| `pages/LoginPage.tsx` | Đăng nhập. |
-| `pages/DashboardPage.tsx` | Tổng quan. |
-| `pages/UsersPage.tsx` | Quản lý user. |
-| `pages/AgentsPage.tsx` | Danh sách agent. |
-| `pages/TasksPage.tsx` | Task. |
-| `pages/WorkflowsPage.tsx` | Automation. |
-| `pages/AuditPage.tsx` | Audit log. |
-| `lib/api.ts` | Axios instance + interceptors. |
+| `App.tsx` | Router, layout, providers (Auth, WS). |
+| `components/Navigation.tsx` | Sidebar + top bar. |
+| `views/Login.tsx` | Đăng nhập. |
+| `views/Dashboard.tsx` | Tổng quan. |
+| `views/Agents.tsx` | Danh sách agent. |
+| `views/Tasks.tsx` | Task + template. |
+| `views/Workflows.tsx` | Workflow editor (XYFlow). |
+| `views/Automations.tsx` | Triggers. |
+| `views/AuditLog.tsx` | Audit log. |
+| `lib/api.ts` | Fetch wrapper + interceptors. |
 | `lib/auth.ts` | Token / logout helper. |
-| `lib/socket.ts` | Factory socket `/ws/client` (admin). |
-| `lib/format.ts`, `apiScope.ts` | Tiện ích UI. |
+| `lib/ws.ts` | Socket.IO client. |
+| `lib/mappers.ts`, `apiScope.ts` | Tiện ích UI. |
 
 ---
 
@@ -141,6 +141,5 @@ Mô tả **thư mục / file quan trọng** theo từng package. Đường dẫn
 
 - **`docker-compose.yml`**, **`package.json`** scripts ở root và từng package.
 - **Test**: `test/`, `*.spec.ts` trong module.
-- **`9remote/`**: không liệt kê chi tiết — ngoài phạm vi server_datn chính.
 
 Cập nhật file này khi thêm module hoặc đổi tên file entry quan trọng.

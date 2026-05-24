@@ -1,9 +1,17 @@
 node_modules/
 
+# Python
+__pycache__/
+*.py[cod]
+
 # Build output — không đưa lên git
 dist/
 bin/
 core/target/
+chrome-bridge/target/
+cloak-runner/build/
+cloak-runner/dist/
+chrome-extension/.extension-key.pem
 *.exe
 
 # Electron desktop (npm run dev / dist:desktop)

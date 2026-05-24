@@ -7,17 +7,25 @@ import {
   MousePointer2,
   GitBranch,
   MessageCircle,
+  Globe,
 } from 'lucide-react';
 import { t } from '@/src/i18n/t';
 import type { TaskType } from '@/src/types/api';
 
-const TASK_ITEMS: { type: TaskType; icon: typeof Terminal }[] = [
+const AGENT_TASK_ITEMS: { type: TaskType; icon: typeof Terminal }[] = [
   { type: 'COMMAND', icon: Terminal },
   { type: 'SCRIPT', icon: FileCode },
   { type: 'SYSTEM_INFO', icon: Info },
   { type: 'OPEN_APP', icon: AppWindow },
   { type: 'DESKTOP_AUTOMATION', icon: MousePointer2 },
 ];
+
+const BROWSER_TASK_ITEMS: { type: TaskType; icon: typeof Globe }[] = [
+  { type: 'OPEN_BROWSER', icon: Globe },
+  { type: 'CHROME_EXTENSION', icon: MousePointer2 },
+];
+
+const ALL_TASK_ITEMS = [...AGENT_TASK_ITEMS, ...BROWSER_TASK_ITEMS];
 
 type Props = {
   onAddDelay: () => void;
@@ -27,6 +35,49 @@ type Props = {
   collapsed?: boolean;
   chainNextStep?: boolean;
 };
+
+function TaskPaletteButtons({
+  items,
+  onAddTask,
+  compact,
+}: {
+  items: { type: TaskType; icon: typeof Terminal }[];
+  onAddTask: (type: TaskType) => void;
+  compact?: boolean;
+}) {
+  if (compact) {
+    return (
+      <>
+        {items.map(({ type, icon: Icon }) => (
+          <button
+            key={type}
+            type="button"
+            title={t(`taskType.${type}` as 'taskType.COMMAND')}
+            onClick={() => onAddTask(type)}
+            className="w-9 h-9 rounded-lg border border-white/10 hover:bg-white/5 flex items-center justify-center text-primary"
+          >
+            <Icon size={16} />
+          </button>
+        ))}
+      </>
+    );
+  }
+  return (
+    <div className="space-y-1">
+      {items.map(({ type, icon: Icon }) => (
+        <button
+          key={type}
+          type="button"
+          onClick={() => onAddTask(type)}
+          className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl border border-white/10 hover:bg-white/5 hover:border-primary/30 text-left text-sm font-bold transition-all"
+        >
+          <Icon size={16} className="text-primary shrink-0" />
+          <span className="truncate">{t(`taskType.${type}` as 'taskType.COMMAND')}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
 
 export function WorkflowNodePalette({
   onAddDelay,
@@ -39,17 +90,9 @@ export function WorkflowNodePalette({
   if (collapsed) {
     return (
       <div className="w-12 border-r border-white/5 flex flex-col items-center py-3 gap-2 shrink-0">
-        {TASK_ITEMS.map(({ type, icon: Icon }) => (
-          <button
-            key={type}
-            type="button"
-            title={t(`taskType.${type}` as 'taskType.COMMAND')}
-            onClick={() => onAddTask(type)}
-            className="w-9 h-9 rounded-lg border border-white/10 hover:bg-white/5 flex items-center justify-center text-primary"
-          >
-            <Icon size={16} />
-          </button>
-        ))}
+        <TaskPaletteButtons items={AGENT_TASK_ITEMS} onAddTask={onAddTask} compact />
+        <div className="w-6 border-t border-white/10 my-0.5" />
+        <TaskPaletteButtons items={BROWSER_TASK_ITEMS} onAddTask={onAddTask} compact />
         <button
           type="button"
           title={t('workflows.nodeDelay', { ms: 1000 })}
@@ -62,7 +105,7 @@ export function WorkflowNodePalette({
           type="button"
           title={t('workflows.nodeCondition')}
           onClick={onAddCondition}
-          className="w-9 h-9 rounded-lg border border-amber-400/30 hover:bg-amber-400/10 flex items-center justify-center text-amber-400"
+          className="w-9 h-9 rounded-lg border border-amber-400/25 hover:bg-amber-400/10 flex items-center justify-center text-amber-400"
         >
           <GitBranch size={16} />
         </button>
@@ -70,7 +113,7 @@ export function WorkflowNodePalette({
           type="button"
           title={t('workflows.nodeTelegram')}
           onClick={onAddTelegram}
-          className="w-9 h-9 rounded-lg border border-sky-400/30 hover:bg-sky-400/10 flex items-center justify-center text-sky-400"
+          className="w-9 h-9 rounded-lg border border-sky-400/25 hover:bg-sky-400/10 flex items-center justify-center text-sky-400"
         >
           <MessageCircle size={16} />
         </button>
@@ -116,19 +159,18 @@ export function WorkflowNodePalette({
       <p className="text-[9px] font-mono text-on-surface-variant/60 px-4 pb-2">
         {t('workflows.paletteAgent')}
       </p>
-      <div className="px-2 pb-4 space-y-1">
-        {TASK_ITEMS.map(({ type, icon: Icon }) => (
-          <button
-            key={type}
-            type="button"
-            onClick={() => onAddTask(type)}
-            className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl border border-white/10 hover:bg-white/5 hover:border-primary/30 text-left text-sm font-bold transition-all"
-          >
-            <Icon size={16} className="text-primary shrink-0" />
-            <span className="truncate">{t(`taskType.${type}` as 'taskType.COMMAND')}</span>
-          </button>
-        ))}
+      <div className="px-2 pb-3">
+        <TaskPaletteButtons items={AGENT_TASK_ITEMS} onAddTask={onAddTask} />
+      </div>
+      <p className="text-[9px] font-mono text-on-surface-variant/60 px-4 pb-2">
+        {t('workflows.paletteBrowser')}
+      </p>
+      <div className="px-2 pb-4">
+        <TaskPaletteButtons items={BROWSER_TASK_ITEMS} onAddTask={onAddTask} />
       </div>
     </div>
   );
 }
+
+/** Palette task types (agent + browser) — dùng test hoặc re-export nếu cần. */
+export const WORKFLOW_PALETTE_TASK_TYPES = ALL_TASK_ITEMS.map((i) => i.type);

@@ -9,12 +9,11 @@ Nền tảng **server + agent + admin**: quản trị user/agent, giao việc (t
 | Thư mục | Vai trò |
 |--------|---------|
 | **Root** (`src/`, `prisma/`) | API **NestJS 11**, WebSocket, queue, Prisma |
-| **admin/** | SPA **React 18 + Vite + Ant Design**: đăng nhập, quản lý, task |
+| **admin-datn/** | SPA **React 19 + Vite + Tailwind**: đăng nhập, quản lý, task, workflow |
 | **agent/core/** | Crate **Rust**: Socket.IO `/ws/agent`, heartbeat, task |
 | **agent/desktop/** | Electron control panel: config ProgramData, tray, service install |
 | **agent/bin/** | Binary `datn-agent-native.exe` (artifact, gitignore) |
-| **native/** | Chỉ `README.md` redirect → `agent/core/` (không build tại đây) |
-| **9remote/** *(nếu có trong workspace)* | Repo phụ, **không** gắn vào `package.json` root; không coi là phần build chính |
+| **agent/chrome-bridge/** | Native Messaging host (Rust); `target/` gitignore |
 
 ## Stack kỹ thuật (tóm tắt)
 
@@ -22,7 +21,7 @@ Nền tảng **server + agent + admin**: quản trị user/agent, giao việc (t
 - **Dữ liệu**: PostgreSQL + **Prisma** (`prisma/schema.prisma`).
 - **Hàng đợi / cache**: **Redis** + BullMQ.
 - **Realtime**: **Socket.IO** — namespace `/ws/agent` (agent lifecycle + task).
-- **Admin**: React Router, TanStack Query, Zustand, Axios (`admin/src/lib/api.ts`).
+- **Admin UI**: React Router, TanStack Query, fetch (`admin-datn/src/lib/api.ts`).
 
 ## Module NestJS (domain)
 
@@ -56,11 +55,11 @@ npm run prisma:seed
 npm run start:dev
 ```
 
-**Admin** (`admin/`):
+**Admin UI** (`admin-datn/`):
 
 ```bash
+cd admin-datn
 npm install
-cp .env.example .env
 npm run dev
 ```
 

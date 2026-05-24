@@ -1,5 +1,3 @@
-import { Trash2 } from 'lucide-react';
-import { cn } from '@/src/lib/utils';
 import type {
   Agent,
   TaskType,
@@ -36,7 +34,6 @@ type Props = {
   upstreamOutputKeys?: { key: string; label: string }[];
   workflowVarKeys?: string[];
   onUpdate: (patch: Partial<WfNodeData> & { config?: WfNodeData['config'] }) => void;
-  onDelete: () => void;
 };
 
 export function WorkflowStepInspector({
@@ -46,7 +43,6 @@ export function WorkflowStepInspector({
   upstreamOutputKeys = [],
   workflowVarKeys = [],
   onUpdate,
-  onDelete,
 }: Props) {
   if (!nodeId || !data || nodeId === WF_TRIGGER_ID || data.kind === 'trigger') {
     return (
@@ -61,6 +57,23 @@ export function WorkflowStepInspector({
 
   const patchConfig = (p: Partial<typeof cfg>) => {
     onUpdate({ config: { ...cfg, ...p } });
+  };
+
+  const chromePayloadBase = (): Record<string, unknown> => {
+    const p = (cfg.payload as Record<string, unknown> | undefined) ?? {};
+    return {
+      maxNodes: 200,
+      ...p,
+      action: typeof p.action === 'string' ? p.action : 'snapshotDom',
+    };
+  };
+
+  const patchChromePayload = (patch: Record<string, unknown>) => {
+    patchConfig({
+      payload: { ...chromePayloadBase(), ...patch },
+      command: '[]',
+      taskType: 'CHROME_EXTENSION',
+    });
   };
 
   return (
@@ -247,7 +260,7 @@ export function WorkflowStepInspector({
             </p>
           </div>
 
-          {data.taskType !== 'SYSTEM_INFO' ? (
+          {data.taskType !== 'SYSTEM_INFO' && data.taskType !== 'CHROME_EXTENSION' ? (
             <div>
               <label className="text-[10px] font-mono font-bold uppercase text-on-surface-variant">
                 {t('workflows.command')}
@@ -259,11 +272,78 @@ export function WorkflowStepInspector({
                 placeholder={
                   data.taskType === 'DESKTOP_AUTOMATION'
                     ? t('workflows.desktopStepsHint')
-                    : t('templateWizard.commandPlaceholder')
+                    : data.taskType === 'OPEN_BROWSER'
+                      ? 'https://example.com'
+                      : t('templateWizard.commandPlaceholder')
                 }
                 className="w-full mt-1 px-4 py-3 rounded-xl bg-surface-container-low border border-white/10 font-mono text-sm"
               />
-              <p className="text-[10px] text-on-surface-variant mt-1">{t('workflows.commandVarsHint')}</p>
+              <p className="text-[10px] text-on-surface-variant mt-1">
+                {data.taskType === 'OPEN_BROWSER'
+                  ? t('workflows.openBrowserUrlHint')
+                  : t('workflows.commandVarsHint')}
+              </p>
+            </div>
+          ) : null}
+
+          {data.taskType === 'OPEN_BROWSER' ? (
+            <div className="space-y-3">
+              <div>
+                <label className="text-[10px] font-mono font-bold uppercase text-on-surface-variant">
+                  {t('workflows.openBrowserEngine')}
+                </label>
+                <select
+                  value={
+                    (cfg.payload as Record<string, unknown> | undefined)?.useChromeProfile === true
+                      ? 'chrome'
+                      : 'cloak'
+                  }
+                  onChange={(e) => {
+                    const useChrome = e.target.value === 'chrome';
+                    const prev = { ...((cfg.payload as Record<string, unknown>) ?? {}) };
+                    prev.useChromeProfile = useChrome;
+                    if (useChrome) {
+                      if (!prev.chromeProfile) prev.chromeProfile = 'Default';
+                    } else {
+                      delete prev.chromeProfile;
+                      delete prev.chromeUserDataDir;
+                      delete prev.chromeExecutablePath;
+                    }
+                    patchConfig({ payload: prev });
+                  }}
+                  className="w-full mt-1 px-4 py-2.5 rounded-xl bg-surface-container-low border border-white/10 text-sm"
+                >
+                  <option value="cloak">{t('workflows.openBrowserEngineCloak')}</option>
+                  <option value="chrome">{t('workflows.openBrowserEngineChrome')}</option>
+                </select>
+                <p className="text-[10px] text-on-surface-variant mt-1">
+                  {t('workflows.openBrowserEngineHint')}
+                </p>
+              </div>
+              {(cfg.payload as Record<string, unknown> | undefined)?.useChromeProfile === true ? (
+                <div>
+                  <label className="text-[10px] font-mono font-bold uppercase text-on-surface-variant">
+                    {t('workflows.openBrowserChromeProfile')}
+                  </label>
+                  <input
+                    type="text"
+                    value={String(
+                      (cfg.payload as Record<string, unknown> | undefined)?.chromeProfile ?? 'Default',
+                    )}
+                    onChange={(e) => {
+                      const prev = { ...((cfg.payload as Record<string, unknown>) ?? {}) };
+                      prev.useChromeProfile = true;
+                      prev.chromeProfile = e.target.value;
+                      patchConfig({ payload: prev });
+                    }}
+                    placeholder="Default"
+                    className="w-full mt-1 px-4 py-2.5 rounded-xl bg-surface-container-low border border-white/10 font-mono text-sm"
+                  />
+                  <p className="text-[10px] text-on-surface-variant mt-1">
+                    {t('workflows.openBrowserChromeProfileHint')}
+                  </p>
+                </div>
+              ) : null}
             </div>
           ) : null}
 
@@ -284,6 +364,83 @@ export function WorkflowStepInspector({
                 rows={4}
                 className="w-full mt-1 px-4 py-3 rounded-xl bg-surface-container-low border border-white/10 font-mono text-xs"
               />
+            </div>
+          ) : null}
+
+          {data.taskType === 'CHROME_EXTENSION' ? (
+            <div className="space-y-3">
+              <p className="text-xs text-amber-400/90">{t('workflows.chromeExtensionBanner')}</p>
+              <div>
+                <label className="text-[10px] font-mono font-bold uppercase text-on-surface-variant">
+                  {t('workflows.chromeExtensionAction')}
+                </label>
+                <select
+                  value={String(chromePayloadBase().action ?? 'snapshotDom')}
+                  onChange={(e) => patchChromePayload({ action: e.target.value })}
+                  className="w-full mt-1 px-4 py-2.5 rounded-xl bg-surface-container-low border border-white/10 text-sm"
+                >
+                  <option value="snapshotDom">snapshotDom</option>
+                  <option value="click">click</option>
+                  <option value="fill">fill</option>
+                  <option value="waitFor">waitFor</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-[10px] font-mono font-bold uppercase text-on-surface-variant">
+                  {t('workflows.chromeExtensionSelector')}
+                </label>
+                <input
+                  type="text"
+                  value={String(chromePayloadBase().selector ?? '')}
+                  onChange={(e) => patchChromePayload({ selector: e.target.value })}
+                  className="w-full mt-1 px-4 py-2.5 rounded-xl bg-surface-container-low border border-white/10 font-mono text-sm"
+                />
+              </div>
+              {chromePayloadBase().action === 'fill' ? (
+                <div>
+                  <label className="text-[10px] font-mono font-bold uppercase text-on-surface-variant">
+                    {t('workflows.chromeExtensionFillText')}
+                  </label>
+                  <input
+                    type="text"
+                    value={String(chromePayloadBase().text ?? '')}
+                    onChange={(e) => patchChromePayload({ text: e.target.value })}
+                    className="w-full mt-1 px-4 py-2.5 rounded-xl bg-surface-container-low border border-white/10 text-sm"
+                  />
+                </div>
+              ) : null}
+              <div>
+                <label className="text-[10px] font-mono font-bold uppercase text-on-surface-variant">
+                  {t('workflows.chromeExtensionUrlPattern')}
+                </label>
+                <input
+                  type="text"
+                  value={String(chromePayloadBase().urlPattern ?? '')}
+                  onChange={(e) => patchChromePayload({ urlPattern: e.target.value })}
+                  placeholder="https://example.com/*"
+                  className="w-full mt-1 px-4 py-2.5 rounded-xl bg-surface-container-low border border-white/10 font-mono text-sm"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] font-mono font-bold uppercase text-on-surface-variant">
+                  {t('workflows.chromeExtensionAdvancedJson')}
+                </label>
+                <textarea
+                  value={
+                    (cfg.command ?? '').trim().startsWith('[') ||
+                    (cfg.command ?? '').trim().startsWith('{')
+                      ? (cfg.command ?? '')
+                      : ''
+                  }
+                  onChange={(e) => patchConfig({ command: e.target.value })}
+                  rows={5}
+                  placeholder={t('workflows.chromeExtensionStepsHint')}
+                  className="w-full mt-1 px-4 py-3 rounded-xl bg-surface-container-low border border-white/10 font-mono text-xs"
+                />
+                <p className="text-[10px] text-on-surface-variant mt-1">
+                  {t('workflows.chromeExtensionAdvancedJsonHint')}
+                </p>
+              </div>
             </div>
           ) : null}
 
@@ -322,18 +479,6 @@ export function WorkflowStepInspector({
           ))}
         </select>
       </div>
-
-      <button
-        type="button"
-        onClick={onDelete}
-        className={cn(
-          'w-full py-3 rounded-xl border border-error/30 text-error font-bold text-sm',
-          'flex items-center justify-center gap-2 hover:bg-error/10',
-        )}
-      >
-        <Trash2 size={16} />
-        {t('workflows.deleteNode')}
-      </button>
     </div>
   );
 }

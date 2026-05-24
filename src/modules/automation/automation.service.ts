@@ -122,10 +122,177 @@ function evaluateCondition(
   return !ctx.failed && (ctx.exitCode === 0 || ctx.exitCode === null);
 }
 
-function resolveTaskType(stepType: StepType, config: WorkflowStepConfig): TaskType {
-  if (config.taskType && Object.values(TaskType).includes(config.taskType)) {
-    return config.taskType;
+/** Literal — cần `npx prisma generate` sau enum; `TaskType.CHROME_EXTENSION` undefined nếu client cũ. */
+const CHROME_EXTENSION_TYPE = 'CHROME_EXTENSION' as TaskType;
+
+const CHROME_EXTENSION_ACTIONS = new Set([
+  'snapshotDom',
+  'click',
+  'fill',
+  'waitFor',
+  'delay',
+]);
+
+const CHROME_EXTENSION_PAYLOAD_KEYS = [
+  'selector',
+  'text',
+  'tabId',
+  'urlPattern',
+  'maxNodes',
+  'timeoutMs',
+] as const;
+
+function normalizeChromeExtensionPayload(
+  config: WorkflowStepConfig,
+  payload: Record<string, unknown> | undefined,
+): Record<string, unknown> {
+  const p = { ...(payload ?? {}) };
+  const cmdTrim = (config.command ?? '').trim();
+  if (typeof p.action !== 'string' && CHROME_EXTENSION_ACTIONS.has(cmdTrim)) {
+    p.action = cmdTrim;
   }
+  if (typeof p.action !== 'string') {
+    p.action = 'snapshotDom';
+  }
+  if (p.maxNodes == null) p.maxNodes = 200;
+  return p;
+}
+
+function chromeExtensionCommandFromPayload(
+  payload: Record<string, unknown>,
+): string {
+  if (Array.isArray(payload.steps) && payload.steps.length > 0) {
+    return JSON.stringify(payload.steps);
+  }
+  const step: Record<string, unknown> = { action: payload.action };
+  for (const key of CHROME_EXTENSION_PAYLOAD_KEYS) {
+    const v = payload[key];
+    if (v !== undefined && v !== null && v !== '') {
+      step[key] = v;
+    }
+  }
+  return JSON.stringify([step]);
+}
+
+function isChromeExtensionPlaceholderCommand(cmd: string): boolean {
+  const t = cmd.trim();
+  return t === '' || t === '[]';
+}
+
+function commandJsonHasChromeActions(command: string): boolean {
+  const t = command.trim();
+  if (!t.startsWith('[') && !t.startsWith('{')) return false;
+  try {
+    const v = JSON.parse(t) as unknown;
+    const steps = Array.isArray(v)
+      ? v
+      : v &&
+          typeof v === 'object' &&
+          Array.isArray((v as { steps?: unknown[] }).steps)
+        ? (v as { steps: unknown[] }).steps
+        : [];
+    return steps.some(
+      (s) =>
+        s &&
+        typeof s === 'object' &&
+        CHROME_EXTENSION_ACTIONS.has(
+          String((s as { action?: string }).action ?? ''),
+        ),
+    );
+  } catch {
+    return false;
+  }
+}
+
+function configTaskTypeUpper(config: WorkflowStepConfig): string {
+  return config.taskType != null ? String(config.taskType).toUpperCase() : '';
+}
+
+function resolveTaskType(stepType: StepType, config: WorkflowStepConfig): TaskType {
+  const ttUpper = configTaskTypeUpper(config);
+  switch (ttUpper) {
+    case 'CHROME_EXTENSION':
+      return CHROME_EXTENSION_TYPE;
+    case 'OPEN_BROWSER':
+      return TaskType.OPEN_BROWSER;
+    case 'DESKTOP_AUTOMATION':
+      return TaskType.DESKTOP_AUTOMATION;
+    case 'OPEN_APP':
+      return TaskType.OPEN_APP;
+    case 'SYSTEM_INFO':
+      return TaskType.SYSTEM_INFO;
+    case 'SCRIPT':
+      return TaskType.SCRIPT;
+    case 'FILE_OPERATION':
+      return TaskType.FILE_OPERATION;
+    case 'COMMAND':
+      return TaskType.COMMAND;
+    default:
+      break;
+  }
+
+  const tt = config.taskType;
+  if (tt && Object.values(TaskType).includes(tt as TaskType)) {
+    return tt as TaskType;
+  }
+
+  const cmd = (config.command ?? '').trim();
+  if (CHROME_EXTENSION_ACTIONS.has(cmd)) {
+    return CHROME_EXTENSION_TYPE;
+  }
+  if (isChromeExtensionPlaceholderCommand(cmd)) {
+    const p = config.payload;
+    if (p && typeof p === 'object' && !Array.isArray(p)) {
+      const pl = p as Record<string, unknown>;
+      if (
+        typeof pl.action === 'string' &&
+        CHROME_EXTENSION_ACTIONS.has(pl.action)
+      ) {
+        return CHROME_EXTENSION_TYPE;
+      }
+      if (Array.isArray(pl.steps) && pl.steps.length > 0) {
+        return TaskType.DESKTOP_AUTOMATION;
+      }
+    }
+  }
+  if (cmd.startsWith('[') || cmd.startsWith('{')) {
+    try {
+      const v = JSON.parse(cmd) as unknown;
+      const steps = Array.isArray(v)
+        ? v
+        : v &&
+            typeof v === 'object' &&
+            Array.isArray((v as { steps?: unknown[] }).steps)
+          ? (v as { steps: unknown[] }).steps
+          : null;
+      if (
+        steps?.length &&
+        steps.some(
+          (s) =>
+            s &&
+            typeof s === 'object' &&
+            CHROME_EXTENSION_ACTIONS.has(
+              String((s as { action?: string }).action ?? ''),
+            ),
+        )
+      ) {
+        return CHROME_EXTENSION_TYPE;
+      }
+    } catch {
+      /* not json */
+    }
+  }
+
+  const payload = config.payload;
+  if (
+    payload &&
+    typeof payload === 'object' &&
+    typeof payload.action === 'string' &&
+    CHROME_EXTENSION_ACTIONS.has(payload.action)
+  ) {
+    return CHROME_EXTENSION_TYPE;
+  }
+
   if (stepType === StepType.SCRIPT) return TaskType.SCRIPT;
   return TaskType.COMMAND;
 }
@@ -133,7 +300,9 @@ function resolveTaskType(stepType: StepType, config: WorkflowStepConfig): TaskTy
 function resolveCommand(taskType: TaskType, config: WorkflowStepConfig): string {
   const cmd = (config.command ?? '').trim();
   if (taskType === TaskType.SYSTEM_INFO) return cmd || 'collect';
+  if (taskType === TaskType.OPEN_BROWSER) return cmd || 'https://example.com';
   if (taskType === TaskType.DESKTOP_AUTOMATION) return cmd || '[]';
+  if (taskType === CHROME_EXTENSION_TYPE) return cmd || '[]';
   return cmd;
 }
 
@@ -409,17 +578,97 @@ export class AutomationService {
       }
     }
 
-    const taskType = resolveTaskType(step.type, config);
-    const rawCommand = resolveCommand(taskType, config);
+    let taskType = resolveTaskType(step.type, config);
     const scope = ctx.scope;
-    const command = resolveTemplateString(rawCommand, scope);
-    const payload = resolvePayload(config.payload, scope);
+    let payload = resolvePayload(config.payload, scope) as
+      | Record<string, unknown>
+      | undefined;
+    const rawCommand = resolveCommand(taskType, config);
+    let command = resolveTemplateString(rawCommand, scope);
+
+    const configSaysChrome = configTaskTypeUpper(config) === 'CHROME_EXTENSION';
+    const payloadSaysChrome =
+      payload &&
+      typeof payload.action === 'string' &&
+      CHROME_EXTENSION_ACTIONS.has(payload.action);
+    const commandSaysChrome = commandJsonHasChromeActions(command);
+
+    if (
+      configSaysChrome ||
+      payloadSaysChrome ||
+      commandSaysChrome ||
+      taskType === CHROME_EXTENSION_TYPE
+    ) {
+      taskType = CHROME_EXTENSION_TYPE;
+      const cmdTrim = (config.command ?? '').trim();
+      const resolvedCmd = command.trim();
+      const useJsonCommand =
+        !isChromeExtensionPlaceholderCommand(cmdTrim) &&
+        !isChromeExtensionPlaceholderCommand(resolvedCmd) &&
+        (cmdTrim.startsWith('[') ||
+          cmdTrim.startsWith('{') ||
+          resolvedCmd.startsWith('[') ||
+          resolvedCmd.startsWith('{'));
+
+      if (useJsonCommand && commandJsonHasChromeActions(resolvedCmd)) {
+        command = resolvedCmd;
+      } else if (
+        useJsonCommand &&
+        commandJsonHasChromeActions(resolveTemplateString(cmdTrim, scope))
+      ) {
+        command = resolveTemplateString(cmdTrim, scope);
+      } else {
+        payload = normalizeChromeExtensionPayload(
+          config,
+          payload as Record<string, unknown> | undefined,
+        );
+        command = chromeExtensionCommandFromPayload(payload);
+      }
+    }
+
+    if (
+      taskType === TaskType.COMMAND &&
+      isChromeExtensionPlaceholderCommand(command)
+    ) {
+      throw new Error(
+        'Node Chrome extension: lưu workflow (Save) rồi chạy lại — thiếu taskType/payload hoặc server chưa restart.',
+      );
+    }
 
     if (!config.agentId) {
       throw new Error('Step config missing agentId');
     }
-    if (taskType !== TaskType.SYSTEM_INFO && !command) {
+    if (
+      taskType !== TaskType.SYSTEM_INFO &&
+      taskType !== CHROME_EXTENSION_TYPE &&
+      !command
+    ) {
       throw new Error('Step config missing command');
+    }
+    if (taskType === CHROME_EXTENSION_TYPE) {
+      const cmdJson = command.trim();
+      let hasSteps = false;
+      if (cmdJson.startsWith('[') || cmdJson.startsWith('{')) {
+        try {
+          const v = JSON.parse(cmdJson) as unknown;
+          const arr = Array.isArray(v)
+            ? v
+            : v &&
+                typeof v === 'object' &&
+                Array.isArray((v as { steps?: unknown[] }).steps)
+              ? (v as { steps: unknown[] }).steps
+              : [];
+          hasSteps = arr.length > 0;
+        } catch {
+          hasSteps = false;
+        }
+      }
+      const hasAction = typeof payload?.action === 'string';
+      if (!hasAction && !hasSteps) {
+        throw new Error(
+          'CHROME_EXTENSION: chọn Hành động hoặc dán JSON nhiều bước',
+        );
+      }
     }
 
     const timeoutMs = config.timeout ?? DEFAULT_TASK_TIMEOUT_MS;

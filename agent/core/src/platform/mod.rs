@@ -1,4 +1,6 @@
+pub mod cloak_runner;
 pub mod open_app;
+pub mod open_browser;
 pub mod shell;
 
 #[cfg(windows)]

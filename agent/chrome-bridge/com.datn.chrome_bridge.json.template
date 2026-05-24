@@ -1,0 +1,7 @@
+{
+  "name": "com.datn.chrome_bridge",
+  "description": "DATN Agent Chrome Native Messaging Host",
+  "path": "__BRIDGE_EXE__",
+  "type": "stdio",
+  "allowed_origins": ["chrome-extension://__EXTENSION_ID__/"]
+}

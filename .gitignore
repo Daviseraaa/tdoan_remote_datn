@@ -25,8 +25,19 @@ dist-ssr
 
 .env
 
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+*.egg-info/
+.eggs/
+venv/
+.venv/
+
 # Agent artifacts (build:core → bin/; dist:desktop → desktop/release/)
 agent/bin/
 agent/desktop/release/
 agent/desktop/dist/
 agent/core/target/
+agent/chrome-bridge/target/

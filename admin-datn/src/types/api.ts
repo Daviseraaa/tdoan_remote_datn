@@ -25,6 +25,8 @@ export type TaskType =
   | 'FILE_OPERATION'
   | 'SYSTEM_INFO'
   | 'OPEN_APP'
+  | 'OPEN_BROWSER'
+  | 'CHROME_EXTENSION'
   | 'DESKTOP_AUTOMATION';
 
 export type AgentStatus = 'ONLINE' | 'OFFLINE' | 'BUSY';

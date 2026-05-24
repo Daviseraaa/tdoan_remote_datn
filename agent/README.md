@@ -28,7 +28,47 @@ agent/
 cd agent
 npm install
 npm run build          # core + desktop
+npm run build:all      # core + cloak-runner + desktop (installer đầy đủ)
 ```
+
+### CloakBrowser (`OPEN_BROWSER`)
+
+```powershell
+pip install -e agent/CloakBrowser   # một lần trên máy build
+npm run build:cloak-runner          # → agent/bin/cloak/
+```
+
+Dev không build exe: Rust dùng `python agent/cloak-runner/main.py` nếu có Python + cloakbrowser.
+
+`OPEN_BROWSER`: **admin** chọn Cloak hoặc Chrome qua payload task (`useChromeProfile`). Mặc định Cloak. Chrome profile thật: `{ "useChromeProfile": true, "chromeProfile": "Default" }`.
+
+### Chrome extension (`CHROME_EXTENSION`)
+
+DOM snapshot / click / fill trên **Chrome thật** qua extension + Native Messaging (không CDP).
+
+```powershell
+npm run build:chrome-bridge
+npm run chrome-bridge:install   # registry Native Messaging + manifest
+```
+
+1. `chrome://extensions` → bật Developer mode → **Load unpacked** → `agent/chrome-extension/`
+2. Mở Chrome (extension tự `connectNative`)
+3. Trong `%ProgramData%\DATN\agent.env`: `CHROME_EXTENSION_ENABLED=true`
+4. Chạy agent (tray hoặc `datn-agent-native.exe agent`)
+
+Task ví dụ:
+
+```json
+{
+  "action": "snapshotDom",
+  "urlPattern": "https://example.com/*",
+  "maxNodes": 200
+}
+```
+
+Hoặc `steps[]`: `snapshotDom`, `click`, `fill`, `waitFor`, `delay`.
+
+Extension ID cố định (manifest `key`): xem `chrome-extension/EXTENSION_ID.txt`. Nếu Chrome báo `key` invalid: `node scripts/generate-chrome-extension-key.js` rồi `npm run chrome-bridge:install`.
 
 Chỉ core:
 
@@ -88,7 +128,7 @@ Tạo trên server `POST /api/agents`, nhập trong **Cài đặt** (tray → C�
 npm run clean          # xóa bin/, desktop/dist, core/target
 ```
 
-**Không** commit `bin/`, `core/target/`, `desktop/release/`. Crate Rust nằm tại `core/` — thư mục `native/` ở repo root chỉ còn README redirect (bản cũ `native/datn-agent-native` đã bỏ).
+**Không** commit `bin/`, `core/target/`, `chrome-bridge/target/`, `desktop/release/`. Crate Rust nằm tại `core/`.
 
 ## Debug nhanh
 

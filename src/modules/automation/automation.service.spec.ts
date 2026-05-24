@@ -187,4 +187,46 @@ describe('AutomationService.runStep (templates)', () => {
     );
     expect((result as { result: { status: string } }).result.status).toBe('completed');
   });
+
+  it('CHROME_EXTENSION with command [] builds JSON steps (not PowerShell)', async () => {
+    tasksService.create.mockResolvedValue({ id: 'task-chrome' });
+    prisma.task.findFirst.mockResolvedValue({
+      status: TaskStatus.COMPLETED,
+      exitCode: 0,
+      result: '{}',
+    });
+
+    await (
+      service as unknown as {
+        runStep: (userId: string, step: object, c: object) => Promise<unknown>;
+      }
+    ).runStep(
+      'u1',
+      {
+        id: 'chrome-1',
+        order: 1,
+        type: StepType.COMMAND,
+        config: {
+          agentId: 'a1',
+          taskType: 'CHROME_EXTENSION',
+          command: '[]',
+          payload: { action: 'snapshotDom', urlPattern: 'https://example.com/*' },
+        },
+        onFailure: OnFailure.STOP,
+      },
+      { exitCode: 0, failed: false, scope: { workflow: {}, steps: {} } },
+    );
+
+    expect(tasksService.create).toHaveBeenCalledWith(
+      'u1',
+      expect.objectContaining({
+        type: 'CHROME_EXTENSION',
+        command: expect.stringContaining('snapshotDom'),
+      }),
+      undefined,
+    );
+    const call = tasksService.create.mock.calls[0][1] as { command: string };
+    expect(call.command).not.toBe('[]');
+    expect(() => JSON.parse(call.command)).not.toThrow();
+  });
 });

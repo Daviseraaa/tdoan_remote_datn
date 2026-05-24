@@ -1,6 +1,6 @@
 # Yêu cầu Admin Console (DATN)
 
-Tài liệu mô tả **chức năng**, **phân quyền** và **API** mà ứng dụng `admin/` (DATN Console) gọi tới backend NestJS. Base URL REST: `VITE_API_BASE_URL` (mặc định `http://localhost:3000/api`). Mọi response thành công bọc trong `{ success, data, timestamp }` — frontend dùng `unwrap()` để lấy `data`.
+Tài liệu mô tả **chức năng**, **phân quyền** và **API** mà ứng dụng `admin-datn/` (DATN Console) gọi tới backend NestJS. Base URL REST: `VITE_API_BASE_URL` (mặc định `http://localhost:3000/api`). Mọi response thành công bọc trong `{ success, data, timestamp }` — frontend dùng `unwrap()` để lấy `data`.
 
 WebSocket client: `${VITE_WS_URL}/ws/client` (auth: Bearer access token trong `auth` / `query`).
 
@@ -83,7 +83,7 @@ Polling: stats 15s, recent tasks 10s.
 
 **Yêu cầu:** Danh sách phân trang, đăng ký agent mới (nhận `agentKey`), xem chi tiết/key, regenerate key, xóa agent.
 
-Logic path: `admin/src/lib/apiScope.ts` — `isAdmin` chọn prefix.
+Logic path: `admin-datn/src/lib/apiScope.ts` — `isAdmin` chọn prefix.
 
 | Chức năng | USER | ADMIN |
 |-----------|------|-------|
@@ -259,7 +259,7 @@ Backend `CORS_ORIGINS` phải chứa origin admin (dev: `http://localhost:5173`)
 
 | Thành phần | Đường dẫn |
 |------------|-----------|
-| Routes | `admin/src/App.tsx` |
-| API scope admin vs tenant | `admin/src/lib/apiScope.ts` |
+| Routes | `admin-datn/src/App.tsx` |
+| API scope admin vs tenant | `admin-datn/src/lib/apiScope.ts` |
 | Backend admin | `src/modules/admin/admin.controller.ts` |
-| Trang UI | `admin/src/pages/*.tsx` |
+| Trang UI | `admin-datn/src/views/*.tsx` |
