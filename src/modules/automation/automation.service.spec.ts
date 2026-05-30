@@ -11,6 +11,12 @@ describe('AutomationService.executeGraph (independent flows)', () => {
     markFlowStopped: jest.fn(),
   };
   const telegramActions = { runAction: jest.fn() };
+  const telegramProgress = {
+    registerRun: jest.fn(),
+    onStepStart: jest.fn(),
+    onStepEnd: jest.fn(),
+    finalize: jest.fn(),
+  };
   let service: AutomationService;
   let maxInFlight: number;
   let inFlight: number;
@@ -70,6 +76,7 @@ describe('AutomationService.executeGraph (independent flows)', () => {
       tasksService as never,
       workflowRuntime as never,
       telegramActions as never,
+      telegramProgress as never,
     );
     jest
       .spyOn(AutomationService.prototype as never, 'runStep' as never)
@@ -131,6 +138,12 @@ describe('AutomationService.runStep (templates)', () => {
     markFlowStopped: jest.fn(),
   };
   const telegramActions = { runAction: jest.fn() };
+  const telegramProgress = {
+    registerRun: jest.fn(),
+    onStepStart: jest.fn(),
+    onStepEnd: jest.fn(),
+    finalize: jest.fn(),
+  };
   let service: AutomationService;
 
   beforeEach(() => {
@@ -139,6 +152,7 @@ describe('AutomationService.runStep (templates)', () => {
       tasksService as never,
       workflowRuntime as never,
       telegramActions as never,
+      telegramProgress as never,
     );
   });
 

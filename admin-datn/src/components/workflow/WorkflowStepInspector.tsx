@@ -1,7 +1,11 @@
 import type {
   Agent,
+  ChromeScript,
+  DesktopRecording,
+  TaskTemplate,
   TaskType,
   TelegramStepAction,
+  Workflow,
   WorkflowConditionMode,
   WorkflowStepOnFailure,
 } from '@/src/types/api';
@@ -9,6 +13,20 @@ import type { WfNodeData } from '@/src/lib/workflowGraph';
 import { WF_TRIGGER_ID } from '@/src/lib/workflowGraph';
 import { t } from '@/src/i18n/t';
 import { WfAgentSelect } from './WfAgentSelect';
+import { WfTelegramBotSelect } from './WfTelegramBotSelect';
+import { WfVarRefPanel } from './WfVarRefPanel';
+import {
+  ScreenCaptureOptionsFields,
+  type ScreenCapturePayload,
+} from './ScreenCaptureOptionsFields';
+import { OpenBrowserChromeProfileFields } from './OpenBrowserChromeProfileFields';
+import { isChromeReplayCommand } from '@/src/lib/workflowGraph';
+import { WfImportMenu } from './WfImportMenu';
+import {
+  formatStepVar,
+  nodeExportsStepVariables,
+  resolveNodeOutputKey,
+} from '@/src/lib/workflowGraph';
 
 const ON_FAILURE: WorkflowStepOnFailure[] = ['STOP', 'SKIP', 'RETRY'];
 
@@ -31,22 +49,33 @@ type Props = {
   nodeId: string | null;
   data: WfNodeData | null;
   agents: Agent[];
-  upstreamOutputKeys?: { key: string; label: string }[];
+  workflowStepDelayMs?: number;
+  upstreamOutputKeys?: { key: string; label: string; nodeId?: string }[];
   workflowVarKeys?: string[];
   onUpdate: (patch: Partial<WfNodeData> & { config?: WfNodeData['config'] }) => void;
+  /** Thay node hiện tại + thêm các bước còn lại (khi đang chọn node Chrome). */
+  onImportChromeScript?: (script: ChromeScript) => void;
+  onImportDesktopRecording?: (recording: DesktopRecording) => void;
+  onImportTaskTemplate?: (template: TaskTemplate) => void;
+  onImportWorkflow?: (workflow: Workflow) => void;
 };
 
 export function WorkflowStepInspector({
-  nodeId,
+  nodeId: inspectorNodeId,
   data,
   agents,
+  workflowStepDelayMs = 0,
   upstreamOutputKeys = [],
   workflowVarKeys = [],
   onUpdate,
+  onImportChromeScript,
+  onImportDesktopRecording,
+  onImportTaskTemplate,
+  onImportWorkflow,
 }: Props) {
-  if (!nodeId || !data || nodeId === WF_TRIGGER_ID || data.kind === 'trigger') {
+  if (!inspectorNodeId || !data || inspectorNodeId === WF_TRIGGER_ID || data.kind === 'trigger') {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center p-8 text-center opacity-50 min-w-[360px]">
+      <div className="flex-1 flex flex-col items-center justify-center p-4 sm:p-8 text-center opacity-50 min-w-0 w-full">
         <p className="text-sm font-bold">{t('workflows.selectNode')}</p>
         <p className="text-xs mt-2 text-on-surface-variant">{t('workflows.selectNodeHint')}</p>
       </div>
@@ -77,7 +106,7 @@ export function WorkflowStepInspector({
   };
 
   return (
-    <div className="flex-1 overflow-y-auto p-6 space-y-5 custom-scrollbar min-w-[360px]">
+    <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5 custom-scrollbar min-w-0 w-full">
       <div>
         <label className="text-[10px] font-mono font-bold uppercase text-on-surface-variant">
           {t('workflows.nodeName')}
@@ -96,6 +125,7 @@ export function WorkflowStepInspector({
 
       {data.kind === 'telegram' ? (
         <>
+          <WfVarRefPanel upstream={upstreamOutputKeys} workflowVarKeys={workflowVarKeys} />
           <div>
             <label className="text-[10px] font-mono font-bold uppercase text-on-surface-variant">
               {t('workflows.telegramAction')}
@@ -114,13 +144,11 @@ export function WorkflowStepInspector({
           </div>
           <div>
             <label className="text-[10px] font-mono font-bold uppercase text-on-surface-variant">
-              {t('workflows.telegramBotId')}
+              {t('triggers.selectBot')}
             </label>
-            <input
+            <WfTelegramBotSelect
               value={cfg.telegramBotId ?? ''}
-              onChange={(e) => patchConfig({ telegramBotId: e.target.value || undefined })}
-              placeholder="uuid bot trong /triggers/telegram/bots"
-              className="w-full mt-1 px-4 py-3 rounded-xl bg-surface-container-low border border-white/10 font-mono text-sm"
+              onChange={(id) => patchConfig({ telegramBotId: id || undefined })}
             />
           </div>
           <div>
@@ -202,39 +230,31 @@ export function WorkflowStepInspector({
         </div>
       ) : data.kind === 'task' ? (
         <>
-          <div>
-            <label className="text-[10px] font-mono font-bold uppercase text-on-surface-variant">
-              {t('workflows.outputKey')}
-            </label>
-            <input
-              value={cfg.outputKey ?? ''}
-              onChange={(e) => patchConfig({ outputKey: e.target.value || undefined })}
-              placeholder={t('workflows.outputKeyPlaceholder')}
-              className="w-full mt-1 px-4 py-3 rounded-xl bg-surface-container-low border border-white/10 font-mono text-sm"
-            />
-            <p className="text-[10px] text-on-surface-variant mt-1">{t('workflows.outputKeyHint')}</p>
-          </div>
+          <WfVarRefPanel upstream={upstreamOutputKeys} workflowVarKeys={workflowVarKeys} />
 
-          {(upstreamOutputKeys.length > 0 || workflowVarKeys.length > 0) ? (
-            <div className="rounded-xl border border-white/10 bg-black/20 p-3 space-y-2">
-              <p className="text-[10px] font-mono font-bold uppercase text-on-surface-variant">
-                {t('workflows.varsAvailable')}
+          {inspectorNodeId && nodeExportsStepVariables(data.kind) ? (
+            <div className="rounded-xl border border-primary/25 bg-primary/5 p-3 space-y-2">
+              <label className="text-[10px] font-mono font-bold uppercase text-primary">
+                {t('workflows.outputKey')}
+              </label>
+              <input
+                value={cfg.outputKey ?? ''}
+                onChange={(e) => patchConfig({ outputKey: e.target.value || undefined })}
+                placeholder={t('workflows.outputKeyPlaceholder')}
+                className="w-full mt-1 px-4 py-2.5 rounded-xl bg-surface-container-low border border-white/10 font-mono text-sm"
+              />
+              <p className="text-[10px] text-on-surface-variant">{t('workflows.outputKeyHint')}</p>
+              <div className="flex items-center gap-2 pt-1">
+                <span className="text-[9px] font-mono uppercase text-on-surface-variant">
+                  {t('workflows.resolvedOutputKey')}:
+                </span>
+                <code className="text-[10px] font-mono font-bold text-primary">
+                  {resolveNodeOutputKey(data, inspectorNodeId)}
+                </code>
+              </div>
+              <p className="text-[9px] font-mono text-on-surface-variant/90 truncate">
+                {formatStepVar(resolveNodeOutputKey(data, inspectorNodeId))}
               </p>
-              <p className="text-[10px] text-on-surface-variant">{t('workflows.varsHint')}</p>
-              <ul className="text-[10px] font-mono space-y-1 text-primary/90">
-                {workflowVarKeys.map((k) => (
-                  <li key={`wf-${k}`}>{t('workflows.varPath_workflow').replace('<tên>', k)}</li>
-                ))}
-                {upstreamOutputKeys.map((u) => (
-                  <li key={u.key}>
-                    <span className="text-on-surface-variant">{u.label}: </span>
-                    {`{{steps.${u.key}.stdout}}`}
-                  </li>
-                ))}
-                {upstreamOutputKeys.length === 1 ? (
-                  <li>{t('workflows.varPath_prev_stdout')}</li>
-                ) : null}
-              </ul>
             </div>
           ) : null}
 
@@ -260,7 +280,9 @@ export function WorkflowStepInspector({
             </p>
           </div>
 
-          {data.taskType !== 'SYSTEM_INFO' && data.taskType !== 'CHROME_EXTENSION' ? (
+          {data.taskType !== 'SYSTEM_INFO' &&
+          data.taskType !== 'CHROME_EXTENSION' &&
+          data.taskType !== 'SCREEN_CAPTURE' ? (
             <div>
               <label className="text-[10px] font-mono font-bold uppercase text-on-surface-variant">
                 {t('workflows.command')}
@@ -321,30 +343,40 @@ export function WorkflowStepInspector({
                 </p>
               </div>
               {(cfg.payload as Record<string, unknown> | undefined)?.useChromeProfile === true ? (
-                <div>
-                  <label className="text-[10px] font-mono font-bold uppercase text-on-surface-variant">
-                    {t('workflows.openBrowserChromeProfile')}
-                  </label>
-                  <input
-                    type="text"
+                cfg.agentId ? (
+                  <OpenBrowserChromeProfileFields
+                    agentId={cfg.agentId}
                     value={String(
-                      (cfg.payload as Record<string, unknown> | undefined)?.chromeProfile ?? 'Default',
+                      (cfg.payload as Record<string, unknown> | undefined)?.chromeProfile ??
+                        'Default',
                     )}
-                    onChange={(e) => {
+                    onChange={(profile) => {
                       const prev = { ...((cfg.payload as Record<string, unknown>) ?? {}) };
                       prev.useChromeProfile = true;
-                      prev.chromeProfile = e.target.value;
+                      prev.chromeProfile = profile;
                       patchConfig({ payload: prev });
                     }}
-                    placeholder="Default"
-                    className="w-full mt-1 px-4 py-2.5 rounded-xl bg-surface-container-low border border-white/10 font-mono text-sm"
                   />
-                  <p className="text-[10px] text-on-surface-variant mt-1">
-                    {t('workflows.openBrowserChromeProfileHint')}
+                ) : (
+                  <p className="text-[10px] text-amber-400/90">
+                    {t('workflows.openBrowserSelectAgentFirst')}
                   </p>
-                </div>
+                )
               ) : null}
             </div>
+          ) : null}
+
+          {data.taskType === 'SCREEN_CAPTURE' ? (
+            <ScreenCaptureOptionsFields
+              payload={(cfg.payload ?? {}) as ScreenCapturePayload}
+              command={cfg.command}
+              onChange={(next, cmd) =>
+                patchConfig({
+                  ...(cmd != null ? { command: cmd } : {}),
+                  payload: next as typeof cfg.payload,
+                })
+              }
+            />
           ) : null}
 
           {data.taskType === 'OPEN_APP' ? (
@@ -370,6 +402,20 @@ export function WorkflowStepInspector({
           {data.taskType === 'CHROME_EXTENSION' ? (
             <div className="space-y-3">
               <p className="text-xs text-amber-400/90">{t('workflows.chromeExtensionBanner')}</p>
+              <WfImportMenu
+                compact
+                onImportChromeScript={(script) => onImportChromeScript?.(script)}
+                onImportDesktopRecording={(rec) => onImportDesktopRecording?.(rec)}
+                onImportTaskTemplate={(tpl) => onImportTaskTemplate?.(tpl)}
+                onImportWorkflow={(wf) => onImportWorkflow?.(wf)}
+              />
+              {isChromeReplayCommand(cfg.command) ? (
+                <p className="text-[10px] text-primary/90 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2">
+                  {t('workflows.chromeExtensionReplayMode')}
+                </p>
+              ) : null}
+              {!isChromeReplayCommand(cfg.command) ? (
+              <>
               <div>
                 <label className="text-[10px] font-mono font-bold uppercase text-on-surface-variant">
                   {t('workflows.chromeExtensionAction')}
@@ -409,6 +455,8 @@ export function WorkflowStepInspector({
                   />
                 </div>
               ) : null}
+              </>
+              ) : null}
               <div>
                 <label className="text-[10px] font-mono font-bold uppercase text-on-surface-variant">
                   {t('workflows.chromeExtensionUrlPattern')}
@@ -423,22 +471,28 @@ export function WorkflowStepInspector({
               </div>
               <div>
                 <label className="text-[10px] font-mono font-bold uppercase text-on-surface-variant">
-                  {t('workflows.chromeExtensionAdvancedJson')}
+                  {isChromeReplayCommand(cfg.command)
+                    ? t('workflows.chromeExtensionStepsJson')
+                    : t('workflows.chromeExtensionAdvancedJson')}
                 </label>
                 <textarea
                   value={
-                    (cfg.command ?? '').trim().startsWith('[') ||
-                    (cfg.command ?? '').trim().startsWith('{')
+                    isChromeReplayCommand(cfg.command)
                       ? (cfg.command ?? '')
-                      : ''
+                      : (cfg.command ?? '').trim().startsWith('[') ||
+                          (cfg.command ?? '').trim().startsWith('{')
+                        ? (cfg.command ?? '')
+                        : ''
                   }
                   onChange={(e) => patchConfig({ command: e.target.value })}
-                  rows={5}
+                  rows={isChromeReplayCommand(cfg.command) ? 10 : 5}
                   placeholder={t('workflows.chromeExtensionStepsHint')}
                   className="w-full mt-1 px-4 py-3 rounded-xl bg-surface-container-low border border-white/10 font-mono text-xs"
                 />
                 <p className="text-[10px] text-on-surface-variant mt-1">
-                  {t('workflows.chromeExtensionAdvancedJsonHint')}
+                  {isChromeReplayCommand(cfg.command)
+                    ? t('workflows.chromeExtensionStepsJsonHint')
+                    : t('workflows.chromeExtensionAdvancedJsonHint')}
                 </p>
               </div>
             </div>
@@ -461,6 +515,31 @@ export function WorkflowStepInspector({
             />
           </div>
         </>
+      ) : null}
+
+      {data.kind !== 'delay' ? (
+        <div>
+          <label className="text-[10px] font-mono font-bold uppercase text-on-surface-variant">
+            {t('workflows.delayAfterStep')}
+          </label>
+          <input
+            type="number"
+            min={0}
+            step={100}
+            value={cfg.delayAfterMs ?? ''}
+            placeholder={String(workflowStepDelayMs)}
+            onChange={(e) => {
+              const raw = e.target.value.trim();
+              patchConfig({
+                delayAfterMs: raw === '' ? undefined : Math.max(0, Number(raw) || 0),
+              });
+            }}
+            className="w-full mt-1 px-4 py-2.5 rounded-xl bg-surface-container-low border border-white/10 font-mono text-sm"
+          />
+          <p className="text-[10px] text-on-surface-variant mt-1">
+            {t('workflows.delayAfterStepHint', { ms: workflowStepDelayMs })}
+          </p>
+        </div>
       ) : null}
 
       <div>

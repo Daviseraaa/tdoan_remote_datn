@@ -1,11 +1,12 @@
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
-import { TaskStatus } from '@prisma/client';
+import { TaskStatus, TaskType } from '@prisma/client';
 import { TASK_QUEUE, WS_EVENTS } from '../../common/constants/index';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AgentsGateway } from '../agents/agents.gateway';
 import { TasksService } from './tasks.service';
+import { resolveScreenCaptureEmitPayload } from './tasks-screen-capture.util';
 
 const TASK_WORKER_CONCURRENCY = Math.max(
   1,
@@ -51,11 +52,20 @@ export class TasksProcessor extends WorkerHost {
     await this.tasksService.updateTaskStatus(taskId, TaskStatus.RUNNING);
     await this.tasksService.addLog(taskId, 'INFO', `Dispatching to agent: ${task.agent.name}`);
 
+    let emitPayload: unknown = task.payload;
+    if (task.type === TaskType.SCREEN_CAPTURE) {
+      emitPayload = await resolveScreenCaptureEmitPayload(
+        this.prisma,
+        task.userId,
+        task.payload,
+      );
+    }
+
     this.agentsGateway.emitToAgent(task.agentId, WS_EVENTS.TASK_EXECUTE, {
       taskId: task.id,
       type: task.type,
       command: task.command,
-      payload: task.payload,
+      payload: emitPayload,
       timeout: task.timeout,
     });
 

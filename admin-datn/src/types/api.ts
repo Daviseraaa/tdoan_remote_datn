@@ -27,9 +27,15 @@ export type TaskType =
   | 'OPEN_APP'
   | 'OPEN_BROWSER'
   | 'CHROME_EXTENSION'
-  | 'DESKTOP_AUTOMATION';
+  | 'DESKTOP_AUTOMATION'
+  | 'SCREEN_CAPTURE';
 
 export type AgentStatus = 'ONLINE' | 'OFFLINE' | 'BUSY';
+
+export interface AgentChromeProfile {
+  directory: string;
+  name?: string;
+}
 
 export type WorkflowStepType = 'COMMAND' | 'SCRIPT' | 'DELAY' | 'CONDITION' | 'TELEGRAM';
 export type TelegramStepAction =
@@ -70,6 +76,44 @@ export interface User {
   lastLoginAt?: string;
 }
 
+export interface ChromeScript {
+  id: string;
+  name: string;
+  startUrl?: string | null;
+  steps: unknown[];
+  source: string;
+  localId?: string | null;
+  userId: string;
+  agentId?: string | null;
+  agent?: { id: string; name: string } | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UpdateChromeScriptDto {
+  name?: string;
+  startUrl?: string;
+  steps?: unknown[];
+}
+
+export interface DesktopRecording {
+  id: string;
+  name: string;
+  steps: unknown[];
+  source: string;
+  localId?: string | null;
+  userId: string;
+  agentId?: string | null;
+  agent?: { id: string; name: string } | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UpdateDesktopRecordingDto {
+  name?: string;
+  steps?: unknown[];
+}
+
 export interface Agent {
   id: string;
   name: string;
@@ -81,6 +125,7 @@ export interface Agent {
   lastSeenAt?: string;
   lastHeartbeatAt?: string;
   metadata?: Record<string, unknown> | null;
+  chromeProfiles?: AgentChromeProfile[] | null;
   createdAt?: string;
   updatedAt?: string;
   agentKey?: string;
@@ -153,6 +198,8 @@ export interface WorkflowStepConfig {
   payload?: Record<string, unknown>;
   timeout?: number;
   delayMs?: number;
+  /** Chờ sau bước (ms); ghi đè stepDelayMs workflow */
+  delayAfterMs?: number;
   title?: string;
   outputKey?: string;
   /** Định danh ổn định node (= node.id canvas) */
@@ -269,6 +316,7 @@ export interface Workflow {
   graph?: { version: 2; edges: Array<{ from: string; to: string; handle?: string }> };
   graphEdges?: WorkflowGraphEdgeStored[];
   cronExpression?: string;
+  stepDelayMs?: number;
   isActive: boolean;
   steps?: WorkflowStep[];
   userId?: string;
@@ -346,6 +394,7 @@ export interface CreateWorkflowDto {
   graph?: { version: 2; edges: Array<{ from: string; to: string; handle?: string }> };
   graphEdges?: WorkflowGraphEdgeStored[];
   cronExpression?: string;
+  stepDelayMs?: number;
   isActive?: boolean;
   steps: WorkflowStep[];
 }

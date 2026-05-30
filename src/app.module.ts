@@ -21,6 +21,8 @@ import { AutomationModule } from './modules/automation/automation.module';
 import { TriggersModule } from './modules/triggers/triggers.module';
 import { HealthModule } from './modules/health/health.module';
 import { AdminModule } from './modules/admin/admin.module';
+import { ChromeScriptsModule } from './modules/chrome-scripts/chrome-scripts.module';
+import { DesktopRecordingsModule } from './modules/desktop-recordings/desktop-recordings.module';
 
 @Module({
   imports: [
@@ -72,6 +74,8 @@ import { AdminModule } from './modules/admin/admin.module';
     TriggersModule,
     HealthModule,
     AdminModule,
+    ChromeScriptsModule,
+    DesktopRecordingsModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: GlobalExceptionFilter },

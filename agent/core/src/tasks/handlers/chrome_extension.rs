@@ -55,6 +55,7 @@ fn step_payload(step: &serde_json::Map<String, Value>, task: &TaskExecute) -> Va
     let mut p = serde_json::Map::new();
     for key in [
         "selector",
+        "selectorIndex",
         "text",
         "tabId",
         "urlPattern",
@@ -161,69 +162,25 @@ impl TaskHandler for Handler {
         }
 
         let wait_ms = task.timeout.min(300_000).max(1000);
-        let mut outcomes = Vec::new();
+        let bridge_wait_ms = task.timeout.min(30_000).max(5_000);
 
         #[cfg(windows)]
-        for (idx, step) in steps_arr.iter().enumerate() {
-            let o = match step.as_object() {
-                Some(o) => o,
-                None => {
-                    return (
-                        false,
-                        -1,
-                        Some(format!("step {} không phải object", idx)),
-                        None,
-                    );
-                }
-            };
-            let action = o.get("action").and_then(|a| a.as_str()).unwrap_or("");
-            if action.is_empty() {
-                return (
-                    false,
-                    -1,
-                    Some(format!("step {} thiếu action", idx)),
-                    None,
-                );
-            }
-
-            let payload = step_payload(o, task);
-            let step_wait = o
-                .get("timeoutMs")
-                .and_then(|x| x.as_u64())
-                .unwrap_or(wait_ms);
-
-            let result = chrome_bridge::execute(action, payload, step_wait).await;
-            match result {
-                Ok(v) => {
-                    if let Some(url) = v.get("url").and_then(|x| x.as_str()) {
-                        if !url_allowed(ctx.config, url) {
-                            return (
-                                false,
-                                -1,
-                                Some(format!("URL không được phép: {}", url)),
-                                None,
-                            );
-                        }
-                    }
-                    outcomes.push(json!({ "step": idx, "action": action, "ok": true, "result": v }));
-                }
-                Err(e) => {
-                    return (
-                        false,
-                        -1,
-                        Some(format!("step {} ({}): {}", idx, action, e)),
-                        Some(json!({ "outcomes": outcomes, "failedStep": idx })),
-                    );
-                }
-            }
+        if let Err(e) = chrome_bridge::wait_for_bridge_connected(bridge_wait_ms).await {
+            return (false, -1, Some(e), None);
         }
 
         #[cfg(windows)]
-        return (
-            true,
-            0,
-            None,
-            Some(json!({ "outcomes": outcomes, "steps": steps_arr.len() })),
-        );
+        match chrome_bridge::replay_steps(
+            &steps_arr,
+            |o| step_payload(o, task),
+            wait_ms,
+            ctx.config.chrome_extension_max_steps,
+            |url| url_allowed(ctx.config, url),
+        )
+        .await
+        {
+            Ok(v) => return (true, 0, None, Some(v)),
+            Err(e) => return (false, -1, Some(e), None),
+        }
     }
 }

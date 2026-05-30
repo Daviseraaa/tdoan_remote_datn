@@ -72,9 +72,9 @@ const MetricCard = ({
   icon?: React.ComponentType<{ size?: number }>;
   colorClass?: string;
 }) => (
-  <motion.div className="glass-card p-5 rounded-2xl flex flex-col gap-2 group hover:border-primary/40 transition-all duration-300">
-    <div className="flex justify-between items-start">
-      <span className="text-on-surface-variant text-[11px] font-bold uppercase tracking-wider">
+  <motion.div className="glass-card p-3 sm:p-5 rounded-2xl flex flex-col gap-1.5 sm:gap-2 group hover:border-primary/40 transition-all duration-300 min-w-0">
+    <div className="flex justify-between items-start gap-2">
+      <span className="text-on-surface-variant text-[10px] sm:text-[11px] font-bold uppercase tracking-wider leading-tight">
         {label}
       </span>
       {trend != null ? (
@@ -92,7 +92,7 @@ const MetricCard = ({
         <Icon size={16} className="text-on-surface-variant group-hover:text-primary transition-colors" />
       ) : null}
     </div>
-    <motion.div className={cn('text-3xl font-bold tracking-tight mt-1', colorClass)}>{value}</motion.div>
+    <motion.div className={cn('text-xl sm:text-3xl font-bold tracking-tight mt-0.5 sm:mt-1', colorClass)}>{value}</motion.div>
     {subValue ? (
       <p className="text-[10px] text-on-surface-variant font-mono opacity-60 mt-1 uppercase tracking-tighter">
         {subValue}
@@ -141,7 +141,7 @@ const HealthClusterCard = ({
   return (
     <motion.div
       layout
-      className="bg-surface-container-low/50 border border-white/5 rounded-2xl p-5 flex flex-col gap-3 hover:border-primary/40 transition-all group min-w-0"
+      className="bg-surface-container-low/50 border border-white/5 rounded-2xl p-4 sm:p-5 flex flex-col gap-3 hover:border-primary/40 transition-all group min-w-0"
     >
       <div className="flex justify-between items-start gap-2 text-[10px] font-mono">
         <div className="flex items-center gap-2 min-w-0">
@@ -296,17 +296,17 @@ export default function Dashboard() {
   const agentsFleetHref = `/agents${agentsPageSearchParams(statusFilter, clusterFilter)}`;
 
   return (
-    <motion.div className="space-y-8 pb-12">
-      <motion.div>
-        <h2 className="text-4xl font-bold tracking-tight text-on-surface">{t('dashboard.title')}</h2>
-        <p className="text-on-surface-variant text-body-md mt-1">
+    <motion.div className="space-y-6 sm:space-y-8 pb-12 min-w-0 max-w-full">
+      <motion.div className="min-w-0">
+        <h2 className="text-2xl sm:text-4xl font-bold tracking-tight text-on-surface">{t('dashboard.title')}</h2>
+        <p className="text-on-surface-variant text-sm sm:text-body-md mt-1">
           {agentTotal === 1
             ? t('dashboard.subtitle', { count: 1 })
             : t('dashboard.subtitle', { count: agentTotal })}
         </p>
       </motion.div>
 
-      <section className="grid grid-cols-1 md:grid-cols-5 gap-4">
+      <section className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
         <MetricCard
           label={t('dashboard.totalAgents')}
           value={metrics.totalAgents}
@@ -347,18 +347,18 @@ export default function Dashboard() {
         />
       </section>
 
-      <div className="grid grid-cols-12 gap-6">
-        <section className="col-span-12 lg:col-span-8 glass-card rounded-2xl p-6 flex flex-col">
-          <div className="flex justify-between items-center mb-8">
-            <div>
-              <h3 className="text-lg font-bold text-on-surface">{t('dashboard.taskAnalytics')}</h3>
-              <p className="text-xs text-on-surface-variant">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6">
+        <section className="lg:col-span-8 glass-card rounded-2xl p-4 sm:p-6 flex flex-col min-w-0">
+          <div className="flex flex-col gap-3 mb-4 sm:mb-8">
+            <div className="min-w-0">
+              <h3 className="text-base sm:text-lg font-bold text-on-surface">{t('dashboard.taskAnalytics')}</h3>
+              <p className="text-xs text-on-surface-variant mt-0.5">
                 {dash.mode === 'admin'
                   ? `${taskTrendRangeLabel(taskTrendRange)} · ${t('time.filteredFrom7Day')}`
                   : t('dashboard.adminOnlyChart')}
               </p>
             </div>
-            <div className="flex p-1 bg-surface-container-high rounded-xl gap-1">
+            <div className="flex flex-wrap p-1 bg-surface-container-high rounded-xl gap-1 w-full sm:w-auto">
               {TASK_TREND_RANGES.map((range) => (
                 <button
                   key={range}
@@ -366,7 +366,7 @@ export default function Dashboard() {
                   onClick={() => setTaskTrendRange(range)}
                   disabled={dash.mode !== 'admin'}
                   className={cn(
-                    'px-3 py-1.5 rounded-lg font-mono text-[10px] font-bold transition-all',
+                    'flex-1 sm:flex-none px-2.5 sm:px-3 py-1.5 rounded-lg font-mono text-[10px] font-bold transition-all min-w-[2.75rem]',
                     range === taskTrendRange
                       ? 'bg-primary text-on-primary shadow-lg shadow-primary/20'
                       : 'text-on-surface-variant hover:text-on-surface',
@@ -378,7 +378,7 @@ export default function Dashboard() {
               ))}
             </div>
           </div>
-          <div className="h-[340px] w-full">
+          <div className="h-[220px] sm:h-[300px] lg:h-[340px] w-full min-w-0">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={chartData}>
                 <defs>
@@ -427,19 +427,19 @@ export default function Dashboard() {
           </div>
         </section>
 
-        <section className="col-span-12 lg:col-span-4 glass-card rounded-2xl p-6 flex flex-col">
-          <motion.div className="flex justify-between items-center mb-6">
-            <h3 className="text-lg font-bold text-on-surface">{t('dashboard.eventLog')}</h3>
+        <section className="lg:col-span-4 glass-card rounded-2xl p-4 sm:p-6 flex flex-col min-w-0">
+          <motion.div className="flex justify-between items-center mb-4 sm:mb-6 gap-2">
+            <h3 className="text-base sm:text-lg font-bold text-on-surface">{t('dashboard.eventLog')}</h3>
             <button type="button" className="text-on-surface-variant hover:text-primary transition-colors">
               <Filter size={18} />
             </button>
           </motion.div>
-          <div className="flex-1 space-y-5 overflow-y-auto pr-2 custom-scrollbar">
+          <div className="flex-1 space-y-4 sm:space-y-5 lg:max-h-none lg:overflow-visible">
             {(eventLogs.length
               ? eventLogs
               : [{ icon: User, color: 'text-on-surface-variant', title: t('dashboard.noRecentEvents'), meta: t('common.emDash') }]
             ).map((log, i) => (
-              <div key={i} className="flex gap-4 group cursor-default">
+              <div key={i} className="flex gap-3 sm:gap-4 group cursor-default min-w-0">
                 <div className="flex flex-col items-center">
                   <motion.div
                     className={cn(
@@ -451,9 +451,9 @@ export default function Dashboard() {
                   </motion.div>
                   {i < 3 && <div className="w-px h-full bg-white/5 mt-2" />}
                 </div>
-                <div className="flex-1 pb-2">
+                <div className="flex-1 pb-2 min-w-0">
                   <p className="text-sm font-semibold text-on-surface truncate">{log.title}</p>
-                  <p className="text-[10px] font-mono text-on-surface-variant opacity-60 mt-0.5">{log.meta}</p>
+                  <p className="text-[10px] font-mono text-on-surface-variant opacity-60 mt-0.5 break-words">{log.meta}</p>
                 </div>
               </div>
             ))}
@@ -461,11 +461,11 @@ export default function Dashboard() {
         </section>
       </div>
 
-      <section className="glass-card rounded-2xl p-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-start mb-6">
-          <div>
-            <h3 className="text-lg font-bold text-on-surface">{t('dashboard.agentHealth')}</h3>
-            <p className="text-xs text-on-surface-variant mt-1">
+      <section className="glass-card rounded-2xl p-4 sm:p-6 min-w-0">
+        <div className="flex flex-col gap-4 mb-4 sm:mb-6">
+          <div className="min-w-0">
+            <h3 className="text-base sm:text-lg font-bold text-on-surface">{t('dashboard.agentHealth')}</h3>
+            <p className="text-xs text-on-surface-variant mt-1 break-words">
               {filteredHealthAgents.length === 0
                 ? t('dashboard.noAgentsMatch')
                 : t('dashboard.showingSummary', {
@@ -483,29 +483,29 @@ export default function Dashboard() {
             <button
               type="button"
               onClick={() => setStatusFilter((s) => nextStatusFilter(s))}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl border border-white/10 hover:bg-white/5 transition-all text-xs font-bold tracking-tight"
+              className="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl border border-white/10 hover:bg-white/5 transition-all text-xs font-bold tracking-tight min-w-0 max-w-full"
             >
-              <Filter size={14} className="text-on-surface-variant" />
-              {t('filters.statusLabel', { value: statusFilterLabel(statusFilter) })}
+              <Filter size={14} className="text-on-surface-variant shrink-0" />
+              <span className="truncate">{t('filters.statusLabel', { value: statusFilterLabel(statusFilter) })}</span>
             </button>
             <button
               type="button"
               onClick={() => setClusterFilter((c) => nextClusterFilter(c))}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl border border-white/10 hover:bg-white/5 transition-all text-xs font-bold tracking-tight"
+              className="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl border border-white/10 hover:bg-white/5 transition-all text-xs font-bold tracking-tight min-w-0 max-w-full"
             >
-              <Users size={14} className="text-on-surface-variant" />
-              {t('filters.clusterLabel', { value: clusterFilterLabel(clusterFilter) })}
+              <Users size={14} className="text-on-surface-variant shrink-0" />
+              <span className="truncate">{t('filters.clusterLabel', { value: clusterFilterLabel(clusterFilter) })}</span>
             </button>
             <Link
               to={agentsFleetHref}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary/10 text-primary border border-primary/20 font-bold text-xs uppercase tracking-wider hover:bg-primary/20 transition-all group"
+              className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 rounded-xl bg-primary/10 text-primary border border-primary/20 font-bold text-xs uppercase tracking-wider hover:bg-primary/20 transition-all group w-full sm:w-auto"
             >
               {t('dashboard.viewAllAgents')}
-              <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
+              <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform shrink-0" />
             </Link>
           </div>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-5">
           {(dash.mode === 'admin' ? dash.healthAgents.isLoading : dash.agentsPreview?.isLoading) ? (
             <p className="text-on-surface-variant text-sm col-span-full">{t('dashboard.loadingAgents')}</p>
           ) : healthPreview.length === 0 ? (

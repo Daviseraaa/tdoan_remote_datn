@@ -14,4 +14,10 @@ export const WS_EVENTS = {
   TASK_PROGRESS: 'task:progress',
   TASK_COMPLETED: 'task:completed',
   TASK_FAILED: 'task:failed',
+  CHROME_PROFILES_SYNC: 'agent:chrome-profiles:sync',
+  CHROME_PROFILES_RESULT: 'agent:chrome-profiles:result',
+  CHROME_SCRIPTS_SYNC: 'agent:chrome-scripts:sync',
+  CHROME_SCRIPTS_RESULT: 'agent:chrome-scripts:result',
+  DESKTOP_RECORDINGS_SYNC: 'agent:desktop-recordings:sync',
+  DESKTOP_RECORDINGS_RESULT: 'agent:desktop-recordings:result',
 } as const;

@@ -11,5 +11,26 @@ if (!fs.existsSync(src)) {
 }
 
 fs.mkdirSync(path.dirname(dest), { recursive: true });
-fs.copyFileSync(src, dest);
-console.log('[copy-core-bin]', dest);
+
+function tryCopy(target) {
+  fs.copyFileSync(src, target);
+}
+
+try {
+  tryCopy(dest);
+  console.log('[copy-core-bin]', dest);
+} catch (err) {
+  if (err && err.code === 'EBUSY') {
+    const pending = path.join(root, 'bin', 'datn-agent-native.pending.exe');
+    tryCopy(pending);
+    console.error(
+      '[copy-core-bin] bin/datn-agent-native.exe đang bị khóa (agent đang chạy).',
+    );
+    console.error('[copy-core-bin] Đã ghi bản mới:', pending);
+    console.error(
+      '[copy-core-bin] Dừng agent/service → đổi tên pending → datn-agent-native.exe → chạy lại agent.',
+    );
+    process.exit(1);
+  }
+  throw err;
+}

@@ -54,16 +54,52 @@ export function resolveTemplateString(
   });
 }
 
+function readStepField(out: StepOutput, field: string): unknown {
+  if (!field || field === 'stdout') {
+    if (out.stdout != null && String(out.stdout).length > 0) {
+      return out.stdout;
+    }
+    if (out.result != null && String(out.result).length > 0) {
+      return out.result;
+    }
+    return out.stderr ?? '';
+  }
+  return getByPath(out, field);
+}
+
+function resolveStepScopePath(
+  steps: Record<string, StepOutput>,
+  subPath: string,
+): unknown {
+  const dot = subPath.indexOf('.');
+  const key = dot === -1 ? subPath.trim() : subPath.slice(0, dot).trim();
+  const field = dot === -1 ? 'stdout' : subPath.slice(dot + 1);
+  if (!key) return undefined;
+  const out = steps[key];
+  if (!out) return undefined;
+  return readStepField(out, field);
+}
+
+/** Bước hoàn thành gần nhất (theo order) — dùng cho {{prev.*}} khi có nhiều step trong scope. */
+function pickPrevStep(
+  steps: Record<string, StepOutput>,
+): StepOutput | undefined {
+  const list = Object.values(steps);
+  if (!list.length) return undefined;
+  return list.reduce((best, cur) => (cur.order >= best.order ? cur : best));
+}
+
 function resolvePath(path: string, scope: WorkflowRunScope): unknown {
   if (path.startsWith('workflow.')) {
     return getByPath(scope.workflow, path.slice('workflow.'.length));
   }
   if (path.startsWith('steps.')) {
-    return getByPath(scope.steps, path.slice('steps.'.length));
+    return resolveStepScopePath(scope.steps, path.slice('steps.'.length));
   }
   if (path.startsWith('prev.')) {
-    if (!scope.prev) return undefined;
-    return getByPath(scope.prev, path.slice('prev.'.length));
+    const prev = scope.prev ?? pickPrevStep(scope.steps);
+    if (!prev) return undefined;
+    return readStepField(prev, path.slice('prev.'.length));
   }
   if (path.startsWith('telegram.')) {
     if (!scope.telegram) return undefined;
@@ -136,6 +172,16 @@ export function parseTaskResult(
       const parsed = JSON.parse(raw) as Record<string, unknown>;
       if (typeof parsed.stdout === 'string') stdout = parsed.stdout;
       if (typeof parsed.stderr === 'string') stderr = parsed.stderr;
+      if (stdout == null && typeof parsed.path === 'string') {
+        stdout = parsed.path;
+      }
+      if (
+        stdout == null &&
+        parsed.telegramMessageId != null &&
+        typeof parsed.telegramMessageId !== 'object'
+      ) {
+        stdout = `telegram:${parsed.telegramMessageId}`;
+      }
       if (parsed.data !== undefined) json = parsed.data;
       else json = parsed;
     } catch {
@@ -150,9 +196,16 @@ export function defaultOutputKey(
   order: number,
   title?: string,
   stepId?: string,
+  stepKey?: string,
 ): string {
   const fromTitle = slugify(title ?? '');
   if (fromTitle) return fromTitle;
+  const sk = stepKey?.trim();
+  if (sk) {
+    const fromKey = slugify(sk);
+    if (fromKey) return fromKey;
+    if (!sk.startsWith('step-')) return sk.replace(/\s+/g, '_').slice(0, 48);
+  }
   if (stepId && !stepId.startsWith('step-')) {
     return slugify(stepId) || `step_${order}`;
   }
@@ -169,13 +222,13 @@ function slugify(s: string): string {
 }
 
 export function resolveOutputKey(
-  config: { outputKey?: string; title?: string },
+  config: { outputKey?: string; title?: string; stepKey?: string },
   order: number,
   stepId: string,
 ): string {
   const custom = config.outputKey?.trim();
   if (custom) return slugify(custom) || custom.replace(/\s+/g, '_');
-  return defaultOutputKey(order, config.title, stepId);
+  return defaultOutputKey(order, config.title, stepId, config.stepKey);
 }
 
 export function buildStepOutput(
@@ -213,11 +266,10 @@ export function mergeScopes(scopes: WorkflowRunScope[]): WorkflowRunScope {
       steps[k] = v;
     }
   }
-  const prevList = Object.values(steps);
   return {
     workflow,
     steps,
-    prev: prevList.length === 1 ? prevList[0] : undefined,
+    prev: pickPrevStep(steps),
   };
 }
 
@@ -225,11 +277,10 @@ export function scopeFromContext(
   workflowVars: Record<string, unknown>,
   steps: Record<string, StepOutput>,
 ): WorkflowRunScope {
-  const prevList = Object.values(steps);
   return {
     workflow: workflowVars,
     steps,
-    prev: prevList.length === 1 ? prevList[0] : undefined,
+    prev: pickPrevStep(steps),
   };
 }
 
@@ -239,11 +290,10 @@ export function publishStepOutput(
   output: StepOutput,
 ): WorkflowRunScope {
   const steps = { ...scope.steps, [key]: output };
-  const prevList = Object.values(steps);
   return {
     ...scope,
     steps,
-    prev: prevList.length === 1 ? prevList[0] : undefined,
+    prev: pickPrevStep(steps),
   };
 }
 

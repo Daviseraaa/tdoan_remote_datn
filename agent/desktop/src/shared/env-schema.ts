@@ -91,6 +91,14 @@ export const ENV_FIELDS: readonly EnvFieldDef[] = [
     hint: 'Nguy hiểm — chỉ bật máy tin cậy, session user',
   },
   {
+    key: 'SCREEN_CAPTURE_ENABLED',
+    label: 'Bật chụp màn hình',
+    type: 'boolean',
+    group: 'Desktop automation',
+    default: 'true',
+    hint: 'Task SCREEN_CAPTURE — session desktop user',
+  },
+  {
     key: 'DESKTOP_AUTOMATION_MAX_STEPS',
     label: 'Max steps',
     type: 'number',

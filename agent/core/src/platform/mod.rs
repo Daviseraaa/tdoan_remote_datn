@@ -1,7 +1,15 @@
+pub mod chrome_profiles;
+pub mod chrome_scripts_store;
+pub mod desktop_recordings_store;
 pub mod cloak_runner;
 pub mod open_app;
 pub mod open_browser;
 pub mod shell;
+pub mod telegram_api;
+
+pub use chrome_profiles::{list_system_chrome_profiles, ChromeProfileEntry};
+pub use chrome_scripts_store::list_local_chrome_scripts;
+pub use desktop_recordings_store::list_local_desktop_recordings;
 
 #[cfg(windows)]
 pub mod windows;

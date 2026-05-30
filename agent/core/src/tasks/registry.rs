@@ -57,6 +57,7 @@ static HANDLERS: &[&dyn TaskHandler] = &[
     &handlers::open_browser::Handler,
     &handlers::desktop::Handler,
     &handlers::chrome_extension::Handler,
+    &handlers::screen_capture::Handler,
 ];
 
 pub fn supported_task_types(platform: &Platform, _cfg: &AgentConfig) -> Vec<&'static str> {
@@ -68,6 +69,8 @@ pub fn supported_task_types(platform: &Platform, _cfg: &AgentConfig) -> Vec<&'st
                 platform.desktop().is_available()
             } else if *t == "CHROME_EXTENSION" {
                 cfg!(windows) && crate::config::settings::chrome_extension_enabled_now()
+            } else if *t == "SCREEN_CAPTURE" {
+                cfg!(windows) && _cfg.screen_capture_enabled
             } else {
                 true
             }
@@ -75,19 +78,30 @@ pub fn supported_task_types(platform: &Platform, _cfg: &AgentConfig) -> Vec<&'st
         .collect()
 }
 
+fn normalize_task_type(raw: &str) -> String {
+    raw.trim().to_uppercase()
+}
+
 pub async fn run_task(ctx: &TaskContext<'_>, task: TaskExecute) -> TaskWire {
+    let task_type = normalize_task_type(&task.task_type);
     let handler = HANDLERS
         .iter()
-        .find(|h| h.task_type() == task.task_type);
+        .find(|h| h.task_type() == task_type.as_str());
 
     let (ok, ec, msg, pay) = match handler {
         Some(h) => h.run(ctx, &task).await,
-        None => (
-            false,
-            -1,
-            Some(format!("Unknown task type: {}", task.task_type)),
-            None,
-        ),
+        None => {
+            let supported = supported_task_types(ctx.platform, ctx.config).join(", ");
+            (
+                false,
+                -1,
+                Some(format!(
+                    "Unknown task type: {} (supported: {})",
+                    task.task_type, supported
+                )),
+                None,
+            )
+        }
     };
     tool_result_to_task_wire(ok, ec, msg.as_deref(), pay)
 }

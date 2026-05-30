@@ -1,23 +1,11 @@
 import type { WfGraphEdge, WfNodeData } from './types';
 import { WF_TRIGGER_ID } from './types';
+import { nodeExportsStepVariables, resolveStepOutputKey } from './variables';
 
 export type UpstreamOutputKey = { nodeId: string; key: string; label: string };
 
-function slugOutputKey(s: string): string {
-  const t = s
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '_')
-    .replace(/^_+|_+$/g, '');
-  return t.length ? t.slice(0, 48) : '';
-}
-
 export function resolveNodeOutputKey(data: WfNodeData, nodeId: string): string {
-  const custom = data.config.outputKey?.trim();
-  if (custom) return slugOutputKey(custom) || custom.replace(/\s+/g, '_');
-  const fromTitle = slugOutputKey(data.config.title ?? data.label ?? '');
-  if (fromTitle) return fromTitle;
-  return slugOutputKey(nodeId) || nodeId.slice(0, 48);
+  return resolveStepOutputKey(data.config, data.label, nodeId);
 }
 
 export function getUpstreamStepKeys(
@@ -43,7 +31,7 @@ export function getUpstreamStepKeys(
     seen.add(id);
 
     const node = byId.get(id);
-    if (node && node.data.kind !== 'trigger') {
+    if (node && nodeExportsStepVariables(node.data.kind)) {
       const key = resolveNodeOutputKey(node.data, id);
       out.push({ nodeId: id, key, label: node.data.label || key });
     }

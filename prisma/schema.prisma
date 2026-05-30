@@ -27,6 +27,7 @@ enum TaskType {
   OPEN_BROWSER
   DESKTOP_AUTOMATION
   CHROME_EXTENSION
+  SCREEN_CAPTURE
 }
 
 enum TaskStatus {
@@ -125,6 +126,8 @@ model User {
   agents         Agent[]
   tasks          Task[]
   taskTemplates  TaskTemplate[]
+  chromeScripts      ChromeScript[]
+  desktopRecordings  DesktopRecording[]
   workflows      Workflow[]
   workflowRuns   WorkflowRun[]
   telegramBots   TelegramBot[]
@@ -142,8 +145,9 @@ model Agent {
   os         String?
   hostname   String?
   ip         String?
-  metadata   Json?
-  lastSeenAt DateTime?
+  metadata       Json?
+  chromeProfiles Json?
+  lastSeenAt     DateTime?
   createdAt  DateTime    @default(now())
   updatedAt  DateTime    @updatedAt
 
@@ -152,11 +156,54 @@ model Agent {
 
   tasks          Task[]
   taskTemplates  TaskTemplate[]
+  chromeScripts      ChromeScript[]
+  desktopRecordings  DesktopRecording[]
   remoteSessions RemoteSession[]
 
   @@index([userId])
   @@index([status])
   @@map("agents")
+}
+
+model DesktopRecording {
+  id        String   @id @default(uuid())
+  name      String
+  steps     Json
+  source    String   @default("recorded")
+  localId   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userId  String
+  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  agentId String?
+  agent   Agent? @relation(fields: [agentId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, agentId, localId], name: "desktop_recording_agent_local")
+  @@index([userId])
+  @@index([agentId])
+  @@map("desktop_recordings")
+}
+
+model ChromeScript {
+  id        String   @id @default(uuid())
+  name      String
+  startUrl  String?
+  steps     Json
+  source    String   @default("recorded")
+  localId   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userId  String
+  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  agentId String?
+  agent   Agent? @relation(fields: [agentId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, agentId, localId], name: "chrome_script_agent_local")
+  @@index([userId])
+  @@index([agentId])
+  @@map("chrome_scripts")
 }
 
 model TaskTemplate {
@@ -236,6 +283,7 @@ model Workflow {
   graphEdges     Json?
   isActive       Boolean  @default(true)
   cronExpression String?
+  stepDelayMs    Int      @default(0)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 

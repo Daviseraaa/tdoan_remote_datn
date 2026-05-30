@@ -1,16 +1,26 @@
 import React from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { GitBranch, Loader2, X } from 'lucide-react';
 import { WorkflowListSidebar } from '@/src/components/workflow/WorkflowListSidebar';
 import { WorkflowEditor } from '@/src/components/workflow/WorkflowEditor';
 import { useWorkflowPage } from '@/src/hooks/useWorkflowPage';
+import { useMediaQuery } from '@/src/hooks/useMediaQuery';
+import { cn } from '@/src/lib/utils';
 import { t } from '@/src/i18n/t';
 
 export default function Workflows() {
   const w = useWorkflowPage();
   const [listOpen, setListOpen] = React.useState(true);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const isFullscreen = searchParams.get('fullscreen') === '1';
 
-  const showEditor = Boolean(w.activeId);
-  const showListPanel = !showEditor || listOpen;
+  React.useEffect(() => {
+    const workflowId = searchParams.get('workflowId');
+    if (workflowId) {
+      w.selectWorkflow(workflowId);
+      setListOpen(false);
+    }
+  }, [searchParams, w.selectWorkflow]);
 
   React.useEffect(() => {
     if (!w.activeId) setListOpen(true);
@@ -26,32 +36,68 @@ export default function Workflows() {
     if (ok) setListOpen(false);
   };
 
+  const isLgUp = useMediaQuery('(min-width: 1024px)');
+
+  const showEditor = Boolean(w.activeId);
+  /** Ẩn list khi đang sửa workflow trừ khi mở lại (nút / chưa chọn WF). Desktop có thể thu gọn bằng nút trên sidebar. */
+  const showListPanel = !isFullscreen && (!showEditor || listOpen);
+  const listAsMobileOverlay = showListPanel && showEditor && !isLgUp;
+  const showWorkflowListButton = showEditor && !showListPanel && !isFullscreen;
+
+  const listSidebar = (
+    <WorkflowListSidebar
+      collapsed={isLgUp ? w.listCollapsed : false}
+      allowCollapse={isLgUp}
+      onToggleCollapse={() => w.setListCollapsed((v) => !v)}
+      search={w.search}
+      onSearchChange={w.setSearch}
+      items={w.filteredItems}
+      activeId={w.activeId}
+      onSelect={handleSelectWorkflow}
+      onCreate={() => void handleCreateWorkflow()}
+      creating={w.creating}
+      loading={w.listLoading}
+      page={w.page}
+      pageLimit={w.pageLimit}
+      total={w.listTotal}
+      onPageChange={w.setPage}
+    />
+  );
+
   return (
-    <div className="h-full min-h-0 flex flex-1 overflow-hidden border-t border-white/5">
+    <div className="w-full min-h-[70dvh] lg:h-full lg:min-h-0 flex flex-1 overflow-hidden relative">
       {showListPanel ? (
-      <WorkflowListSidebar
-        collapsed={w.listCollapsed}
-        onToggleCollapse={() => w.setListCollapsed((v) => !v)}
-        search={w.search}
-        onSearchChange={w.setSearch}
-        items={w.filteredItems}
-        activeId={w.activeId}
-        onSelect={handleSelectWorkflow}
-        onCreate={() => void handleCreateWorkflow()}
-        creating={w.creating}
-        loading={w.listLoading}
-        page={w.page}
-        pageLimit={w.pageLimit}
-        total={w.listTotal}
-        onPageChange={w.setPage}
-      />
+        <>
+          {listAsMobileOverlay ? (
+            <div
+              className="fixed inset-0 z-30 lg:hidden"
+              onClick={() => setListOpen(false)}
+              aria-hidden
+            />
+          ) : null}
+          <div
+            className={cn(
+              'shrink-0 min-h-[70dvh] lg:h-full lg:min-h-0',
+              listAsMobileOverlay
+                ? 'fixed inset-y-0 left-0 z-40 w-[min(100vw,20rem)] bg-surface border-r border-white/10 shadow-2xl lg:static lg:z-auto lg:w-auto lg:shadow-none lg:bg-transparent lg:border-r-0'
+                : 'flex-1 w-full min-w-0 lg:flex-none lg:w-auto',
+            )}
+          >
+            {listSidebar}
+          </div>
+        </>
       ) : null}
 
-      <main className="flex-1 flex flex-col min-w-0 min-h-0 h-full relative bg-surface-container-lowest overflow-hidden">
+      <main
+        className={cn(
+          'flex-1 flex flex-col min-w-0 min-h-[70dvh] lg:min-h-0 lg:h-full relative bg-surface-container-lowest overflow-hidden',
+          !showEditor && 'hidden lg:flex',
+        )}
+      >
         {w.pendingSwitchId ? (
-          <div className="absolute top-0 inset-x-0 z-30 flex items-center justify-between gap-3 px-4 py-2 bg-amber-500/15 border-b border-amber-500/30 text-sm">
-            <span className="font-bold text-amber-200">{t('workflows.unsavedSwitch')}</span>
-            <div className="flex gap-2">
+          <div className="absolute top-0 inset-x-0 z-30 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 px-3 sm:px-4 py-2 bg-amber-500/15 border-b border-amber-500/30 text-sm">
+            <span className="font-bold text-amber-200 text-xs sm:text-sm">{t('workflows.unsavedSwitch')}</span>
+            <div className="flex gap-2 shrink-0">
               <button
                 type="button"
                 onClick={() => w.setPendingSwitchId(null)}
@@ -95,11 +141,20 @@ export default function Workflows() {
               executionResult={w.executionResult}
               runStatusByStepId={w.runStatusByStepId}
               graphReloadToken={w.graphReloadToken}
-              onOpenWorkflowList={() => setListOpen(true)}
+              onOpenWorkflowList={
+                showWorkflowListButton ? () => setListOpen(true) : undefined
+              }
               onEditorPaneClick={() => {
                 if (showEditor && listOpen) setListOpen(false);
               }}
               onDeleteWorkflow={() => w.setShowDelete(true)}
+              isFullscreen={isFullscreen}
+              onToggleFullscreen={() => {
+                const next = new URLSearchParams(searchParams);
+                if (isFullscreen) next.delete('fullscreen');
+                else next.set('fullscreen', '1');
+                setSearchParams(next, { replace: true });
+              }}
             />
           </div>
         ) : w.listLoading && w.filteredItems.length === 0 ? (
@@ -108,7 +163,7 @@ export default function Workflows() {
             <span>{t('automations.loading')}</span>
           </div>
         ) : (
-          <div className="flex-1 flex flex-col items-center justify-center gap-6 p-8 text-center">
+          <div className="flex-1 flex flex-col items-center justify-center gap-4 sm:gap-6 p-4 sm:p-8 text-center min-w-0">
             <div className="w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center">
               <GitBranch size={32} className="text-primary" />
             </div>
@@ -131,7 +186,7 @@ export default function Workflows() {
 
       {w.showDelete && w.draft ? (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-          <div className="glass-card rounded-2xl p-8 w-full max-w-md border border-white/10 space-y-4 shadow-2xl">
+          <div className="glass-card rounded-2xl p-4 sm:p-8 w-full max-w-md border border-white/10 space-y-4 shadow-2xl">
             <div className="flex justify-between items-start">
               <h3 className="text-xl font-bold">{t('workflows.deleteWorkflow')}</h3>
               <button

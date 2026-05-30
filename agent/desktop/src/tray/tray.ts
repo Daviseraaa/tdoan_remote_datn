@@ -7,7 +7,9 @@ import { loadDesktopConfig } from '../shared/config';
 import { getLogger } from '../shared/logger';
 import {
   agentRoot,
+  ensureChromeScriptsDir,
   openConfigFolder,
+  resolveChromeScriptsDir,
   resolveCloakRunnerDir,
   resolveCloakRunnerScript,
   resolveConfigPath,
@@ -89,6 +91,85 @@ export function startRustAgent() {
   updateTrayStatus();
 }
 
+function listLocalChromeScripts(): { name: string; path: string }[] {
+  try {
+    const dir = ensureChromeScriptsDir();
+    return fs
+      .readdirSync(dir)
+      .filter((f) => f.endsWith('.json'))
+      .map((f) => ({ name: f.replace(/\.json$/i, ''), path: path.join(dir, f) }))
+      .sort((a, b) => b.path.localeCompare(a.path));
+  } catch {
+    return [];
+  }
+}
+
+function openChromeScriptsFolder(): void {
+  const dir = ensureChromeScriptsDir();
+  const { shell } = require('electron') as typeof import('electron');
+  shell.openPath(dir).catch(() => undefined);
+}
+
+function runChromeReplay(scriptPath: string): void {
+  const exe = resolveCoreExe();
+  if (!fs.existsSync(exe)) {
+    dialog.showErrorBox('Replay', `Thiếu ${exe}`);
+    return;
+  }
+  try {
+    const out = execFileSync(exe, ['chrome-replay', scriptPath], {
+      encoding: 'utf8',
+      timeout: 600_000,
+      windowsHide: true,
+    });
+    dialog.showMessageBox({
+      type: 'info',
+      title: 'Chrome replay',
+      message: 'Chạy lại script xong',
+      detail: out.length > 3500 ? `${out.slice(0, 3500)}…` : out,
+    });
+  } catch (e) {
+    const err = e as { stdout?: string; stderr?: string; message?: string };
+    dialog.showErrorBox(
+      'Replay lỗi',
+      [err.stderr, err.stdout, err.message].filter(Boolean).join('\n') || String(e),
+    );
+  }
+}
+
+function buildChromeScriptsSubmenu(): Electron.MenuItemConstructorOptions[] {
+  const scripts = listLocalChromeScripts();
+  const items: Electron.MenuItemConstructorOptions[] = [
+    {
+      label: 'Mở thư mục script',
+      click: () => openChromeScriptsFolder(),
+    },
+  ];
+  if (scripts.length === 0) {
+    items.push({
+      label: `(trống — ${resolveChromeScriptsDir()})`,
+      enabled: false,
+    });
+    return items;
+  }
+  items.push({ type: 'separator' });
+  for (const s of scripts.slice(0, 12)) {
+    items.push({
+      label: s.name,
+      submenu: [
+        {
+          label: 'Chạy lại',
+          click: () => runChromeReplay(s.path),
+        },
+      ],
+    });
+  }
+  if (scripts.length > 12) {
+    items.push({ label: `… và ${scripts.length - 12} file khác`, enabled: false });
+  }
+  return items;
+}
+
 function buildMenu(): Menu {
   const cfg = loadDesktopConfig();
   const running = rustAgent && rustAgent.exitCode === null && !rustAgent.killed;
@@ -114,6 +195,10 @@ function buildMenu(): Menu {
     {
       label: 'Mở thư mục config',
       click: () => openConfigFolder(),
+    },
+    {
+      label: 'Chrome scripts',
+      submenu: buildChromeScriptsSubmenu(),
     },
     { type: 'separator' },
   ];

@@ -13,6 +13,7 @@ import {
   WorkflowTriggerType,
 } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { TelegramWorkflowProgressService } from '../triggers/telegram/telegram-workflow-progress.service';
 import { AutomationService, type WorkflowStepResult } from './automation.service';
 import { getStartStepIds, buildAdjacency } from './workflow-runtime/graph-utils';
 import { resolveWorkflowGraphEdges } from './workflow-graph';
@@ -25,6 +26,7 @@ export class WorkflowRuntimeService {
     private readonly prisma: PrismaService,
     @Inject(forwardRef(() => AutomationService))
     private readonly automation: AutomationService,
+    private readonly telegramProgress: TelegramWorkflowProgressService,
   ) {}
 
   async getRun(runId: string, userId: string) {
@@ -123,8 +125,11 @@ export class WorkflowRuntimeService {
         where: { id: workflowId },
         data: { updatedAt: new Date() },
       });
+
+      await this.telegramProgress.finalize(runId, WorkflowRunStatus.COMPLETED);
     } catch (err) {
       this.logger.error(`Workflow run ${runId} failed`, err);
+      const msg = err instanceof Error ? err.message : 'Workflow failed';
       await this.prisma.workflowRun.update({
         where: { id: runId },
         data: {
@@ -132,6 +137,7 @@ export class WorkflowRuntimeService {
           completedAt: new Date(),
         },
       });
+      await this.telegramProgress.finalize(runId, WorkflowRunStatus.FAILED, msg);
     }
   }
 
@@ -197,6 +203,7 @@ export class WorkflowRuntimeService {
           where: { workflowRunId: run.id, status: FlowRunStatus.RUNNING },
           data: { status: FlowRunStatus.COMPLETED, completedAt: new Date() },
         });
+        await this.telegramProgress.finalize(run.id, WorkflowRunStatus.COMPLETED);
         return {
           runId: run.id,
           workflowId,
@@ -204,10 +211,12 @@ export class WorkflowRuntimeService {
           results,
         };
       } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Workflow failed';
         await this.prisma.workflowRun.update({
           where: { id: run.id },
           data: { status: WorkflowRunStatus.FAILED, completedAt: new Date() },
         });
+        await this.telegramProgress.finalize(run.id, WorkflowRunStatus.FAILED, msg);
         throw err;
       }
     }

@@ -7,9 +7,10 @@ import {
   MessageBody,
   ConnectedSocket,
 } from '@nestjs/websockets';
-import { Logger } from '@nestjs/common';
+import { BadRequestException, Logger, NotFoundException } from '@nestjs/common';
+import { randomUUID } from 'crypto';
+import { AgentStatus, TaskStatus } from '@prisma/client';
 import { Namespace, Server, Socket } from 'socket.io';
-import { TaskStatus } from '@prisma/client';
 import { WS_EVENTS } from '../../common/constants/index';
 import {
   HeartbeatPayload,
@@ -19,12 +20,32 @@ import {
 } from '../../common/types/ws-protocol';
 import { AgentsService } from './agents.service';
 import { AgentTelemetryStore } from './agent-telemetry.store';
+import { ChromeScriptsService } from '../chrome-scripts/chrome-scripts.service';
+import { DesktopRecordingsService } from '../desktop-recordings/desktop-recordings.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import {
   pickDisplayIp,
   resolveSocketPeerIp,
 } from '../../common/utils/socket-ip';
 import { notifyTaskCompleted } from '../../common/task-completion-registry';
+import {
+  failChromeProfilesWaiter,
+  notifyChromeProfilesResult,
+  registerChromeProfilesWaiter,
+  type ChromeProfileEntry,
+} from '../../common/chrome-profiles-registry';
+import {
+  failChromeScriptsWaiter,
+  notifyChromeScriptsResult,
+  registerChromeScriptsWaiter,
+  type AgentChromeScriptEntry,
+} from '../../common/chrome-scripts-registry';
+import {
+  failDesktopRecordingsWaiter,
+  notifyDesktopRecordingsResult,
+  registerDesktopRecordingsWaiter,
+  type AgentDesktopRecordingEntry,
+} from '../../common/desktop-recordings-registry';
 
 interface AgentSocket extends Socket {
   data: {
@@ -53,6 +74,8 @@ export class AgentsGateway
     private agentsService: AgentsService,
     private telemetryStore: AgentTelemetryStore,
     private prisma: PrismaService,
+    private chromeScriptsService: ChromeScriptsService,
+    private desktopRecordingsService: DesktopRecordingsService,
   ) {}
 
   async handleConnection(client: AgentSocket) {
@@ -252,6 +275,226 @@ export class AgentsGateway
     this.emitToClientRoom('admins', eventName, payload);
 
     return { event: WS_EVENTS.TASK_RESULT, data: { received: true } };
+  }
+
+  @SubscribeMessage(WS_EVENTS.CHROME_PROFILES_RESULT)
+  handleChromeProfilesResult(
+    @ConnectedSocket() client: AgentSocket,
+    @MessageBody()
+    data: {
+      requestId?: string;
+      ok?: boolean;
+      profiles?: ChromeProfileEntry[];
+      error?: string;
+    },
+  ) {
+    const agent = client.data?.agent;
+    if (!agent || !data?.requestId) return;
+
+    if (!data.ok) {
+      failChromeProfilesWaiter(
+        data.requestId,
+        data.error ?? 'Agent không liệt kê được Chrome profile',
+      );
+      return;
+    }
+
+    const profiles = Array.isArray(data.profiles) ? data.profiles : [];
+    notifyChromeProfilesResult(data.requestId, profiles);
+    this.logger.log(
+      `Chrome profiles from ${agent.name}: ${profiles.length} profile(s)`,
+    );
+  }
+
+  async syncChromeProfiles(agentId: string, userId: string) {
+    const agent = await this.prisma.agent.findFirst({
+      where: { id: agentId, userId },
+    });
+    if (!agent) throw new NotFoundException('Agent not found');
+    if (agent.status !== AgentStatus.ONLINE && agent.status !== AgentStatus.BUSY) {
+      throw new BadRequestException('Agent đang offline — không thể lấy Chrome profile');
+    }
+
+    const requestId = randomUUID();
+    const wait = registerChromeProfilesWaiter(requestId, 20_000);
+    this.emitToAgent(agentId, WS_EVENTS.CHROME_PROFILES_SYNC, { requestId });
+
+    let profiles: ChromeProfileEntry[];
+    try {
+      profiles = await wait;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Sync failed';
+      throw new BadRequestException(msg);
+    }
+
+    await this.prisma.agent.update({
+      where: { id: agentId },
+      data: { chromeProfiles: profiles as object },
+    });
+
+    return { profiles, count: profiles.length };
+  }
+
+  @SubscribeMessage(WS_EVENTS.CHROME_SCRIPTS_RESULT)
+  handleChromeScriptsResult(
+    @ConnectedSocket() client: AgentSocket,
+    @MessageBody()
+    data: {
+      requestId?: string;
+      ok?: boolean;
+      scripts?: unknown[];
+      error?: string;
+    },
+  ) {
+    const agent = client.data?.agent;
+    if (!agent || !data?.requestId) return;
+
+    if (!data.ok) {
+      failChromeScriptsWaiter(
+        data.requestId,
+        data.error ?? 'Agent không liệt kê được Chrome script',
+      );
+      return;
+    }
+
+    const raw = Array.isArray(data.scripts) ? data.scripts : [];
+    const scripts: AgentChromeScriptEntry[] = [];
+    for (const item of raw) {
+      if (!item || typeof item !== 'object') continue;
+      const row = item as Record<string, unknown>;
+      const id = typeof row.id === 'string' ? row.id.trim() : '';
+      const name = typeof row.name === 'string' ? row.name.trim() : '';
+      const steps = Array.isArray(row.steps) ? row.steps : [];
+      if (!id || !name || steps.length === 0) continue;
+      scripts.push({
+        id,
+        name,
+        startUrl:
+          typeof row.startUrl === 'string'
+            ? row.startUrl
+            : row.startUrl === null
+              ? null
+              : undefined,
+        steps,
+        savedPath:
+          typeof row.savedPath === 'string' ? row.savedPath : undefined,
+      });
+    }
+
+    notifyChromeScriptsResult(data.requestId, scripts);
+    this.logger.log(
+      `Chrome scripts from ${agent.name}: ${scripts.length} script(s)`,
+    );
+  }
+
+  async syncChromeScripts(agentId: string, userId: string) {
+    const agent = await this.prisma.agent.findFirst({
+      where: { id: agentId, userId },
+    });
+    if (!agent) throw new NotFoundException('Agent not found');
+    if (agent.status !== AgentStatus.ONLINE && agent.status !== AgentStatus.BUSY) {
+      throw new BadRequestException(
+        'Agent đang offline — không thể đồng bộ Chrome script',
+      );
+    }
+
+    const requestId = randomUUID();
+    const wait = registerChromeScriptsWaiter(requestId, 30_000);
+    this.emitToAgent(agentId, WS_EVENTS.CHROME_SCRIPTS_SYNC, { requestId });
+
+    let scripts: AgentChromeScriptEntry[];
+    try {
+      scripts = await wait;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Sync failed';
+      throw new BadRequestException(msg);
+    }
+
+    const summary = await this.chromeScriptsService.syncFromAgent(
+      userId,
+      agentId,
+      scripts,
+    );
+
+    return { ...summary, agentId, agentName: agent.name };
+  }
+
+  @SubscribeMessage(WS_EVENTS.DESKTOP_RECORDINGS_RESULT)
+  handleDesktopRecordingsResult(
+    @ConnectedSocket() client: AgentSocket,
+    @MessageBody()
+    data: {
+      requestId?: string;
+      ok?: boolean;
+      recordings?: unknown[];
+      error?: string;
+    },
+  ) {
+    const agent = client.data?.agent;
+    if (!agent || !data?.requestId) return;
+
+    if (!data.ok) {
+      failDesktopRecordingsWaiter(
+        data.requestId,
+        data.error ?? 'Agent không liệt kê được desktop recording',
+      );
+      return;
+    }
+
+    const raw = Array.isArray(data.recordings) ? data.recordings : [];
+    const recordings: AgentDesktopRecordingEntry[] = [];
+    for (const item of raw) {
+      if (!item || typeof item !== 'object') continue;
+      const row = item as Record<string, unknown>;
+      const id = typeof row.id === 'string' ? row.id.trim() : '';
+      const name = typeof row.name === 'string' ? row.name.trim() : '';
+      const steps = Array.isArray(row.steps) ? row.steps : [];
+      if (!id || !name || steps.length === 0) continue;
+      recordings.push({
+        id,
+        name,
+        steps,
+        savedPath:
+          typeof row.savedPath === 'string' ? row.savedPath : undefined,
+      });
+    }
+
+    notifyDesktopRecordingsResult(data.requestId, recordings);
+    this.logger.log(
+      `Desktop recordings from ${agent.name}: ${recordings.length} recording(s)`,
+    );
+  }
+
+  async syncDesktopRecordings(agentId: string, userId: string) {
+    const agent = await this.prisma.agent.findFirst({
+      where: { id: agentId, userId },
+    });
+    if (!agent) throw new NotFoundException('Agent not found');
+    if (agent.status !== AgentStatus.ONLINE && agent.status !== AgentStatus.BUSY) {
+      throw new BadRequestException(
+        'Agent đang offline — không thể đồng bộ desktop recording',
+      );
+    }
+
+    const requestId = randomUUID();
+    const wait = registerDesktopRecordingsWaiter(requestId, 30_000);
+    this.emitToAgent(agentId, WS_EVENTS.DESKTOP_RECORDINGS_SYNC, { requestId });
+
+    let recordings: AgentDesktopRecordingEntry[];
+    try {
+      recordings = await wait;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Sync failed';
+      throw new BadRequestException(msg);
+    }
+
+    const summary = await this.desktopRecordingsService.syncFromAgent(
+      userId,
+      agentId,
+      recordings,
+    );
+
+    return { ...summary, agentId, agentName: agent.name };
   }
 
   @SubscribeMessage(WS_EVENTS.TASK_PROGRESS)

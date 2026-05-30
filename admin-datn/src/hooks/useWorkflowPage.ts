@@ -118,7 +118,10 @@ export function useWorkflowPage() {
   const patchMeta = useCallback(
     (
       patch: Partial<
-        Pick<Workflow, 'name' | 'description' | 'cronExpression' | 'isActive' | 'variables'>
+        Pick<
+          Workflow,
+          'name' | 'description' | 'cronExpression' | 'isActive' | 'variables' | 'stepDelayMs'
+        >
       >,
     ) => {
       setDraft((d) => (d ? { ...d, ...patch } : d));
@@ -227,6 +230,7 @@ export function useWorkflowPage() {
             description: draft.description,
             cronExpression: draft.cronExpression,
             isActive: draft.isActive,
+            stepDelayMs: draft.stepDelayMs ?? 0,
             variables: draft.variables,
             graph: payload.graph,
             steps: payload.steps,

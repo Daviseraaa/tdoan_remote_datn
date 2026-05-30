@@ -15,10 +15,17 @@ import {
   Loader2,
   GitBranch,
   MessageCircle,
+  Camera,
 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import type { WfNodeData } from '@/src/lib/workflowGraph';
-import { WF_HANDLE_FALSE, WF_HANDLE_TRUE } from '@/src/lib/workflowGraph';
+import {
+  WF_HANDLE_FALSE,
+  WF_HANDLE_TRUE,
+  nodeExportsStepVariables,
+  resolveNodeOutputKey,
+} from '@/src/lib/workflowGraph';
+import { WfExportVarBadge } from './WfExportVarBadge';
 import { entryTriggerTypeSubtitle } from '@/src/lib/workflowEntryTrigger';
 import { t } from '@/src/i18n/t';
 import type { TaskType, WorkflowStepConfig } from '@/src/types/api';
@@ -42,10 +49,15 @@ function kindIcon(kind: WfNodeData['kind'], taskType?: TaskType) {
       return MousePointer2;
     case 'DESKTOP_AUTOMATION':
       return MousePointer2;
+    case 'SCREEN_CAPTURE':
+      return Camera;
     default:
       return Terminal;
   }
 }
+
+/** Chiều cao cố định phía trên card — giữ handle thẳng hàng dù có/không badge biến. */
+const VAR_BADGE_SLOT_CLASS = 'h-9 w-full flex items-end justify-center shrink-0';
 
 function triggerKindLabel(d: WfNodeData): string {
   const tt = (d.config as WorkflowStepConfig & { triggerType?: WorkflowTriggerType })
@@ -56,15 +68,21 @@ function triggerKindLabel(d: WfNodeData): string {
   return t('workflows.triggerManual');
 }
 
-function WfFlowNodeComponent({ data, selected }: NodeProps) {
+function WfFlowNodeComponent({ id, data, selected }: NodeProps) {
   const d = data as WfNodeData;
   const Icon = kindIcon(d.kind, d.taskType);
   const run = d.runStatus ?? 'idle';
   const isCondition = d.kind === 'condition';
   const isTrigger = d.kind === 'trigger';
+  const exportsVar = nodeExportsStepVariables(d.kind);
+  const outputKey = exportsVar ? resolveNodeOutputKey(d, id) : null;
 
   return (
-    <div
+    <div className="flex flex-col items-center">
+      <div className={VAR_BADGE_SLOT_CLASS} aria-hidden={!outputKey}>
+        {outputKey ? <WfExportVarBadge outputKey={outputKey} /> : null}
+      </div>
+      <div
       className={cn(
         'min-w-[200px] max-w-[240px] glass-card rounded-2xl p-4 border-2 transition-all',
         selected ? 'border-primary ring-2 ring-primary/30 shadow-lg shadow-primary/20' : 'border-white/10',
@@ -136,6 +154,7 @@ function WfFlowNodeComponent({ data, selected }: NodeProps) {
       ) : (
         <Handle type="source" position={Position.Right} className="!bg-primary !w-2.5 !h-2.5" />
       )}
+    </div>
     </div>
   );
 }

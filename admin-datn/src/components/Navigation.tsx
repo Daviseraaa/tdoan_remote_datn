@@ -5,6 +5,8 @@ import {
   Share2, 
   Zap,
   ListTodo,
+  FileJson,
+  MousePointer2,
   History, 
   Settings, 
   Terminal,
@@ -17,23 +19,29 @@ import {
   LogOut,
   ExternalLink,
   BookOpen,
-  Headphones
+  Headphones,
+  Menu,
+  X,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@/src/lib/utils';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '@/src/hooks/useAuth';
+import { useNavLayout } from '@/src/hooks/useNavLayout';
 import { t } from '@/src/i18n/t';
 
 export function Sidebar() {
   const navigate = useNavigate();
   const location = useLocation();
   const { isAdmin } = useAuth();
+  const { navOpen, closeNav } = useNavLayout();
   
   const navItems = [
     { icon: LayoutDashboard, label: t('nav.dashboard'), path: '/', adminOnly: false },
     { icon: Users, label: t('nav.agents'), path: '/agents', adminOnly: false },
     { icon: ListTodo, label: t('nav.tasks'), path: '/tasks', adminOnly: false },
+    { icon: FileJson, label: t('nav.chromeScripts'), path: '/chrome-scripts', adminOnly: false },
+    { icon: MousePointer2, label: t('nav.desktopRecordings'), path: '/desktop-recordings', adminOnly: false },
     { icon: Share2, label: t('nav.workflows'), path: '/workflows', adminOnly: false },
     { icon: Zap, label: t('nav.automations'), path: '/automations', adminOnly: false },
     { icon: History, label: t('nav.auditLog'), path: '/audit-log', adminOnly: true },
@@ -41,69 +49,106 @@ export function Sidebar() {
   ].filter((item) => !item.adminOnly || isAdmin);
 
   return (
-    <aside className="fixed left-4 top-4 bottom-4 w-[280px] rounded-2xl glass-panel shadow-2xl flex flex-col gap-y-4 p-4 z-50 overflow-hidden">
-      {/* Logo */}
-      <div className="flex items-center gap-3 px-2 py-2">
-        <div className="w-10 h-10 rounded-lg bg-primary-container flex items-center justify-center shadow-lg shadow-primary-container/20">
-          <Terminal className="text-on-primary-container" size={24} />
-        </div>
-        <div>
-          <h1 className="font-bold tracking-tight text-primary leading-tight">{t('common.brand')}</h1>
-          <p className="font-mono text-[10px] text-on-surface-variant opacity-60">{t('common.version')}</p>
-        </div>
-      </div>
+    <>
+      <AnimatePresence>
+        {navOpen ? (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={closeNav}
+            className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm lg:hidden"
+            aria-hidden
+          />
+        ) : null}
+      </AnimatePresence>
 
-      {/* Nav */}
-      <nav className="flex-1 flex flex-col gap-1 mt-4">
-        {navItems.map((item) => {
-          const isActive =
-            location.pathname === item.path ||
-            (item.path !== '/' && location.pathname.startsWith(item.path));
-          return (
-            <Link
-              key={item.path}
-              to={item.path}
-              className={cn(
-                "flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group relative",
-                isActive 
-                  ? "bg-primary-container text-on-primary-container font-semibold shadow-lg shadow-primary-container/20" 
-                  : "text-on-surface-variant hover:text-on-surface hover:bg-white/5"
-              )}
-            >
-              <item.icon size={20} className={cn(isActive ? "text-on-primary-container" : "text-on-surface-variant group-hover:text-on-surface")} />
-              <span className="text-sm font-medium">{item.label}</span>
-              {isActive && (
-                <motion.div 
-                  layoutId="active-nav-glow"
-                  className="absolute inset-0 rounded-xl bg-primary/20 blur-md -z-10"
-                />
-              )}
-            </Link>
-          );
-        })}
-      </nav>
+      <aside
+        className={cn(
+          'fixed z-50 flex flex-col gap-y-4 overflow-hidden glass-panel shadow-2xl p-4 transition-transform duration-300 ease-out',
+          'lg:left-4 lg:top-4 lg:bottom-4 lg:w-[280px] lg:rounded-2xl lg:translate-x-0',
+          'left-0 top-0 bottom-0 w-[min(100vw,280px)] rounded-none rounded-r-2xl',
+          navOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
+        )}
+      >
+        <div className="flex items-center justify-between gap-2 px-2 py-2">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-10 h-10 rounded-lg bg-primary-container flex items-center justify-center shadow-lg shadow-primary-container/20 shrink-0">
+              <Terminal className="text-on-primary-container" size={24} />
+            </div>
+            <div className="min-w-0">
+              <h1 className="font-bold tracking-tight text-primary leading-tight truncate">{t('common.brand')}</h1>
+              <p className="font-mono text-[10px] text-on-surface-variant opacity-60">{t('common.version')}</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={closeNav}
+            className="lg:hidden w-9 h-9 flex items-center justify-center rounded-lg hover:bg-white/5 text-on-surface-variant hover:text-on-surface shrink-0"
+            aria-label={t('nav.closeSidebar')}
+          >
+            <X size={20} />
+          </button>
+        </div>
 
-      {/* Footer Actions */}
-      <div className="mt-auto border-t border-white/5 pt-4 flex flex-col gap-1">
-        <button
-          type="button"
-          onClick={() => navigate('/agents')}
-          className="w-full py-3 mb-4 bg-primary text-on-primary rounded-xl font-bold flex items-center justify-center gap-2 hover:brightness-110 active:scale-[0.98] transition-all shadow-lg shadow-primary/20"
-        >
-          <PlusCircle size={18} />
-          <span>{t('nav.deployAgent')}</span>
-        </button>
-        
-        <a href="#" className="flex items-center gap-3 px-4 py-2 text-on-surface-variant hover:text-on-surface transition-colors text-xs font-mono">
-          <Headphones size={16} />
-          <span>{t('nav.support')}</span>
-        </a>
-        <a href="#" className="flex items-center gap-3 px-4 py-2 text-on-surface-variant hover:text-on-surface transition-colors text-xs font-mono">
-          <BookOpen size={16} />
-          <span>{t('nav.documentation')}</span>
-        </a>
-      </div>
-    </aside>
+        <nav className="flex-1 flex flex-col gap-1 mt-4 overflow-y-auto custom-scrollbar">
+          {navItems.map((item) => {
+            const isActive =
+              location.pathname === item.path ||
+              (item.path !== '/' && location.pathname.startsWith(item.path));
+            return (
+              <Link
+                key={item.path}
+                to={item.path}
+                onClick={closeNav}
+                className={cn(
+                  "flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group relative",
+                  isActive 
+                    ? "bg-primary-container text-on-primary-container font-semibold shadow-lg shadow-primary-container/20" 
+                    : "text-on-surface-variant hover:text-on-surface hover:bg-white/5"
+                )}
+              >
+                <item.icon size={20} className={cn(isActive ? "text-on-primary-container" : "text-on-surface-variant group-hover:text-on-surface")} />
+                <span className="text-sm font-medium">{item.label}</span>
+                {isActive && (
+                  <motion.div 
+                    layoutId="active-nav-glow"
+                    className="absolute inset-0 rounded-xl bg-primary/20 blur-md -z-10"
+                  />
+                )}
+              </Link>
+            );
+          })}
+        </nav>
+
+        <div className="mt-auto border-t border-white/5 pt-4 flex flex-col gap-1 shrink-0">
+          <button
+            type="button"
+            onClick={() => {
+              closeNav();
+              navigate('/agents');
+            }}
+            className="w-full py-3 mb-4 bg-primary text-on-primary rounded-xl font-bold flex items-center justify-center gap-2 hover:brightness-110 active:scale-[0.98] transition-all shadow-lg shadow-primary/20"
+          >
+            <PlusCircle size={18} />
+            <span>{t('nav.deployAgent')}</span>
+          </button>
+          
+          <a href="#" className="flex items-center gap-3 px-4 py-2 text-on-surface-variant hover:text-on-surface transition-colors text-xs font-mono">
+            <Headphones size={16} />
+            <span>{t('nav.support')}</span>
+          </a>
+          <Link
+            to="/docs"
+            onClick={closeNav}
+            className="flex items-center gap-3 px-4 py-2 text-on-surface-variant hover:text-on-surface transition-colors text-xs font-mono"
+          >
+            <BookOpen size={16} />
+            <span>{t('nav.documentation')}</span>
+          </Link>
+        </div>
+      </aside>
+    </>
   );
 }
 
@@ -112,6 +157,7 @@ export function TopBar() {
   const [query, setQuery] = useState('');
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const { toggleNav } = useNavLayout();
 
   const searchResults = [
     { category: t('nav.searchCategoryAgents'), items: [
@@ -139,7 +185,6 @@ export function TopBar() {
     )
   })).filter(cat => cat.items.length > 0);
 
-  // Keyboard shortcut
   React.useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
@@ -156,12 +201,29 @@ export function TopBar() {
 
   return (
     <>
-      <header className="fixed top-0 right-0 left-[300px] h-20 bg-surface/20 backdrop-blur-md border-b border-white/5 z-40 flex justify-between items-center px-8">
-        {/* Search Trigger */}
-        <div className="flex items-center flex-1 max-w-xl">
+      <header className="sticky top-0 z-40 w-full shrink-0 bg-surface/95 backdrop-blur-md border-b border-white/5">
+        <div className="h-[var(--app-topbar-height)] flex justify-between items-center gap-3 px-4 lg:px-8">
+        <div className="flex items-center gap-2 flex-1 min-w-0 max-w-xl">
+          <button
+            type="button"
+            onClick={toggleNav}
+            className="lg:hidden w-10 h-10 flex items-center justify-center hover:bg-white/5 rounded-full transition-all text-on-surface-variant hover:text-on-surface shrink-0"
+            aria-label={t('nav.openMenu')}
+          >
+            <Menu size={20} />
+          </button>
+
           <button 
             onClick={() => setIsOpen(true)}
-            className="relative w-full group flex items-center bg-surface-container-low/50 border border-white/5 rounded-full pl-12 pr-4 py-2.5 text-sm text-on-surface-variant hover:bg-white/10 transition-all text-left"
+            className="lg:hidden w-10 h-10 flex items-center justify-center hover:bg-white/5 rounded-full transition-all text-on-surface-variant hover:text-on-surface shrink-0"
+            aria-label={t('nav.searchPlaceholder')}
+          >
+            <Search size={18} />
+          </button>
+
+          <button 
+            onClick={() => setIsOpen(true)}
+            className="relative hidden lg:flex w-full group items-center bg-surface-container-low/50 border border-white/5 rounded-full pl-12 pr-4 py-2.5 text-sm text-on-surface-variant hover:bg-white/10 transition-all text-left"
           >
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant group-hover:text-primary transition-colors" size={18} />
             {t('nav.searchPlaceholder')}
@@ -171,53 +233,51 @@ export function TopBar() {
           </button>
         </div>
 
-        {/* Right Stats & Profile */}
-      <div className="flex items-center gap-6">
-        {/* WebSocket Status */}
-        <div className="flex items-center gap-2 px-3 py-1 bg-tertiary-container/10 border border-tertiary-container/20 rounded-full">
-          <div className="w-2 h-2 rounded-full bg-tertiary animate-pulse shadow-[0_0_8px_rgba(104,245,184,0.6)]"></div>
-          <span className="font-mono text-[11px] text-tertiary font-bold tracking-tight">{t('nav.wsActive')}</span>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <button className="w-10 h-10 flex items-center justify-center hover:bg-white/5 rounded-full transition-all text-on-surface-variant hover:text-on-surface">
-            <Bell size={18} />
-          </button>
-          <button className="w-10 h-10 flex items-center justify-center hover:bg-white/5 rounded-full transition-all text-on-surface-variant hover:text-on-surface">
-            <Wifi size={18} />
-          </button>
-          <button className="w-10 h-10 flex items-center justify-center hover:bg-white/5 rounded-full transition-all text-on-surface-variant hover:text-on-surface">
-            <HelpCircle size={18} />
-          </button>
-        </div>
-
-        <div className="h-8 w-[1px] bg-white/10 mx-2"></div>
-
-        <div className="flex items-center gap-3">
-          <div className="text-right hidden xl:block">
-            <p className="text-sm font-semibold text-on-surface leading-none">{user?.name ?? t('common.user')}</p>
-            <p className="text-[10px] text-on-surface-variant font-mono mt-1">{user?.role ?? '—'}</p>
+        <div className="flex items-center gap-3 sm:gap-6 shrink-0">
+          <div className="hidden md:flex items-center gap-2 px-3 py-1 bg-tertiary-container/10 border border-tertiary-container/20 rounded-full">
+            <div className="w-2 h-2 rounded-full bg-tertiary animate-pulse shadow-[0_0_8px_rgba(104,245,184,0.6)]"></div>
+            <span className="font-mono text-[11px] text-tertiary font-bold tracking-tight">{t('nav.wsActive')}</span>
           </div>
-          <button
-            type="button"
-            onClick={() => void logout().then(() => navigate('/login'))}
-            className="w-10 h-10 flex items-center justify-center hover:bg-white/5 rounded-full text-on-surface-variant hover:text-error transition-all"
-            title={t('nav.logout')}
-          >
-            <LogOut size={18} />
-          </button>
-          <div className="w-10 h-10 rounded-full border-2 border-primary/20 p-0.5 overflow-hidden ring-2 ring-transparent hover:ring-primary/20 transition-all cursor-pointer">
-            <img 
-              src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.name ?? t('common.user')}`}
-              alt={user?.name ?? t('common.user')}
-              className="w-full h-full rounded-full object-cover bg-surface-container-high"
-            />
+
+          <div className="hidden sm:flex items-center gap-2">
+            <button className="w-10 h-10 flex items-center justify-center hover:bg-white/5 rounded-full transition-all text-on-surface-variant hover:text-on-surface">
+              <Bell size={18} />
+            </button>
+            <button className="w-10 h-10 flex items-center justify-center hover:bg-white/5 rounded-full transition-all text-on-surface-variant hover:text-on-surface">
+              <Wifi size={18} />
+            </button>
+            <button className="w-10 h-10 flex items-center justify-center hover:bg-white/5 rounded-full transition-all text-on-surface-variant hover:text-on-surface">
+              <HelpCircle size={18} />
+            </button>
+          </div>
+
+          <div className="hidden sm:block h-8 w-[1px] bg-white/10 mx-2"></div>
+
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="text-right hidden xl:block">
+              <p className="text-sm font-semibold text-on-surface leading-none">{user?.name ?? t('common.user')}</p>
+              <p className="text-[10px] text-on-surface-variant font-mono mt-1">{user?.role ?? '—'}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => void logout().then(() => navigate('/login'))}
+              className="w-10 h-10 flex items-center justify-center hover:bg-white/5 rounded-full text-on-surface-variant hover:text-error transition-all"
+              title={t('nav.logout')}
+            >
+              <LogOut size={18} />
+            </button>
+            <div className="w-10 h-10 rounded-full border-2 border-primary/20 p-0.5 overflow-hidden ring-2 ring-transparent hover:ring-primary/20 transition-all cursor-pointer">
+              <img 
+                src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.name ?? t('common.user')}`}
+                alt={user?.name ?? t('common.user')}
+                className="w-full h-full rounded-full object-cover bg-surface-container-high"
+              />
+            </div>
           </div>
         </div>
-      </div>
-    </header>
+        </div>
+      </header>
 
-      {/* Global Search Modal */}
       <AnimatePresence>
         {isOpen && (
           <div className="fixed inset-0 z-[100] flex items-start justify-center pt-[15vh] px-4">

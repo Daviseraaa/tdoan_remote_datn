@@ -1,8 +1,6 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
 import { CalendarClock, MessageCircle, PlayCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import * as triggersApi from '@/src/api/triggers';
 import type { ScheduleKind, WorkflowTriggerType } from '@/src/api/triggers';
 import {
   type EntryTriggerDraft,
@@ -11,6 +9,7 @@ import {
 import { SCHEDULE_KINDS, TELEGRAM_EVENTS } from '@/src/lib/triggerForm';
 import { cn } from '@/src/lib/utils';
 import { t } from '@/src/i18n/t';
+import { WfTelegramBotSelect } from './WfTelegramBotSelect';
 
 const inputCls =
   'w-full mt-1 px-4 py-3 rounded-xl bg-surface-container-low border border-white/10 text-sm';
@@ -40,7 +39,7 @@ function TypeOption({
       type="button"
       onClick={onSelect}
       className={cn(
-        'flex-1 min-w-[100px] flex flex-col items-center gap-2 p-4 rounded-xl border text-center transition-all',
+        'flex-1 min-w-[72px] sm:min-w-[100px] flex flex-col items-center gap-2 p-3 sm:p-4 rounded-xl border text-center transition-all',
         active
           ? 'border-primary bg-primary/15 text-primary shadow-lg shadow-primary/10'
           : 'border-white/10 bg-white/[0.02] text-on-surface-variant hover:bg-white/5',
@@ -71,12 +70,6 @@ export function WorkflowTriggerInspector({
     }
   };
 
-  const { data: bots } = useQuery({
-    queryKey: ['telegram-bots'],
-    queryFn: () => triggersApi.listTelegramBots(),
-    enabled: draft.type === 'TELEGRAM',
-  });
-
   const toggleEvent = (ev: string) => {
     const next = draft.telegramEvents.includes(ev)
       ? draft.telegramEvents.filter((x) => x !== ev)
@@ -85,7 +78,7 @@ export function WorkflowTriggerInspector({
   };
 
   return (
-    <div className="flex-1 overflow-y-auto p-6 space-y-5 custom-scrollbar min-w-[360px]">
+    <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5 custom-scrollbar min-w-0 w-full">
       <div>
         <p className="text-[10px] font-mono font-bold uppercase text-on-surface-variant mb-1">
           {t('workflows.triggerStartTitle')}
@@ -296,19 +289,11 @@ export function WorkflowTriggerInspector({
               <label className="text-[10px] font-mono font-bold uppercase text-on-surface-variant">
                 {t('triggers.selectBot')}
               </label>
-              <select
+              <WfTelegramBotSelect
                 value={draft.telegramBotId}
-                onChange={(e) => onChange({ telegramBotId: e.target.value })}
-                className={inputCls}
-              >
-                <option value="">{t('triggers.noBots')}</option>
-                {(bots ?? []).map((b) => (
-                  <option key={b.id} value={b.id}>
-                    {b.name}
-                    {b.botUsername ? ` (@${b.botUsername})` : ''}
-                  </option>
-                ))}
-              </select>
+                onChange={(id) => onChange({ telegramBotId: id })}
+                autoSelectFirst={!draft.telegramBotId}
+              />
             </div>
           )}
           <div>

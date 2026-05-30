@@ -3,19 +3,15 @@ import { createPortal } from 'react-dom';
 import {
   Plus,
   X,
-  ArrowRight,
   RotateCcw,
   Trash2,
-  Terminal,
-  Clock,
   AlertCircle,
-  CheckCircle2,
   Loader2,
-  Play,
-  Pencil,
   Copy,
   Filter,
   Layers,
+  ListTodo,
+  History,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
@@ -30,6 +26,10 @@ import {
   formatTaskDurationMs,
 } from '@/src/lib/taskDetailFormat';
 import { Pagination } from '@/src/components/Pagination';
+import { TaskEmptyState } from '@/src/components/tasks/TaskEmptyState';
+import { TaskHistoryRow } from '@/src/components/tasks/TaskHistoryRow';
+import { TaskStatusBadge } from '@/src/components/tasks/TaskStatusBadge';
+import { TaskTemplateCard } from '@/src/components/tasks/TaskTemplateCard';
 import { apiErrorMessage } from '@/src/lib/api';
 import { t } from '@/src/i18n/t';
 import type { TaskStatus, TaskType } from '@/src/types/api';
@@ -38,6 +38,7 @@ import { useAuth } from '@/src/hooks/useAuth';
 const TASK_PAGE_LIMIT = 20;
 
 type TaskTab = 'templates' | 'history';
+type DetailTab = 'overview' | 'logs';
 
 const TASK_TYPES: TaskType[] = [
   'COMMAND',
@@ -48,6 +49,7 @@ const TASK_TYPES: TaskType[] = [
   'OPEN_BROWSER',
   'CHROME_EXTENSION',
   'DESKTOP_AUTOMATION',
+  'SCREEN_CAPTURE',
 ];
 
 const TASK_STATUSES: TaskStatus[] = [
@@ -77,31 +79,6 @@ function logDotClass(level: string) {
   return 'bg-primary';
 }
 
-function statusStyle(status: TaskStatus) {
-  switch (status) {
-    case 'COMPLETED':
-      return 'bg-tertiary/10 text-tertiary border-tertiary/20';
-    case 'FAILED':
-    case 'TIMEOUT':
-      return 'bg-error/10 text-error border-error/20';
-    case 'RUNNING':
-      return 'bg-primary/10 text-primary border-primary/20';
-    case 'QUEUED':
-      return 'bg-secondary-container/30 text-secondary-container border-white/10';
-    case 'CANCELLED':
-      return 'bg-white/5 text-on-surface-variant border-white/10';
-    default:
-      return 'bg-secondary-container/20 text-on-secondary-container border-white/10';
-  }
-}
-
-function StatusIcon({ status }: { status: TaskStatus }) {
-  if (status === 'COMPLETED') return <CheckCircle2 size={16} />;
-  if (status === 'FAILED' || status === 'TIMEOUT') return <AlertCircle size={16} />;
-  if (status === 'RUNNING' || status === 'QUEUED') return <Loader2 size={16} className="animate-spin" />;
-  return <Clock size={16} />;
-}
-
 function taskStatusFilterLabel(status: TaskStatus | ''): string {
   return status ? t(`status.${status}` as 'status.PENDING') : t('common.all');
 }
@@ -111,7 +88,7 @@ function taskTypeFilterLabel(type: TaskType | ''): string {
 }
 
 const FILTER_BTN =
-  'flex items-center gap-2 px-5 py-2.5 rounded-xl border border-white/10 hover:bg-white/5 transition-all text-sm font-bold tracking-tight';
+  'flex items-center gap-2 px-4 py-2 rounded-xl border border-white/10 hover:bg-white/5 transition-all text-sm font-bold';
 
 function TaskFilterMenu({
   open,
@@ -162,9 +139,9 @@ function TaskFilterMenu({
   useEffect(() => {
     if (!open) return;
     const onDoc = (e: MouseEvent) => {
-      const t = e.target as Node;
-      if (wrapRef.current?.contains(t)) return;
-      if (panelRef.current?.contains(t)) return;
+      const target = e.target as Node;
+      if (wrapRef.current?.contains(target)) return;
+      if (panelRef.current?.contains(target)) return;
       onOpenChange(false);
     };
     document.addEventListener('mousedown', onDoc);
@@ -235,6 +212,7 @@ export default function Tasks() {
   const navigate = useNavigate();
   const { isAdmin } = useAuth();
   const [tab, setTab] = useState<TaskTab>('templates');
+  const [detailTab, setDetailTab] = useState<DetailTab>('overview');
   const [statusFilter, setStatusFilter] = useState<TaskStatus | ''>('');
   const [typeFilter, setTypeFilter] = useState<TaskType | ''>('');
   const [statusMenuOpen, setStatusMenuOpen] = useState(false);
@@ -267,10 +245,22 @@ export default function Tasks() {
   });
   const { remove: removeTpl, run: runTpl } = useTaskTemplateMutations();
 
-  const tasks = (data?.items ?? []).map(mapTaskToListRow);
+  const tasks = useMemo(() => {
+    if (tab !== 'history') return [];
+    const rows: ReturnType<typeof mapTaskToListRow>[] = [];
+    for (const item of data?.items ?? []) {
+      try {
+        rows.push(mapTaskToListRow(item));
+      } catch {
+        /* bỏ qua bản ghi lỗi — tránh crash cả trang */
+      }
+    }
+    return rows;
+  }, [tab, data?.items]);
   const selected = selectedId ? detail ?? tasks.find((x) => x.id === selectedId)?._raw : null;
   const selectedTaskLogs = selected ? dedupeTaskLogs(selected.logs) : [];
   const templates = templatesPage?.items ?? [];
+  const historyTotal = data?.meta.total ?? 0;
 
   const copyCommandToClipboard = async (text: string | null | undefined) => {
     const s = (text ?? '').trim();
@@ -285,6 +275,11 @@ export default function Tasks() {
 
   const activeAgentName = (agentId: string) =>
     agentsPage?.items.find((a) => a.id === agentId)?.name ?? agentId;
+
+  const openTaskDetail = (id: string) => {
+    setSelectedId(id);
+    setDetailTab('overview');
+  };
 
   const handleRunTemplate = async (id: string) => {
     setError('');
@@ -321,381 +316,384 @@ export default function Tasks() {
     }
   };
 
+  const tabBtn = (key: TaskTab, label: string, Icon: React.ComponentType<{ size?: number }>) => (
+    <button
+      type="button"
+      onClick={() => {
+        setTab(key);
+        setStatusMenuOpen(false);
+        setTypeMenuOpen(false);
+      }}
+      className={cn(
+        'flex items-center gap-2 px-4 py-2.5 text-sm font-bold border-b-2 -mb-px transition-colors',
+        tab === key
+          ? 'border-primary text-primary'
+          : 'border-transparent text-on-surface-variant hover:text-on-surface',
+      )}
+    >
+      <Icon size={16} />
+      {label}
+    </button>
+  );
+
   return (
-    <div className="pb-20 min-w-0 max-w-full overflow-x-clip">
-      <div className="flex justify-between items-end mb-10">
-        <div>
-          <h2 className="text-4xl font-bold tracking-tight text-on-surface">{t('tasks.title')}</h2>
-          <p className="text-on-surface-variant text-body-md mt-2 max-w-2xl">
-            {t('tasks.subtitle')}
-          </p>
+    <div className="relative pb-16 min-w-0 max-w-full w-full">
+      {/* Page header */}
+      <header className="mb-6 sm:mb-8 flex flex-wrap justify-between items-end gap-4">
+        <div className="min-w-0">
+          <h2 className="text-2xl sm:text-4xl font-bold tracking-tight text-on-surface">{t('tasks.title')}</h2>
+          <p className="text-on-surface-variant text-body-md mt-1 max-w-2xl">{t('tasks.subtitle')}</p>
         </div>
-        {tab === 'templates' ? (
-          <button
-            type="button"
-            onClick={() => navigate('/tasks/templates/new')}
-            className="flex items-center gap-2.5 px-8 py-4 bg-primary text-on-primary rounded-2xl font-bold"
-          >
-            <Plus size={20} /> {t('tasks.newTemplate')}
-          </button>
-        ) : null}
-      </div>
-
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
-        <div className="glass-card rounded-2xl p-2 border border-white/5 inline-flex gap-2">
-          <button
-            type="button"
-            onClick={() => {
-              setTab('templates');
-              setStatusMenuOpen(false);
-              setTypeMenuOpen(false);
-            }}
-            className={cn(
-              'px-4 py-2 rounded-xl text-sm font-bold transition-all',
-              tab === 'templates' ? 'bg-primary text-on-primary' : 'text-on-surface-variant hover:text-on-surface',
-            )}
-          >
-            {t('tasks.templatesTab')}
-          </button>
-          <button
-            type="button"
-            onClick={() => setTab('history')}
-            className={cn(
-              'px-4 py-2 rounded-xl text-sm font-bold transition-all',
-              tab === 'history' ? 'bg-primary text-on-primary' : 'text-on-surface-variant hover:text-on-surface',
-            )}
-          >
-            {t('tasks.historyTab')}
-          </button>
-        </div>
-
-        {tab === 'history' ? (
-          <div className="flex flex-wrap items-center gap-3">
-            <TaskFilterMenu
-              open={statusMenuOpen}
-              onOpenChange={(open) => {
-                setStatusMenuOpen(open);
-                if (open) setTypeMenuOpen(false);
-              }}
-              buttonLabel={t('filters.statusLabel', { value: taskStatusFilterLabel(statusFilter) })}
-              icon={<Filter size={16} className="text-on-surface-variant shrink-0" />}
-            >
-              <TaskFilterOption
-                active={!statusFilter}
-                onClick={() => {
-                  setStatusFilter('');
-                  setStatusMenuOpen(false);
+        <div className="flex flex-wrap items-center gap-2">
+          {tab === 'history' ? (
+            <>
+              <TaskFilterMenu
+                open={statusMenuOpen}
+                onOpenChange={(open) => {
+                  setStatusMenuOpen(open);
+                  if (open) setTypeMenuOpen(false);
                 }}
+                buttonLabel={t('filters.statusLabel', { value: taskStatusFilterLabel(statusFilter) })}
+                icon={<Filter size={16} className="text-on-surface-variant shrink-0" />}
               >
-                {t('common.all')}
-              </TaskFilterOption>
-              {TASK_STATUSES.map((s) => (
                 <TaskFilterOption
-                  key={s}
-                  active={statusFilter === s}
+                  active={!statusFilter}
                   onClick={() => {
-                    setStatusFilter(s);
+                    setStatusFilter('');
                     setStatusMenuOpen(false);
                   }}
                 >
-                  {t(`status.${s}` as 'status.PENDING')}
+                  {t('common.all')}
                 </TaskFilterOption>
-              ))}
-            </TaskFilterMenu>
-
-            <TaskFilterMenu
-              open={typeMenuOpen}
-              onOpenChange={(open) => {
-                setTypeMenuOpen(open);
-                if (open) setStatusMenuOpen(false);
-              }}
-              buttonLabel={t('filters.typeLabel', { value: taskTypeFilterLabel(typeFilter) })}
-              icon={<Layers size={16} className="text-on-surface-variant shrink-0" />}
-            >
-              <TaskFilterOption
-                active={!typeFilter}
-                onClick={() => {
-                  setTypeFilter('');
-                  setTypeMenuOpen(false);
+                {TASK_STATUSES.map((s) => (
+                  <TaskFilterOption
+                    key={s}
+                    active={statusFilter === s}
+                    onClick={() => {
+                      setStatusFilter(s);
+                      setStatusMenuOpen(false);
+                    }}
+                  >
+                    {t(`status.${s}` as 'status.PENDING')}
+                  </TaskFilterOption>
+                ))}
+              </TaskFilterMenu>
+              <TaskFilterMenu
+                open={typeMenuOpen}
+                onOpenChange={(open) => {
+                  setTypeMenuOpen(open);
+                  if (open) setStatusMenuOpen(false);
                 }}
+                buttonLabel={t('filters.typeLabel', { value: taskTypeFilterLabel(typeFilter) })}
+                icon={<Layers size={16} className="text-on-surface-variant shrink-0" />}
               >
-                {t('common.all')}
-              </TaskFilterOption>
-              {TASK_TYPES.map((taskType) => (
                 <TaskFilterOption
-                  key={taskType}
-                  active={typeFilter === taskType}
+                  active={!typeFilter}
                   onClick={() => {
-                    setTypeFilter(taskType);
+                    setTypeFilter('');
                     setTypeMenuOpen(false);
                   }}
                 >
-                  {t(`taskType.${taskType}` as 'taskType.COMMAND')}
+                  {t('common.all')}
                 </TaskFilterOption>
-              ))}
-            </TaskFilterMenu>
-
-            <p className="text-[10px] font-mono text-on-surface-variant">
-              {t('tasks.count', { n: data?.meta.total ?? tasks.length })}
-            </p>
-          </div>
-        ) : null}
-      </div>
-
-      {error && (
-        <div className="mb-6 flex items-center gap-2 p-4 rounded-xl bg-error-container/20 border border-error/30 text-error text-sm">
-          <AlertCircle size={16} /><span>{error}</span>
-          <button type="button" onClick={() => setError('')} className="ml-auto"><X size={14} /></button>
+                {TASK_TYPES.map((taskType) => (
+                  <TaskFilterOption
+                    key={taskType}
+                    active={typeFilter === taskType}
+                    onClick={() => {
+                      setTypeFilter(taskType);
+                      setTypeMenuOpen(false);
+                    }}
+                  >
+                    {t(`taskType.${taskType}` as 'taskType.COMMAND')}
+                  </TaskFilterOption>
+                ))}
+              </TaskFilterMenu>
+              <span className="text-[10px] font-mono text-on-surface-variant px-2">
+                {t('tasks.count', { n: historyTotal })}
+              </span>
+            </>
+          ) : (
+            <button
+              type="button"
+              onClick={() => navigate('/tasks/templates/new')}
+              className="inline-flex items-center gap-2 px-4 py-2.5 bg-primary text-on-primary rounded-xl text-sm font-bold"
+              title={t('tasks.addTemplate')}
+              aria-label={t('tasks.addTemplate')}
+            >
+              <Plus size={18} />
+              {t('tasks.addTemplate')}
+            </button>
+          )}
         </div>
-      )}
+      </header>
 
-      {tab === 'history' ? (
+      {/* Tabs */}
+      <nav className="flex gap-1 border-b border-white/10 mb-6">
+        {tabBtn('templates', t('tasks.templatesTab'), ListTodo)}
+        {tabBtn('history', t('tasks.historyTab'), History)}
+      </nav>
+
+      {error ? (
+        <div className="mb-6 flex items-center gap-2 p-3 rounded-xl bg-error-container/20 border border-error/30 text-error text-sm">
+          <AlertCircle size={16} className="shrink-0" />
+          <span className="flex-1">{error}</span>
+          <button type="button" onClick={() => setError('')} className="p-1 hover:bg-white/5 rounded">
+            <X size={14} />
+          </button>
+        </div>
+      ) : null}
+
+      {tab === 'templates' ? (
         <>
-          <div className="space-y-3 min-w-0 max-w-full overflow-x-clip">
-            {isLoading && <p className="text-on-surface-variant px-2">{t('tasks.loading')}</p>}
-            {!isLoading && tasks.length === 0 && <p className="text-on-surface-variant px-2">{t('tasks.empty')}</p>}
-            {tasks.map((task, i) => (
-              <motion.div key={task.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }} className="min-w-0 max-w-full">
-                <button type="button" onClick={() => setSelectedId(task.id)} className="w-full max-w-full min-w-0 overflow-hidden text-left glass-card rounded-2xl p-5 flex items-center gap-6 hover:border-primary/30 transition-all group">
-                  <div className="w-12 h-12 rounded-xl bg-surface-container-high flex items-center justify-center text-on-surface-variant group-hover:text-primary">
-                    <Terminal size={22} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="font-bold text-on-surface group-hover:text-primary truncate">{task.shortId}</h3>
-                      <span className={cn('px-2 py-0.5 rounded-full text-[9px] font-bold uppercase border flex items-center gap-1', statusStyle(task.status))}>
-                        <StatusIcon status={task.status} /> {t(`status.${task.status}` as 'status.PENDING')}
-                      </span>
-                      <span className="text-[10px] font-mono text-on-surface-variant px-2 py-0.5 bg-white/5 rounded">{task.type}</span>
-                    </div>
-                    <p className="text-sm text-on-surface-variant mt-1 font-mono line-clamp-2 break-all overflow-hidden" title={task.commandFull}>
-                      {task.command}
-                    </p>
-                    <p className="text-[10px] text-on-surface-variant/60 mt-1">{task.agentName} · {task.updatedAt}</p>
-                  </div>
-                  <ArrowRight className="text-on-surface-variant opacity-0 group-hover:opacity-100 shrink-0" size={18} />
+          {templatesLoading ? (
+            <div className="flex justify-center py-20 text-on-surface-variant">
+              <Loader2 className="animate-spin w-8 h-8" />
+            </div>
+          ) : templates.length === 0 ? (
+            <TaskEmptyState
+              icon={ListTodo}
+              title={t('tasks.templatesEmpty')}
+              description={t('tasks.templatesEmptyHint')}
+              action={
+                <button
+                  type="button"
+                  onClick={() => navigate('/tasks/templates/new')}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary text-on-primary rounded-xl text-sm font-bold"
+                >
+                  <Plus size={18} />
+                  {t('tasks.addTemplate')}
                 </button>
-              </motion.div>
-            ))}
-          </div>
-
+              }
+            />
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              {templates.map((tpl) => (
+                <TaskTemplateCard
+                  key={tpl.id}
+                  template={tpl}
+                  agentLabel={tpl.agent?.name ?? activeAgentName(tpl.agentId)}
+                  showOwner={isAdmin}
+                  onRun={() => void handleRunTemplate(tpl.id)}
+                  onEdit={() => navigate(`/tasks/templates/${tpl.id}/edit`)}
+                  onDelete={() => void handleDeleteTemplate(tpl.id)}
+                  runPending={runTpl.isPending}
+                  deletePending={removeTpl.isPending}
+                />
+              ))}
+            </div>
+          )}
+        </>
+      ) : (
+        <>
+          {isLoading ? (
+            <div className="flex justify-center py-20 text-on-surface-variant">
+              <Loader2 className="animate-spin w-8 h-8" />
+            </div>
+          ) : tasks.length === 0 ? (
+            <TaskEmptyState
+              icon={History}
+              title={t('tasks.empty')}
+              description={t('tasks.historyEmptyHint')}
+            />
+          ) : (
+            <div className="space-y-2">
+              {tasks.map((task) => (
+                <TaskHistoryRow key={task.id} task={task} onClick={() => openTaskDetail(task.id)} />
+              ))}
+            </div>
+          )}
           <Pagination
             page={page}
             limit={TASK_PAGE_LIMIT}
-            total={data?.meta.total ?? 0}
+            total={historyTotal}
             onPageChange={setPage}
             className="mt-6"
           />
         </>
-      ) : (
-        <div className="space-y-3 min-w-0 max-w-full overflow-x-clip">
-          {templatesLoading && <p className="text-on-surface-variant px-2">{t('tasks.templatesLoading')}</p>}
-          {!templatesLoading && templates.length === 0 ? (
-            <p className="text-on-surface-variant px-2">{t('tasks.templatesEmpty')}</p>
-          ) : null}
-          {!templatesLoading && templates.map((tpl, i) => (
-            <motion.div
-              key={tpl.id}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.03 }}
-              className="glass-card rounded-2xl p-5 border border-white/5"
-            >
-              <div className="flex items-start justify-between gap-4">
-                <div className="min-w-0">
-                  <p className="font-bold text-on-surface truncate">{tpl.name}</p>
-                  {isAdmin && tpl.user ? (
-                    <p className="text-[10px] font-mono text-on-surface-variant mt-1">
-                      {t('tasks.templateOwner', { name: tpl.user.name, email: tpl.user.email })}
-                    </p>
-                  ) : null}
-                  <p className="text-[10px] font-mono text-on-surface-variant mt-1">
-                    {tpl.agent?.name ?? activeAgentName(tpl.agentId)} · {t(`taskType.${tpl.type}` as 'taskType.COMMAND')}
-                  </p>
-                  <p className="text-sm text-on-surface-variant mt-2 font-mono line-clamp-2 break-all">
-                    {tpl.command}
-                  </p>
-                </div>
-                <div className="flex flex-wrap gap-2 shrink-0 justify-end">
-                  <button
-                    type="button"
-                    onClick={() => void handleRunTemplate(tpl.id)}
-                    disabled={runTpl.isPending}
-                    className="px-3 py-2 rounded-xl bg-primary text-on-primary font-bold text-xs flex items-center gap-1 disabled:opacity-50"
-                  >
-                    <Play size={14} /> {t('tasks.runTemplate')}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => navigate(`/tasks/templates/${tpl.id}/edit`)}
-                    className="px-3 py-2 rounded-xl border border-white/10 text-on-surface-variant hover:text-on-surface text-xs font-bold flex items-center gap-1"
-                  >
-                    <Pencil size={14} /> {t('common.edit')}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => void handleDeleteTemplate(tpl.id)}
-                    disabled={removeTpl.isPending}
-                    className="px-3 py-2 rounded-xl border border-error/30 text-error text-xs font-bold flex items-center gap-1 disabled:opacity-50"
-                  >
-                    <Trash2 size={14} /> {t('common.delete')}
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          ))}
-        </div>
       )}
 
       <AnimatePresence>
-        {selectedId && selected && (
+        {selectedId && selected ? (
           <>
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60]" onClick={() => setSelectedId(null)} />
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60]"
+              onClick={() => setSelectedId(null)}
+            />
             <motion.aside
               initial={{ x: '100%' }}
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               className="fixed top-0 right-0 h-full w-full max-w-[720px] bg-surface border-l border-white/10 z-[70] flex flex-col shadow-2xl"
             >
-              <div className="p-6 sm:p-8 border-b border-white/5 flex items-center justify-between shrink-0">
-                <div>
-                  <h3 className="text-2xl font-bold">{t('tasks.detailTitle', { id: selected.id.slice(0, 8) })}</h3>
-                  <span
-                    className={cn(
-                      'inline-flex mt-2 px-2 py-1 rounded-full text-[10px] font-bold uppercase border items-center gap-1',
-                      statusStyle(selected.status),
-                    )}
+              <div className="p-4 sm:p-6 border-b border-white/5 shrink-0 space-y-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0">
+                    <h3 className="text-xl font-bold truncate">
+                      {t('tasks.detailTitle', { id: selected.id.slice(0, 8) })}
+                    </h3>
+                    <div className="mt-2">
+                      <TaskStatusBadge status={selected.status} size="md" />
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedId(null)}
+                    className="p-2 hover:bg-white/5 rounded-full shrink-0"
                   >
-                    <StatusIcon status={selected.status} />
-                    {t(`status.${selected.status}` as 'status.PENDING')}
-                  </span>
+                    <X size={20} />
+                  </button>
                 </div>
-                <button type="button" onClick={() => setSelectedId(null)} className="p-2 hover:bg-white/5 rounded-full">
-                  <X size={20} />
-                </button>
+                <div className="flex gap-2">
+                  {(['overview', 'logs'] as const).map((key) => (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => setDetailTab(key)}
+                      className={cn(
+                        'px-4 py-2 rounded-xl text-xs font-bold border transition-colors',
+                        detailTab === key
+                          ? 'bg-primary/15 border-primary/40 text-primary'
+                          : 'border-white/10 text-on-surface-variant hover:text-on-surface',
+                      )}
+                    >
+                      {key === 'overview'
+                        ? t('tasks.detailTabOverview')
+                        : t('tasks.detailTabLogs')}
+                    </button>
+                  ))}
+                </div>
               </div>
-              <div className="flex-1 overflow-y-auto p-6 sm:p-8 custom-scrollbar min-h-0">
+
+              <div className="flex-1 overflow-y-auto p-6 custom-scrollbar min-h-0">
                 {detailLoading && !detail ? (
                   <div className="flex justify-center py-12 text-on-surface-variant">
                     <Loader2 className="animate-spin w-8 h-8" />
                   </div>
                 ) : null}
 
-                <div
-                  className={cn(
-                    'rounded-xl border border-white/10 overflow-hidden bg-surface-container-low/20',
-                    detailLoading && !detail ? 'opacity-50 pointer-events-none' : '',
-                  )}
-                >
-                  <TaskDetailRow label={t('tasks.detailId')}>
-                    <span className="font-mono text-xs">{selected.id}</span>
-                  </TaskDetailRow>
-                  <TaskDetailRow label={t('common.type')}>
-                    <span className="font-mono font-bold">{selected.type}</span>
-                  </TaskDetailRow>
-                  <TaskDetailRow label={t('common.status')}>
-                    <span className={cn('inline-flex px-2 py-0.5 rounded-md text-[10px] font-bold uppercase border', statusStyle(selected.status))}>
-                      {t(`status.${selected.status}` as 'status.PENDING')}
-                    </span>
-                  </TaskDetailRow>
-                  <TaskDetailRow label={t('tasks.command')}>
-                    <div className="space-y-2">
-                      <div className="flex justify-end">
-                        <button
-                          type="button"
-                          disabled={!(selected.command ?? '').trim()}
-                          onClick={() => void copyCommandToClipboard(selected.command)}
-                          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-[10px] font-mono font-bold uppercase text-on-surface-variant disabled:opacity-30 disabled:pointer-events-none"
-                          title={t('tasks.copyCommand')}
-                        >
-                          <Copy size={14} />
-                          {t('common.copy')}
-                        </button>
-                      </div>
-                      <pre className="text-xs font-mono bg-surface-container-low p-3 rounded-lg border border-white/5 whitespace-pre-wrap break-all">
-                        {selected.command ?? '—'}
-                      </pre>
+                {detailTab === 'overview' ? (
+                  <div
+                    className={cn(
+                      detailLoading && !detail ? 'opacity-50 pointer-events-none' : '',
+                    )}
+                  >
+                    <div className="rounded-xl border border-white/10 overflow-hidden bg-surface-container-low/20">
+                      <TaskDetailRow label={t('tasks.detailId')}>
+                        <span className="font-mono text-xs">{selected.id}</span>
+                      </TaskDetailRow>
+                      <TaskDetailRow label={t('common.type')}>
+                        <span className="font-mono font-bold">{selected.type}</span>
+                      </TaskDetailRow>
+                      <TaskDetailRow label={t('tasks.agent')}>
+                        {selected.agent?.name ?? selected.agentId}
+                      </TaskDetailRow>
+                      <TaskDetailRow label={t('tasks.detailExitCode')}>
+                        {selected.exitCode != null ? String(selected.exitCode) : '—'}
+                      </TaskDetailRow>
+                      <TaskDetailRow label={t('tasks.detailTimeout')}>
+                        {formatTaskDurationMs(selected.timeout ?? undefined)}
+                      </TaskDetailRow>
+                      <TaskDetailRow label={t('tasks.detailStarted')}>
+                        {formatTaskDateTime(selected.startedAt)}
+                      </TaskDetailRow>
+                      <TaskDetailRow label={t('tasks.detailCompleted')}>
+                        {formatTaskDateTime(selected.completedAt)}
+                      </TaskDetailRow>
+                      <TaskDetailRow label={t('tasks.command')}>
+                        <div className="space-y-2">
+                          <div className="flex justify-end">
+                            <button
+                              type="button"
+                              disabled={!(selected.command ?? '').trim()}
+                              onClick={() => void copyCommandToClipboard(selected.command)}
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-[10px] font-mono font-bold uppercase text-on-surface-variant disabled:opacity-30"
+                            >
+                              <Copy size={14} />
+                              {t('common.copy')}
+                            </button>
+                          </div>
+                          <pre className="text-xs font-mono bg-surface-container-low p-3 rounded-lg border border-white/5 whitespace-pre-wrap break-all max-h-40 overflow-auto">
+                            {selected.command ?? '—'}
+                          </pre>
+                        </div>
+                      </TaskDetailRow>
                     </div>
-                  </TaskDetailRow>
-                  <TaskDetailRow label={t('tasks.detailExitCode')}>
-                    {selected.exitCode != null ? String(selected.exitCode) : '—'}
-                  </TaskDetailRow>
-                  <TaskDetailRow label={t('tasks.agent')}>
-                    {selected.agent?.name ?? selected.agentId}
-                  </TaskDetailRow>
-                  <TaskDetailRow label={t('tasks.detailTimeout')}>
-                    {formatTaskDurationMs(selected.timeout ?? undefined)}
-                  </TaskDetailRow>
-                  <TaskDetailRow label={t('tasks.detailStarted')}>
-                    {formatTaskDateTime(selected.startedAt)}
-                  </TaskDetailRow>
-                  <TaskDetailRow label={t('tasks.detailCompleted')}>
-                    {formatTaskDateTime(selected.completedAt)}
-                  </TaskDetailRow>
-                </div>
 
-                <h4 className="text-sm font-bold text-on-surface mt-8 mb-3">{t('tasks.detailResultTitle')}</h4>
-                <pre className="text-xs font-mono bg-[#0b0f14] text-[#d4d4d4] p-3 rounded-lg border border-white/10 max-h-80 overflow-auto whitespace-pre-wrap break-all">
-                  {selected.result?.trim() ? selected.result : t('tasks.detailResultEmpty')}
-                </pre>
-
-                {selected.error ? (
-                  <>
-                    <h4 className="text-sm font-bold text-error mt-6 mb-3">{t('tasks.error')}</h4>
-                    <pre className="text-xs font-mono bg-error/10 p-3 rounded-lg border border-error/30 max-h-48 overflow-auto whitespace-pre-wrap break-all">
-                      {selected.error}
+                    <h4 className="text-sm font-bold text-on-surface mt-6 mb-2">
+                      {t('tasks.detailResultTitle')}
+                    </h4>
+                    <pre className="text-xs font-mono bg-[#0b0f14] text-[#d4d4d4] p-3 rounded-lg border border-white/10 whitespace-pre-wrap break-all">
+                      {selected.result?.trim() ? selected.result : t('tasks.detailResultEmpty')}
                     </pre>
-                  </>
-                ) : null}
 
-                <h4 className="text-sm font-bold text-on-surface mt-8 mb-4">{t('tasks.detailLogsTitle')}</h4>
-                <div className="space-y-4 pl-1">
-                  {selectedTaskLogs.length === 0 ? (
-                    <p className="text-xs text-on-surface-variant">—</p>
-                  ) : (
-                    selectedTaskLogs.map((log, idx) => (
-                      <div key={`${log.createdAt}-${idx}`} className="flex gap-3">
-                        <div className="flex flex-col items-center pt-1.5 shrink-0">
-                          <span className={cn('w-2.5 h-2.5 rounded-full', logDotClass(log.level))} />
-                          {idx < selectedTaskLogs.length - 1 ? (
-                            <span className="w-px flex-1 min-h-[1rem] bg-white/10 mt-1" />
-                          ) : null}
+                    {selected.error ? (
+                      <>
+                        <h4 className="text-sm font-bold text-error mt-4 mb-2">{t('tasks.error')}</h4>
+                        <pre className="text-xs font-mono bg-error/10 p-3 rounded-lg border border-error/30 max-h-40 overflow-auto whitespace-pre-wrap break-all">
+                          {selected.error}
+                        </pre>
+                      </>
+                    ) : null}
+                  </div>
+                ) : (
+                  <div className="space-y-4 pl-1">
+                    {selectedTaskLogs.length === 0 ? (
+                      <p className="text-sm text-on-surface-variant py-8 text-center">—</p>
+                    ) : (
+                      selectedTaskLogs.map((log, idx) => (
+                        <div key={`${log.createdAt}-${idx}`} className="flex gap-3">
+                          <div className="flex flex-col items-center pt-1.5 shrink-0">
+                            <span
+                              className={cn('w-2.5 h-2.5 rounded-full', logDotClass(log.level))}
+                            />
+                            {idx < selectedTaskLogs.length - 1 ? (
+                              <span className="w-px flex-1 min-h-[1rem] bg-white/10 mt-1" />
+                            ) : null}
+                          </div>
+                          <div className="min-w-0 flex-1 pb-2">
+                            <p className="text-[10px] font-mono text-on-surface-variant">
+                              {formatTaskDateTime(log.createdAt)} [{log.level}]
+                            </p>
+                            <p className="text-sm text-on-surface mt-0.5 whitespace-pre-wrap break-words">
+                              {log.message}
+                            </p>
+                          </div>
                         </div>
-                        <div className="min-w-0 flex-1 pb-2">
-                          <p className="text-[10px] font-mono text-on-surface-variant">
-                            {formatTaskDateTime(log.createdAt)} [{log.level}]
-                          </p>
-                          <p className="text-sm text-on-surface mt-0.5 whitespace-pre-wrap break-words">{log.message}</p>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
+                      ))
+                    )}
+                  </div>
+                )}
               </div>
-              <div className="p-6 sm:p-8 border-t border-white/5 flex gap-3 shrink-0">
+
+              <div className="p-6 border-t border-white/5 flex gap-3 shrink-0">
                 {isTaskTerminal(selected.status) ? (
                   <button
                     type="button"
                     onClick={() => void handleRetry(selected.id)}
-                    className="flex-1 py-4 bg-primary text-on-primary rounded-xl font-bold flex items-center justify-center gap-2"
+                    className="flex-1 py-3.5 bg-primary text-on-primary rounded-xl font-bold flex items-center justify-center gap-2 text-sm"
                   >
-                    <RotateCcw size={18} /> {t('common.retry')}
+                    <RotateCcw size={18} />
+                    {t('common.retry')}
                   </button>
                 ) : (
                   <button
                     type="button"
                     onClick={() => void handleCancel(selected.id)}
-                    className="flex-1 py-4 bg-error/20 text-error border border-error/30 rounded-xl font-bold flex items-center justify-center gap-2"
+                    className="flex-1 py-3.5 bg-error/20 text-error border border-error/30 rounded-xl font-bold flex items-center justify-center gap-2 text-sm"
                   >
-                    <Trash2 size={18} /> {t('tasks.cancel')}
+                    <Trash2 size={18} />
+                    {t('tasks.cancel')}
                   </button>
                 )}
               </div>
             </motion.aside>
           </>
-        )}
+        ) : null}
       </AnimatePresence>
-
     </div>
   );
 }

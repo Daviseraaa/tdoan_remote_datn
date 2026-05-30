@@ -38,11 +38,93 @@ pub fn is_bridge_connected() -> bool {
         .unwrap_or(false)
 }
 
+/// Chờ chrome-bridge (native host) kết nối pipe — extension thường cần vài giây sau khi mở Chrome.
+pub async fn wait_for_bridge_connected(timeout_ms: u64) -> Result<(), String> {
+    let timeout_ms = timeout_ms.clamp(1_000, 120_000);
+    let deadline =
+        std::time::Instant::now() + Duration::from_millis(timeout_ms);
+    while std::time::Instant::now() < deadline {
+        if is_bridge_connected() {
+            return Ok(());
+        }
+        tokio::time::sleep(Duration::from_millis(200)).await;
+    }
+    let secs = timeout_ms / 1000;
+    Err(format!(
+        "Chrome bridge offline sau {secs}s — mở Chrome, bật extension DATN (chrome://extensions), reload extension. \
+         Kiểm tra native host: npm run chrome-bridge:install. Agent chạy qua tray (không chỉ Windows Service). \
+         Trên extension: F12 service worker — log phải có bridgeConnected agentPipe:true."
+    ))
+}
+
+/// Chạy lại danh sách bước Chrome extension (click / fill / delay / …).
+pub async fn replay_steps(
+    steps_arr: &[Value],
+    step_payload_fn: impl Fn(&serde_json::Map<String, Value>) -> Value,
+    default_wait_ms: u64,
+    max_steps: usize,
+    url_allowed: impl Fn(&str) -> bool,
+) -> Result<Value, String> {
+    if steps_arr.is_empty() {
+        return Err("steps rỗng".into());
+    }
+    if steps_arr.len() > max_steps {
+        return Err(format!(
+            "Quá nhiều bước ({} > {})",
+            steps_arr.len(),
+            max_steps
+        ));
+    }
+
+    let mut outcomes = Vec::new();
+    for (idx, step) in steps_arr.iter().enumerate() {
+        let o = match step.as_object() {
+            Some(o) => o,
+            None => return Err(format!("step {} không phải object", idx)),
+        };
+        let action = o.get("action").and_then(|a| a.as_str()).unwrap_or("");
+        if action.is_empty() {
+            return Err(format!("step {} thiếu action", idx));
+        }
+
+        let payload = step_payload_fn(o);
+        let step_wait = o
+            .get("timeoutMs")
+            .and_then(|x| x.as_u64())
+            .unwrap_or(default_wait_ms);
+
+        let result = execute(action, payload, step_wait).await;
+        match result {
+            Ok(v) => {
+                if let Some(url) = v.get("url").and_then(|x| x.as_str()) {
+                    if !url_allowed(url) {
+                        return Err(format!("URL không được phép: {}", url));
+                    }
+                }
+                outcomes.push(serde_json::json!({
+                    "step": idx,
+                    "action": action,
+                    "ok": true,
+                    "result": v
+                }));
+            }
+            Err(e) => {
+                return Err(format!("step {} ({}): {}", idx, action, e));
+            }
+        }
+    }
+
+    Ok(serde_json::json!({
+        "outcomes": outcomes,
+        "steps": steps_arr.len()
+    }))
+}
+
 pub async fn execute(action: &str, payload: Value, wait_ms: u64) -> Result<Value, String> {
     let tx = {
         let g = state().lock().await;
         g.cmd_tx.clone().ok_or_else(|| {
-            "Chrome bridge offline — mở Chrome, bật extension DATN, agent phải đang chạy."
+            "Chrome bridge offline — chrome-bridge chưa nối pipe agent (xem wait_for_bridge_connected)."
                 .to_string()
         })?
     };
@@ -87,6 +169,7 @@ pub async fn run_chrome_bridge_pipe_forever() -> std::io::Result<()> {
     loop {
         let server = ServerOptions::new().create(PIPE_CHROME_BRIDGE)?;
         server.connect().await?;
+        log::info!("[chrome-bridge] extension host connected to agent pipe");
         let (read_half, write_half) = split(server);
         let (cmd_tx, mut cmd_rx) = mpsc::channel::<BridgeCmd>(16);
 
@@ -173,6 +256,7 @@ pub async fn run_chrome_bridge_pipe_forever() -> std::io::Result<()> {
             let mut g = state().lock().await;
             g.cmd_tx = None;
         }
+        log::warn!("[chrome-bridge] extension host disconnected from agent pipe");
         for (_, tx) in pending.drain() {
             let _ = tx.send(Err("bridge disconnected".into()));
         }

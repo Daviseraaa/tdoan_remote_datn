@@ -1,21 +1,13 @@
 import React, { useState, useMemo } from 'react';
 import { 
-  Download, 
   Search, 
   Calendar, 
   ChevronDown, 
   User, 
-  Bot, 
-  Cpu, 
   Fingerprint, 
-  AlertTriangle, 
-  CheckCircle2, 
   History,
   MoreHorizontal,
-  Filter,
   X,
-  Clock,
-  ArrowRight
 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
@@ -120,64 +112,66 @@ const LogEntry = ({ time, date, status, title, actor, target, payload, detail, e
     layout
     initial={{ opacity: 0, x: -20 }}
     animate={{ opacity: 1, x: 0 }}
-    className="flex gap-10 group relative pb-10"
+    className="flex flex-col sm:flex-row gap-3 sm:gap-6 lg:gap-10 group relative pb-8 sm:pb-10 min-w-0"
   >
-    {/* Timeline Point */}
-    <div className="relative z-10">
-      <div className="w-20 font-mono text-[11px] text-on-surface-variant font-bold pt-2">{time}</div>
+    <div className="relative z-10 flex sm:block items-center gap-2 sm:w-20 shrink-0">
+      <div className="font-mono text-[11px] text-on-surface-variant font-bold sm:pt-2">{time}</div>
       <div className={cn(
-        "absolute left-[84px] top-2.5 w-2 h-2 rounded-full border-2 border-surface z-10",
+        "w-2 h-2 rounded-full border-2 border-surface z-10 shrink-0",
+        "sm:absolute sm:left-[84px] sm:top-2.5",
         status === 'CRITICAL' ? "bg-error shadow-[0_0_10px_#ffb4ab]" : 
         status === 'WARNING' ? "bg-tertiary shadow-[0_0_10px_#68f5b8]" : "bg-primary shadow-[0_0_10px_#a4e6ff]"
       )} />
+      {date ? (
+        <span className="sm:hidden text-[10px] font-mono text-on-surface-variant/60">{date}</span>
+      ) : null}
     </div>
 
-    {/* Content Card */}
-    <div className="flex-1 glass-card p-6 rounded-2xl hover:bg-white/[0.07] transition-all cursor-default group-hover:border-white/20">
-      <div className="flex justify-between items-start mb-4">
-        <div className="space-y-1.5">
-          <div className="flex items-center gap-3">
-            <h4 className="font-bold text-on-surface">{title}</h4>
+    <div className="flex-1 min-w-0 glass-card p-4 sm:p-6 rounded-2xl hover:bg-white/[0.07] transition-all cursor-default group-hover:border-white/20">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 mb-4">
+        <div className="space-y-1.5 min-w-0">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+            <h4 className="font-bold text-on-surface break-words">{title}</h4>
             <span className={cn(
-              "px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-widest border",
+              "px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-widest border shrink-0",
               status === 'CRITICAL' ? "bg-error-container/20 text-error border-error/20" : 
               status === 'WARNING' ? "bg-tertiary-container/10 text-tertiary border-tertiary/20" : "bg-primary-container/10 text-primary border-primary/20"
             )}>{severityLabel(status)}</span>
           </div>
-          <div className="flex items-center gap-3 text-[11px] font-mono text-on-surface-variant leading-none">
-            <div className="flex items-center gap-1.5 hover:text-on-surface transition-colors cursor-pointer">
-              <User size={12} />
-              <span>{actor}</span>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] font-mono text-on-surface-variant leading-none">
+            <div className="flex items-center gap-1.5 hover:text-on-surface transition-colors cursor-pointer min-w-0">
+              <User size={12} className="shrink-0" />
+              <span className="truncate max-w-[140px] sm:max-w-none">{actor}</span>
             </div>
-            <span className="opacity-20">|</span>
-            <div className="flex items-center gap-1.5 hover:text-primary transition-colors cursor-pointer">
-              <History size={12} />
-              <span>{t('audit.target', { target })}</span>
+            <span className="opacity-20 hidden sm:inline">|</span>
+            <div className="flex items-center gap-1.5 hover:text-primary transition-colors cursor-pointer min-w-0">
+              <History size={12} className="shrink-0" />
+              <span className="truncate">{t('audit.target', { target })}</span>
             </div>
           </div>
         </div>
-        <div className="text-right flex flex-col items-end gap-2">
-           <span className="font-mono text-[9px] text-on-surface-variant opacity-40">TX_ID: 8829-AF-00{Math.floor(Math.random()*9)}</span>
-           <button className="p-1 hover:bg-white/5 rounded transition-all text-on-surface-variant hover:text-on-surface">
+        <div className="flex sm:flex-col sm:items-end justify-between sm:justify-start gap-2 shrink-0">
+           <span className="font-mono text-[9px] text-on-surface-variant opacity-40 hidden sm:block">TX_ID: 8829-AF-00{Math.floor(Math.random()*9)}</span>
+           <button type="button" className="p-1 hover:bg-white/5 rounded transition-all text-on-surface-variant hover:text-on-surface">
              <MoreHorizontal size={16} />
            </button>
         </div>
       </div>
 
       {payload && (
-        <div className="bg-surface-container-lowest/50 rounded-xl p-4 border border-white/5 font-mono text-[11px] text-on-surface-variant leading-relaxed mb-4">
+        <div className="bg-surface-container-lowest/50 rounded-xl p-3 sm:p-4 border border-white/5 font-mono text-[10px] sm:text-[11px] text-on-surface-variant leading-relaxed mb-4 overflow-x-auto break-all">
            {payload}
         </div>
       )}
 
       {detail && (
-        <p className="text-xs text-on-surface-variant leading-relaxed opacity-80">{detail}</p>
+        <p className="text-xs text-on-surface-variant leading-relaxed opacity-80 break-words">{detail}</p>
       )}
 
       {eta && (
-        <div className="bg-primary/5 rounded-xl p-3 border border-primary/10 flex items-center justify-between">
+        <div className="bg-primary/5 rounded-xl p-3 border border-primary/10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
            <div className="flex items-center gap-3">
-             <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+             <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse shrink-0" />
              <span className="text-[10px] font-mono font-bold text-primary uppercase tracking-widest">{t('audit.taskStatusRunning')}</span>
            </div>
            <span className="text-[10px] font-mono text-on-surface-variant opacity-60">{t('audit.eta', { eta })}</span>
@@ -191,7 +185,6 @@ export default function AuditLog() {
   const [search, setSearch] = useState('');
   const [selectedSeverities, setSelectedSeverities] = useState<string[]>([]);
   const [selectedCategory, setSelectedCategory] = useState('All Categories');
-  const [showFilters, setShowFilters] = useState(false);
   const [dateRange, setDateRange] = useState('All Time');
 
   const { data: auditPage, isLoading } = useAuditLogs({
@@ -240,30 +233,21 @@ export default function AuditLog() {
   };
 
   return (
-    <div className="max-w-6xl mx-auto pb-20">
-      {/* Header */}
-      <div className="mb-10 flex justify-between items-end">
-        <div>
-          <h2 className="text-4xl font-bold tracking-tight text-on-surface">{t('audit.title')}</h2>
-          <p className="text-on-surface-variant text-body-md mt-2 max-w-2xl leading-relaxed">
-            {t('audit.subtitle')}
-          </p>
-        </div>
-        <button className="flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-xs font-bold text-on-surface hover:bg-white/10 transition-all uppercase tracking-widest active:scale-95">
-          <Download size={14} className="text-primary" />
-          {t('audit.export')}
-        </button>
+    <div className="w-full max-w-6xl mx-auto pb-20 min-w-0">
+      <div className="mb-8 sm:mb-10">
+        <h2 className="text-2xl sm:text-4xl font-bold tracking-tight text-on-surface">{t('audit.title')}</h2>
+        <p className="text-on-surface-variant text-body-md mt-2 max-w-2xl leading-relaxed">
+          {t('audit.subtitle')}
+        </p>
       </div>
 
-      {/* Advanced Filter UI */}
-      <div className="glass-card rounded-3xl p-6 mb-12 shadow-2xl relative overflow-hidden border border-white/5">
-        <div className="absolute top-0 right-0 p-8 opacity-5 pointer-events-none">
-          <Fingerprint size={120} />
+      <div className="glass-card rounded-2xl sm:rounded-3xl p-4 sm:p-6 mb-8 sm:mb-12 shadow-2xl relative overflow-hidden border border-white/5">
+        <div className="absolute top-0 right-0 p-4 sm:p-8 opacity-5 pointer-events-none">
+          <Fingerprint size={80} className="sm:w-[120px] sm:h-[120px]" />
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          {/* Search */}
-          <div className="md:col-span-2 space-y-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+          <div className="sm:col-span-2 space-y-2 min-w-0">
             <label className="text-[10px] font-mono font-bold text-primary uppercase tracking-[0.2em] ml-1">{t('audit.searchLabel')}</label>
             <div className="relative group">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant/40 group-focus-within:text-primary transition-colors" size={18} />
@@ -277,8 +261,7 @@ export default function AuditLog() {
             </div>
           </div>
 
-          {/* Category Dropdown */}
-          <div className="space-y-2">
+          <div className="space-y-2 min-w-0">
             <label className="text-[10px] font-mono font-bold text-primary uppercase tracking-[0.2em] ml-1">{t('audit.category')}</label>
             <div className="relative">
               <select 
@@ -294,8 +277,7 @@ export default function AuditLog() {
             </div>
           </div>
 
-          {/* Date Range Dropdown */}
-          <div className="space-y-2">
+          <div className="space-y-2 min-w-0">
             <label className="text-[10px] font-mono font-bold text-primary uppercase tracking-[0.2em] ml-1">{t('audit.timeHorizon')}</label>
             <div className="relative">
               <select 
@@ -312,8 +294,8 @@ export default function AuditLog() {
           </div>
         </div>
 
-        <div className="mt-8 pt-6 border-t border-white/5 flex flex-wrap items-center justify-between gap-6">
-          <div className="flex items-center gap-4">
+        <div className="mt-6 sm:mt-8 pt-4 sm:pt-6 border-t border-white/5 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 sm:gap-6">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 min-w-0">
             <span className="text-[10px] font-mono font-bold text-on-surface-variant/60 uppercase tracking-widest shrink-0">{t('audit.severity')}:</span>
             <div className="flex flex-wrap gap-2">
               {severities.map(sev => (
@@ -340,15 +322,16 @@ export default function AuditLog() {
             </div>
           </div>
 
-          <div className="flex items-center gap-4 justify-end flex-1">
+          <div className="flex flex-wrap items-center gap-3 sm:gap-4 lg:justify-end">
              <button 
+              type="button"
               onClick={clearFilters}
               className="flex items-center gap-2 text-[10px] font-bold text-on-surface-variant hover:text-on-surface transition-colors"
              >
                <X size={14} />
                {t('audit.resetFilters')}
              </button>
-             <div className="w-px h-4 bg-white/10" />
+             <div className="hidden sm:block w-px h-4 bg-white/10" />
              <p className="text-[10px] font-mono font-bold text-primary uppercase tracking-[0.1em]">
                {t('audit.matchesFound', { n: filteredLogs.length })}
              </p>
@@ -356,11 +339,10 @@ export default function AuditLog() {
         </div>
       </div>
 
-      {/* Timeline */}
-      <div className="relative min-h-[400px]">
+      <div className="relative min-h-[400px] min-w-0">
         {filteredLogs.length > 0 ? (
           <>
-            <div className="absolute left-[87.5px] top-4 bottom-0 w-[1px] bg-white/5" />
+            <div className="absolute left-[87.5px] top-4 bottom-0 w-[1px] bg-white/5 hidden sm:block" />
             <AnimatePresence mode="popLayout">
               {filteredLogs.map(log => (
                 <LogEntry 
@@ -402,23 +384,23 @@ export default function AuditLog() {
         )}
       </div>
 
-      {/* Pagination */}
-      <div className="mt-12 pt-8 border-t border-white/5 flex justify-between items-center text-on-surface-variant">
-        <p className="text-xs font-medium">{t('audit.showingEntries')}</p>
-        <div className="flex gap-2 font-mono text-xs">
-          <button className="px-4 py-2 rounded-lg bg-surface-container-high border border-white/5 hover:bg-white/10 transition-all font-bold opacity-30 cursor-not-allowed">{t('audit.prev')}</button>
+      <div className="mt-8 sm:mt-12 pt-6 sm:pt-8 border-t border-white/5 flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4 text-on-surface-variant">
+        <p className="text-xs font-medium text-center sm:text-left">{t('audit.showingEntries')}</p>
+        <div className="flex gap-1.5 sm:gap-2 font-mono text-xs flex-wrap justify-center sm:justify-end">
+          <button type="button" className="px-3 sm:px-4 py-2 rounded-lg bg-surface-container-high border border-white/5 hover:bg-white/10 transition-all font-bold opacity-30 cursor-not-allowed">{t('audit.prev')}</button>
           {[1, 2, 3, '...', 125].map((p, i) => (
             <button 
-              key={i} 
+              key={i}
+              type="button"
               className={cn(
-                "w-10 h-10 flex items-center justify-center rounded-lg border border-white/5 transition-all font-bold",
+                "w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-lg border border-white/5 transition-all font-bold text-xs",
                 p === 1 ? "bg-primary text-on-primary border-primary/30 shadow-lg shadow-primary/20" : "hover:bg-white/5 text-on-surface-variant"
               )}
             >
               {p}
             </button>
           ))}
-          <button className="px-4 py-2 rounded-lg bg-surface-container-high border border-white/10 hover:bg-white/10 transition-all font-bold text-on-surface">{t('audit.next')}</button>
+          <button type="button" className="px-3 sm:px-4 py-2 rounded-lg bg-surface-container-high border border-white/10 hover:bg-white/10 transition-all font-bold text-on-surface">{t('audit.next')}</button>
         </div>
       </div>
     </div>

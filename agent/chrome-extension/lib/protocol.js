@@ -1,6 +1,15 @@
-/** @typedef {'snapshotDom' | 'click' | 'fill' | 'waitFor' | 'delay'} ChromeAction */
+/** @typedef {'snapshotDom' | 'click' | 'fill' | 'waitFor' | 'delay' | 'recordStart' | 'recordStop' | 'recordStatus'} ChromeAction */
 
-const ACTIONS = new Set(['snapshotDom', 'click', 'fill', 'waitFor', 'delay']);
+const ACTIONS = new Set([
+  'snapshotDom',
+  'click',
+  'fill',
+  'waitFor',
+  'delay',
+  'recordStart',
+  'recordStop',
+  'recordStatus',
+]);
 
 /**
  * @param {unknown} msg

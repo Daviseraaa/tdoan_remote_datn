@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -84,6 +84,15 @@ export function TriggerDetailDrawer({ triggerId, onClose }: Props) {
 
   const mc = parseMatchConfig(tr?.matchConfig);
 
+  useEffect(() => {
+    if (!triggerId) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [triggerId]);
+
   return (
     <AnimatePresence>
       {triggerId ? (
@@ -100,10 +109,10 @@ export function TriggerDetailDrawer({ triggerId, onClose }: Props) {
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
             transition={{ type: 'spring', damping: 28, stiffness: 320 }}
-            className="relative w-full max-w-lg h-full glass-card border-l border-white/10 overflow-y-auto custom-scrollbar flex flex-col"
+            className="relative w-full sm:max-w-lg h-full glass-card sm:border-l border-white/10 overflow-y-auto custom-scrollbar flex flex-col pb-[env(safe-area-inset-bottom,0px)]"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="sticky top-0 z-10 bg-surface-container/95 backdrop-blur-md border-b border-white/10 p-6">
+            <div className="sticky top-0 z-10 bg-surface-container/95 backdrop-blur-md border-b border-white/10 px-4 py-4 sm:p-6 pt-[max(1rem,env(safe-area-inset-top,0px))] sm:pt-6">
               <div className="flex justify-between items-start gap-4">
                 <div className="flex gap-3 min-w-0">
                   {tr ? (
@@ -115,7 +124,7 @@ export function TriggerDetailDrawer({ triggerId, onClose }: Props) {
                     <p className="text-[10px] font-mono font-bold uppercase text-on-surface-variant mb-1">
                       {t('triggers.detailTitle')}
                     </p>
-                    <h3 className="text-xl font-bold truncate">
+                    <h3 className="text-lg sm:text-xl font-bold truncate">
                       {tr?.name?.trim() || tr?.workflow.name || '…'}
                     </h3>
                     {tr?.name ? (
@@ -134,7 +143,7 @@ export function TriggerDetailDrawer({ triggerId, onClose }: Props) {
               </div>
             </div>
 
-            <div className="p-6 flex-1">
+            <div className="px-4 py-5 sm:p-6 flex-1 min-w-0">
               {isLoading ? (
                 <p className="flex items-center gap-2 text-sm text-on-surface-variant">
                   <Loader2 size={16} className="animate-spin" /> {t('triggers.loading')}
@@ -325,11 +334,11 @@ function DetailRow({
   mono?: boolean;
 }) {
   return (
-    <div className="flex justify-between gap-4 items-start">
+    <div className="flex flex-col gap-1 sm:flex-row sm:justify-between sm:gap-4 sm:items-start min-w-0">
       <span className="text-on-surface-variant shrink-0">{label}</span>
       <span
         className={cn(
-          'text-right break-all',
+          'break-all min-w-0 sm:text-right',
           mono ? 'font-mono text-primary/90 text-xs' : 'text-on-surface font-medium',
         )}
       >

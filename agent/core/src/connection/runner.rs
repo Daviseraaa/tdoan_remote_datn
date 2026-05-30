@@ -12,13 +12,24 @@ use tokio::sync::Semaphore;
 
 use crate::config::{env_load, AgentConfig};
 use crate::connection::telemetry::TelemetrySampler;
-use crate::platform::Platform;
+use crate::platform::{
+    list_local_chrome_scripts, list_local_desktop_recordings, list_system_chrome_profiles,
+    Platform,
+};
 use crate::tasks::{run_task, supported_task_types, TaskContext, TaskExecute};
 
 const NS: &str = "/ws/agent";
 const TASK_EXECUTE: &str = "task:execute";
 const TASK_RESULT: &str = "task:result";
 const AGENT_HEARTBEAT: &str = "agent:heartbeat";
+const CHROME_PROFILES_SYNC: &str = "agent:chrome-profiles:sync";
+const CHROME_PROFILES_RESULT: &str = "agent:chrome-profiles:result";
+const CHROME_SCRIPTS_SYNC: &str = "agent:chrome-scripts:sync";
+const CHROME_SCRIPTS_RESULT: &str = "agent:chrome-scripts:result";
+const CHROME_SCRIPTS_LIST_MAX: usize = 500;
+const DESKTOP_RECORDINGS_SYNC: &str = "agent:desktop-recordings:sync";
+const DESKTOP_RECORDINGS_RESULT: &str = "agent:desktop-recordings:result";
+const DESKTOP_RECORDINGS_LIST_MAX: usize = 500;
 
 fn first_json(payload: Payload) -> Option<serde_json::Value> {
     match payload {
@@ -151,6 +162,71 @@ pub async fn run_with_stop(stop: Arc<AtomicBool>) -> Result<(), Box<dyn std::err
                         error!("emit task:result: {}", e);
                     }
                 });
+            }
+            .boxed()
+        })
+        .on(CHROME_PROFILES_SYNC, move |payload: Payload, client: Client| {
+            async move {
+                let request_id = first_json(payload)
+                    .and_then(|v| v.get("requestId").and_then(|r| r.as_str()).map(String::from))
+                    .unwrap_or_default();
+                let (ok, profiles, error) = match list_system_chrome_profiles() {
+                    Ok(list) => (true, serde_json::to_value(&list).unwrap_or(json!([])), None),
+                    Err(e) => (false, json!([]), Some(e)),
+                };
+                let body = json!({
+                    "requestId": request_id,
+                    "ok": ok,
+                    "profiles": profiles,
+                    "error": error,
+                });
+                if let Err(e) = client.emit(CHROME_PROFILES_RESULT, body).await {
+                    error!("emit chrome-profiles result: {}", e);
+                }
+            }
+            .boxed()
+        })
+        .on(CHROME_SCRIPTS_SYNC, move |payload: Payload, client: Client| {
+            async move {
+                let request_id = first_json(payload)
+                    .and_then(|v| v.get("requestId").and_then(|r| r.as_str()).map(String::from))
+                    .unwrap_or_default();
+                let (ok, scripts, error) = match list_local_chrome_scripts(CHROME_SCRIPTS_LIST_MAX)
+                {
+                    Ok(list) => (true, serde_json::to_value(&list).unwrap_or(json!([])), None),
+                    Err(e) => (false, json!([]), Some(e)),
+                };
+                let body = json!({
+                    "requestId": request_id,
+                    "ok": ok,
+                    "scripts": scripts,
+                    "error": error,
+                });
+                if let Err(e) = client.emit(CHROME_SCRIPTS_RESULT, body).await {
+                    error!("emit chrome-scripts result: {}", e);
+                }
+            }
+            .boxed()
+        })
+        .on(DESKTOP_RECORDINGS_SYNC, move |payload: Payload, client: Client| {
+            async move {
+                let request_id = first_json(payload)
+                    .and_then(|v| v.get("requestId").and_then(|r| r.as_str()).map(String::from))
+                    .unwrap_or_default();
+                let (ok, recordings, error) =
+                    match list_local_desktop_recordings(DESKTOP_RECORDINGS_LIST_MAX) {
+                        Ok(list) => (true, serde_json::to_value(&list).unwrap_or(json!([])), None),
+                        Err(e) => (false, json!([]), Some(e)),
+                    };
+                let body = json!({
+                    "requestId": request_id,
+                    "ok": ok,
+                    "recordings": recordings,
+                    "error": error,
+                });
+                if let Err(e) = client.emit(DESKTOP_RECORDINGS_RESULT, body).await {
+                    error!("emit desktop-recordings result: {}", e);
+                }
             }
             .boxed()
         })

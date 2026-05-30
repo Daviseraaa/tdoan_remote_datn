@@ -99,42 +99,44 @@ export function TriggersPanel({ triggers, loading, onDetail }: Props) {
   }, [triggers, search, filter]);
 
   return (
-    <section>
-      <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-5">
-        <div className="relative flex-1 max-w-md">
+    <section className="min-w-0">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4 mb-4 sm:mb-5">
+        <div className="relative flex-1 min-w-0 w-full sm:max-w-md">
           <Search
             size={18}
-            className="absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none"
+            className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none"
           />
           <input
             type="search"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder={t('triggers.searchPlaceholder')}
-            className="w-full pl-11 pr-4 py-3 rounded-xl bg-surface-container-low border border-white/10 text-sm text-on-surface placeholder:text-on-surface-variant/60 focus:outline-none focus:ring-2 focus:ring-primary/40"
+            className="w-full pl-10 sm:pl-11 pr-4 py-2.5 sm:py-3 rounded-xl bg-surface-container-low border border-white/10 text-sm text-on-surface placeholder:text-on-surface-variant/60 focus:outline-none focus:ring-2 focus:ring-primary/40"
           />
         </div>
-        <p className="text-xs text-on-surface-variant shrink-0">
+        <p className="text-xs text-on-surface-variant shrink-0 px-0.5 sm:px-0">
           {t('triggers.resultCount', { count: filtered.length, total: triggers.length })}
         </p>
       </div>
 
-      <div className="flex flex-wrap gap-2 mb-6">
-        {filters.map((f) => (
-          <button
-            key={f.id}
-            type="button"
-            onClick={() => setFilter(f.id)}
-            className={cn(
-              'px-3.5 py-1.5 rounded-full text-xs font-semibold transition-colors border',
-              filter === f.id
-                ? 'bg-primary/20 text-primary border-primary/30'
-                : 'bg-white/5 text-on-surface-variant border-white/10 hover:bg-white/10',
-            )}
-          >
-            {f.label}
-          </button>
-        ))}
+      <div className="-mx-1 mb-5 sm:mb-6 overflow-x-auto custom-scrollbar overscroll-x-contain">
+        <div className="flex gap-2 w-max min-w-full pb-0.5 px-1">
+          {filters.map((f) => (
+            <button
+              key={f.id}
+              type="button"
+              onClick={() => setFilter(f.id)}
+              className={cn(
+                'px-3.5 py-1.5 rounded-full text-xs font-semibold transition-colors border shrink-0 whitespace-nowrap',
+                filter === f.id
+                  ? 'bg-primary/20 text-primary border-primary/30'
+                  : 'bg-white/5 text-on-surface-variant border-white/10 hover:bg-white/10',
+              )}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {loading ? (
@@ -145,7 +147,7 @@ export function TriggersPanel({ triggers, loading, onDetail }: Props) {
       ) : null}
 
       {!loading && triggers.length === 0 ? (
-        <div className="glass-panel rounded-2xl border border-white/5 p-12 text-center">
+        <div className="glass-panel rounded-2xl border border-white/5 p-8 sm:p-12 text-center">
           <CalendarClock size={40} className="mx-auto mb-4 text-on-surface-variant/50" />
           <p className="text-on-surface font-medium mb-2">{t('triggers.emptyViewOnly')}</p>
           <p className="text-sm text-on-surface-variant max-w-md mx-auto mb-6">
@@ -162,13 +164,13 @@ export function TriggersPanel({ triggers, loading, onDetail }: Props) {
       ) : null}
 
       {!loading && triggers.length > 0 && filtered.length === 0 ? (
-        <div className="glass-panel rounded-2xl border border-white/5 p-10 text-center">
+        <div className="glass-panel rounded-2xl border border-white/5 p-8 sm:p-10 text-center">
           <p className="text-on-surface-variant text-sm">{t('triggers.noResults')}</p>
         </div>
       ) : null}
 
       {!loading && filtered.length > 0 ? (
-        <ul className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        <ul className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
           {filtered.map((tr) => (
             <li key={tr.id}>
               <TriggerCard trigger={tr} onOpen={() => onDetail(tr.id)} />
@@ -194,7 +196,7 @@ function TriggerCard({
     <button
       type="button"
       onClick={onOpen}
-      className="w-full text-left glass-card rounded-2xl p-5 border border-white/5 hover:border-primary/25 hover:bg-white/[0.04] transition-all group focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+      className="w-full text-left glass-card rounded-2xl p-4 sm:p-5 border border-white/5 hover:border-primary/25 hover:bg-white/[0.04] active:bg-white/[0.04] transition-all group focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
     >
       <div className="flex items-start gap-3 mb-4">
         <div className="w-11 h-11 rounded-xl bg-surface-container-high border border-white/5 flex items-center justify-center shrink-0">
@@ -237,20 +239,24 @@ function TriggerCard({
 
       <dl className="space-y-2 text-xs">
         {tr.type === 'SCHEDULE' ? (
-          <div className="flex justify-between gap-2">
-            <dt className="text-on-surface-variant">{t('triggers.colNext')}</dt>
-            <dd className="font-mono text-on-surface text-right">{formatDateTime(tr.nextRunAt)}</dd>
+          <div className="flex flex-col gap-0.5 sm:flex-row sm:justify-between sm:gap-2">
+            <dt className="text-on-surface-variant shrink-0">{t('triggers.colNext')}</dt>
+            <dd className="font-mono text-on-surface sm:text-right break-all">
+              {formatDateTime(tr.nextRunAt)}
+            </dd>
           </div>
         ) : null}
         {tr.type === 'TELEGRAM' && tr.telegramBot?.botUsername ? (
-          <div className="flex justify-between gap-2">
-            <dt className="text-on-surface-variant">{t('triggers.botLabel')}</dt>
-            <dd className="font-mono text-sky-400 text-right">@{tr.telegramBot.botUsername}</dd>
+          <div className="flex flex-col gap-0.5 sm:flex-row sm:justify-between sm:gap-2">
+            <dt className="text-on-surface-variant shrink-0">{t('triggers.botLabel')}</dt>
+            <dd className="font-mono text-sky-400 sm:text-right break-all">
+              @{tr.telegramBot.botUsername}
+            </dd>
           </div>
         ) : null}
-        <div className="flex justify-between gap-2">
-          <dt className="text-on-surface-variant">{t('triggers.colLast')}</dt>
-          <dd className="font-mono text-on-surface text-right">
+        <div className="flex flex-col gap-0.5 sm:flex-row sm:justify-between sm:gap-2">
+          <dt className="text-on-surface-variant shrink-0">{t('triggers.colLast')}</dt>
+          <dd className="font-mono text-on-surface sm:text-right break-all">
             {formatDateTime(tr.lastRunAt)}
             {lastStatus ? (
               <span
@@ -266,7 +272,7 @@ function TriggerCard({
         </div>
       </dl>
 
-      <p className="mt-4 text-[11px] text-primary/80 font-medium opacity-0 group-hover:opacity-100 transition-opacity">
+      <p className="mt-3 sm:mt-4 text-[11px] text-primary/80 font-medium lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
         {t('triggers.tapForDetail')}
       </p>
     </button>

@@ -61,19 +61,20 @@ export function AgentCard({
       whileHover={{ y: -4, scale: 1.01 }}
       onClick={onClick}
       className={cn(
-        'glass-card p-6 rounded-2xl group cursor-pointer transition-all duration-300 border relative overflow-hidden flex flex-col h-full shadow-lg hover:shadow-primary/5',
+        'glass-card p-4 sm:p-6 rounded-2xl group cursor-pointer transition-all duration-300 border relative overflow-hidden flex flex-col h-full shadow-lg hover:shadow-primary/5 min-w-0',
         selected
           ? 'border-primary/50 ring-2 ring-primary/30'
           : 'border-white/5 hover:border-primary/40',
       )}
     >
-      <motion.div className="flex justify-between items-start mb-6">
-        <motion.div className="flex gap-4 min-w-0">
-          <motion.div className="w-14 h-14 shrink-0 rounded-2xl bg-surface-container-highest flex items-center justify-center text-on-surface-variant group-hover:text-primary transition-colors ring-1 ring-white/5 group-hover:ring-primary/20 shadow-inner">
-            <Icon size={28} />
+      <motion.div className="flex justify-between items-start gap-2 mb-4 sm:mb-6">
+        <motion.div className="flex gap-3 sm:gap-4 min-w-0 flex-1">
+          <motion.div className="w-11 h-11 sm:w-14 sm:h-14 shrink-0 rounded-xl sm:rounded-2xl bg-surface-container-highest flex items-center justify-center text-on-surface-variant group-hover:text-primary transition-colors ring-1 ring-white/5 group-hover:ring-primary/20 shadow-inner">
+            <Icon size={24} className="sm:hidden" />
+            <Icon size={28} className="hidden sm:block" />
           </motion.div>
           <motion.div className="space-y-1 min-w-0">
-            <h4 className="text-xl font-bold text-on-surface group-hover:text-primary transition-colors leading-tight truncate">
+            <h4 className="text-lg sm:text-xl font-bold text-on-surface group-hover:text-primary transition-colors leading-tight truncate">
               {name}
             </h4>
             <p className="text-[11px] font-mono text-on-surface-variant/60 truncate" title={hostname}>
@@ -83,7 +84,7 @@ export function AgentCard({
         </motion.div>
         <motion.div
           className={cn(
-            'shrink-0 px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 border',
+            'shrink-0 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-[9px] sm:text-[10px] font-bold uppercase tracking-widest flex items-center gap-1.5 sm:gap-2 border max-w-[45%] sm:max-w-none',
             status === 'ONLINE'
               ? 'bg-tertiary/10 text-tertiary border-tertiary/20'
               : status === 'BUSY'
@@ -178,15 +179,15 @@ export function AgentCard({
         </motion.div>
       </div>
 
-      <motion.div className="mt-6 pt-5 border-t border-white/5 flex justify-between items-center text-[10px] font-mono tracking-[0.1em] text-on-surface-variant/50">
-        <motion.div className="flex items-center gap-2 min-w-0">
+      <motion.div className="mt-4 sm:mt-6 pt-4 sm:pt-5 border-t border-white/5 flex justify-between items-center gap-2 text-[10px] font-mono tracking-[0.1em] text-on-surface-variant/50">
+        <motion.div className="flex items-center gap-2 min-w-0 flex-1">
           <Clock size={12} className="opacity-60 shrink-0" />
           <span className="truncate">
-            <span className="uppercase tracking-wider text-on-surface-variant/40 mr-1.5">{t('time.lastSeen')}</span>
+            <span className="uppercase tracking-wider text-on-surface-variant/40 mr-1.5 hidden sm:inline">{t('time.lastSeen')}</span>
             {lastSeen}
           </span>
         </motion.div>
-        <motion.div className="flex items-center gap-1.5 text-primary font-bold opacity-0 group-hover:opacity-100 transition-all translate-x-2 group-hover:translate-x-0 shrink-0">
+        <motion.div className="flex items-center gap-1.5 text-primary font-bold opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all sm:translate-x-2 sm:group-hover:translate-x-0 shrink-0">
           <span>{cta}</span>
           <ArrowRight size={12} />
         </motion.div>

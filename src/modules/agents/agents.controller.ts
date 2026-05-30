@@ -9,6 +9,7 @@ import {
 } from '@nestjs/common';
 import { ApiOperation, ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { CurrentUser, JwtPayload } from '../../common/decorators/current-user.decorator';
+import { AgentsGateway } from './agents.gateway';
 import { AgentsService } from './agents.service';
 import { CreateAgentDto, QueryAgentDto } from './dto/index';
 
@@ -16,7 +17,10 @@ import { CreateAgentDto, QueryAgentDto } from './dto/index';
 @ApiBearerAuth()
 @Controller('agents')
 export class AgentsController {
-  constructor(private readonly agentsService: AgentsService) {}
+  constructor(
+    private readonly agentsService: AgentsService,
+    private readonly agentsGateway: AgentsGateway,
+  ) {}
 
   @Post()
   @ApiOperation({ summary: 'Register a new agent' })
@@ -44,6 +48,17 @@ export class AgentsController {
   @ApiOperation({ summary: 'Get agent details' })
   findOne(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
     return this.agentsService.findOne(id, user.sub);
+  }
+
+  @Post(':id/chrome-profiles/sync')
+  @ApiOperation({
+    summary: 'Fetch Chrome profiles from agent machine and save to DB',
+  })
+  syncChromeProfiles(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+  ) {
+    return this.agentsGateway.syncChromeProfiles(id, user.sub);
   }
 
   @Delete(':id')

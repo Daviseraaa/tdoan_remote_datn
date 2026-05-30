@@ -82,14 +82,7 @@ pub async fn run_steps_json(payload: Option<Value>) -> Result<Value, String> {
                 outcomes.push(json!({"index": i, "action": action, "ok": true}));
             }
             "keyCombo" => {
-                let keys = obj
-                    .get("keys")
-                    .and_then(|k| k.as_array())
-                    .ok_or("keyCombo.keys")?;
-                let names: Vec<String> = keys
-                    .iter()
-                    .filter_map(|v| v.as_str().map(|s| s.to_string()))
-                    .collect();
+                let names = parse_key_combo_names(obj)?;
                 if names.is_empty() {
                     return Err("keyCombo.keys empty".to_string());
                 }
@@ -241,6 +234,26 @@ fn type_unicode_text(text: &str) -> Result<(), String> {
     Ok(())
 }
 
+fn parse_key_combo_names(obj: &serde_json::Map<String, Value>) -> Result<Vec<String>, String> {
+    let keys_val = obj.get("keys").ok_or("keyCombo.keys")?;
+    if let Some(arr) = keys_val.as_array() {
+        let names: Vec<String> = arr
+            .iter()
+            .filter_map(|v| v.as_str().map(|s| s.trim().to_string()))
+            .filter(|s| !s.is_empty())
+            .collect();
+        return Ok(names);
+    }
+    if let Some(s) = keys_val.as_str() {
+        return Ok(s
+            .split('+')
+            .map(|p| p.trim().to_string())
+            .filter(|p| !p.is_empty())
+            .collect());
+    }
+    Err("keyCombo.keys phải là mảng hoặc chuỗi (vd. ctrl+c)".into())
+}
+
 fn vk_from_name(s: &str) -> Result<VIRTUAL_KEY, String> {
     let k = s.trim().to_lowercase();
     let vk = match k.as_str() {
@@ -258,6 +271,12 @@ fn vk_from_name(s: &str) -> Result<VIRTUAL_KEY, String> {
         "end" => VIRTUAL_KEY(0x23),
         "pageup" => VIRTUAL_KEY(0x21),
         "pagedown" => VIRTUAL_KEY(0x22),
+        "insert" => VIRTUAL_KEY(0x2D),
+        "printscreen" | "prtsc" => VIRTUAL_KEY(0x2C),
+        "pause" | "break" => VIRTUAL_KEY(0x13),
+        "scrolllock" => VIRTUAL_KEY(0x91),
+        "capslock" => VIRTUAL_KEY(0x14),
+        "numlock" => VIRTUAL_KEY(0x90),
         "ctrl" | "control" => VIRTUAL_KEY(0x11),
         "alt" => VIRTUAL_KEY(0x12),
         "shift" => VIRTUAL_KEY(0x10),

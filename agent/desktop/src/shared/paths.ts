@@ -62,9 +62,20 @@ export function resolveCoreExe(): string {
   return path.join(agentRoot(), 'bin', 'datn-agent-native.exe');
 }
 
+export function resolveChromeScriptsDir(): string {
+  const pd = process.env.ProgramData || path.join('C:', 'ProgramData');
+  return path.join(pd, 'DATN', 'chrome-scripts');
+}
+
 export function ensureProgramDataDir(): void {
   const dir = path.dirname(programDataConfigPath());
   fs.mkdirSync(dir, { recursive: true });
+}
+
+export function ensureChromeScriptsDir(): string {
+  const dir = resolveChromeScriptsDir();
+  fs.mkdirSync(dir, { recursive: true });
+  return dir;
 }
 
 export function openConfigFolder(): void {

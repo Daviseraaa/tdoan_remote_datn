@@ -36,6 +36,13 @@ export class WorkflowStepConfigDto {
   @IsNumber()
   delayMs?: number;
 
+  @ApiPropertyOptional({
+    description: 'Chờ thêm (ms) sau bước này — ghi đè stepDelayMs workflow',
+  })
+  @IsOptional()
+  @IsNumber()
+  delayAfterMs?: number;
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsNumber()
@@ -183,6 +190,14 @@ export class CreateWorkflowDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'Chờ (ms) sau mỗi bước trước khi chạy bước kế tiếp trên nhánh',
+    default: 0,
+  })
+  @IsOptional()
+  @IsNumber()
+  stepDelayMs?: number;
 
   @ApiPropertyOptional({
     description: 'Biến tĩnh workflow — dùng {{workflow.<key>}} trong command/payload',

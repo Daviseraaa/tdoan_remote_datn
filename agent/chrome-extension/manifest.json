@@ -29,6 +29,7 @@
     }
   ],
   "action": {
-    "default_title": "DATN Agent Bridge"
+    "default_title": "DATN Agent Bridge",
+    "default_popup": "popup.html"
   }
 }

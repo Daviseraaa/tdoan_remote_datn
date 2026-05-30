@@ -63,7 +63,7 @@ describe('workflow-variables', () => {
     expect(next.prev?.stdout).toBe('x');
   });
 
-  it('mergeScopes unions step outputs', () => {
+  it('mergeScopes unions step outputs and prev = latest order', () => {
     const a = scopeFromContext({}, {
       a: { exitCode: 0, failed: false, stepId: '1', order: 1, stdout: 'a' },
     });
@@ -73,7 +73,32 @@ describe('workflow-variables', () => {
     const m = mergeScopes([a, b]);
     expect(m.steps.a?.stdout).toBe('a');
     expect(m.steps.b?.stdout).toBe('b');
-    expect(m.prev).toBeUndefined();
+    expect(m.prev?.stdout).toBe('b');
+  });
+
+  it('steps.*.stdout falls back to result when stdout empty', () => {
+    const scope = scopeFromContext({}, {
+      cmd: {
+        exitCode: 0,
+        failed: false,
+        stepId: '1',
+        order: 1,
+        result: 'plain-output',
+      },
+    });
+    expect(resolveTemplateString('{{steps.cmd.stdout}}', scope)).toBe(
+      'plain-output',
+    );
+  });
+
+  it('resolveOutputKey prefers stepKey from config', () => {
+    expect(
+      resolveOutputKey(
+        { stepKey: 'my_canvas_node', title: '' },
+        1,
+        'uuid-from-db',
+      ),
+    ).toBe('my_canvas_node');
   });
 
   it('defaultOutputKey from title', () => {

@@ -36,6 +36,7 @@ type Props = {
   pageLimit: number;
   total: number;
   onPageChange: (p: number) => void;
+  allowCollapse?: boolean;
 };
 
 export function WorkflowListSidebar({
@@ -53,10 +54,13 @@ export function WorkflowListSidebar({
   pageLimit,
   total,
   onPageChange,
+  allowCollapse = true,
 }: Props) {
-  if (collapsed) {
+  const showCollapsed = collapsed && allowCollapse;
+
+  if (showCollapsed) {
     return (
-      <aside className="w-[3.25rem] border-r border-white/5 bg-surface-container-low/50 flex flex-col items-center py-4 gap-2 shrink-0">
+      <aside className="w-[3.25rem] border-r border-white/5 bg-surface-container-low/50 max-lg:bg-surface flex flex-col items-center py-4 gap-2 shrink-0">
         <button
           type="button"
           onClick={onToggleCollapse}
@@ -97,22 +101,24 @@ export function WorkflowListSidebar({
   }
 
   return (
-    <aside className="w-52 xl:w-52 border-r border-white/5 bg-surface-container-low/50 flex flex-col shrink-0">
-      <div className="p-3 space-y-2 border-b border-white/5">
+    <aside className="w-full lg:w-52 xl:w-52 h-full border-r border-white/5 bg-surface-container-low/50 max-lg:bg-surface flex flex-col shrink-0 min-w-0">
+      <div className="p-3 space-y-2 border-b border-white/5 shrink-0">
         <div className="flex items-center justify-between gap-1.5">
-          <h2 className="text-lg font-bold flex items-center gap-1.5 min-w-0">
+          <h2 className="text-base sm:text-lg font-bold flex items-center gap-1.5 min-w-0">
             <Layers size={16} className="text-primary shrink-0" />
             <span className="truncate">{t('workflows.title')}</span>
           </h2>
           <div className="flex gap-1 shrink-0">
+            {allowCollapse ? (
             <button
               type="button"
               onClick={onToggleCollapse}
               title={t('workflows.collapseList')}
-              className="w-8 h-8 rounded-lg border border-white/10 hover:bg-white/5 flex items-center justify-center"
+              className="hidden lg:flex w-8 h-8 rounded-lg border border-white/10 hover:bg-white/5 items-center justify-center"
             >
               <PanelLeftClose size={15} />
             </button>
+            ) : null}
             <button
               type="button"
               onClick={onCreate}
@@ -190,6 +196,7 @@ export function WorkflowListSidebar({
         limit={pageLimit}
         total={total}
         onPageChange={onPageChange}
+        hideRange
         className="p-2 border-t border-white/5 shrink-0 text-xs"
       />
     </aside>

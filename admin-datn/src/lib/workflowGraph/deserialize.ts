@@ -122,6 +122,7 @@ export function workflowToFlow(
       id: WF_TRIGGER_ID,
       type: 'wfNode',
       deletable: false,
+      selectable: false,
       position: autoPositions.get(WF_TRIGGER_ID) ?? { x: 48, y: 240 },
       data: {
         kind: 'trigger',

@@ -24,13 +24,22 @@ export function newTaskNodeData(
             ? 'https://example.com'
             : taskType === 'CHROME_EXTENSION'
               ? '[]'
-              : '',
+              : taskType === 'SCREEN_CAPTURE'
+                ? '0'
+                : '',
       payload:
         taskType === 'OPEN_BROWSER'
           ? { useChromeProfile: false }
           : taskType === 'CHROME_EXTENSION'
             ? { action: 'snapshotDom', maxNodes: 200 }
-            : undefined,
+            : taskType === 'SCREEN_CAPTURE'
+              ? {
+                  monitor: 0,
+                  includeBase64: false,
+                  saveToFile: true,
+                  sendTelegram: false,
+                }
+              : undefined,
       timeout: 60000,
       stepKey,
       ui: position,

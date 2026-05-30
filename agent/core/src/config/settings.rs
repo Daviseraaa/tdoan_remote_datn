@@ -67,6 +67,7 @@ pub struct AgentConfig {
     pub chrome_extension_max_steps: usize,
     pub chrome_extension_max_nodes: usize,
     pub chrome_extension_allowed_urls: Vec<String>,
+    pub screen_capture_enabled: bool,
     pub agent_version: String,
 }
 
@@ -101,6 +102,7 @@ impl AgentConfig {
                 .map(|s| s.trim().to_string())
                 .filter(|s| !s.is_empty())
                 .collect(),
+            screen_capture_enabled: env_bool("SCREEN_CAPTURE_ENABLED", true),
             agent_version: env_str("AGENT_VERSION", "1.1.0"),
         }
     }

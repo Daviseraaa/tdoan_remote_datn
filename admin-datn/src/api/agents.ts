@@ -8,6 +8,7 @@ import {
 import { normalizePaginated } from '@/src/lib/normalize';
 import type {
   Agent,
+  AgentChromeProfile,
   AgentStatus,
   CreateAgentDto,
   PaginatedResponse,
@@ -50,4 +51,13 @@ export async function regenerateAgentKey(
   id: string,
 ): Promise<Agent> {
   return apiFetch<Agent>(agentRegenerateKeyPath(admin, id), { method: 'POST' });
+}
+
+export async function syncAgentChromeProfiles(
+  agentId: string,
+): Promise<{ profiles: AgentChromeProfile[]; count: number }> {
+  return apiFetch<{ profiles: AgentChromeProfile[]; count: number }>(
+    `/agents/${agentId}/chrome-profiles/sync`,
+    { method: 'POST' },
+  );
 }

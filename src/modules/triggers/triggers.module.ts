@@ -8,6 +8,7 @@ import { TelegramApiService } from './telegram/telegram-api.service';
 import { TelegramUpdateService } from './telegram/telegram-update.service';
 import { TelegramWebhookController } from './telegram/telegram-webhook.controller';
 import { TelegramActionService } from './telegram/telegram-action.service';
+import { TelegramWorkflowProgressService } from './telegram/telegram-workflow-progress.service';
 import { TriggerRegistryService } from './trigger-registry.service';
 
 @Module({
@@ -20,12 +21,14 @@ import { TriggerRegistryService } from './trigger-registry.service';
     TelegramApiService,
     TelegramUpdateService,
     TelegramActionService,
+    TelegramWorkflowProgressService,
     TriggerRegistryService,
   ],
   exports: [
     TriggerDispatcherService,
     TelegramApiService,
     TelegramActionService,
+    TelegramWorkflowProgressService,
     TriggersService,
   ],
 })

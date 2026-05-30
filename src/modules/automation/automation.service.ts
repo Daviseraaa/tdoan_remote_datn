@@ -6,7 +6,7 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { StepRunStatus } from '@prisma/client';
+import { StepRunStatus, WorkflowTriggerType } from '@prisma/client';
 import { registerTaskCompletionWaiter } from '../../common/task-completion-registry';
 import { OnFailure, StepType, TaskStatus, TaskType } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -31,6 +31,7 @@ import {
 } from './workflow-runtime';
 import { WorkflowRuntimeService } from './workflow-runtime.service';
 import { TelegramActionService } from '../triggers/telegram/telegram-action.service';
+import { TelegramWorkflowProgressService } from '../triggers/telegram/telegram-workflow-progress.service';
 import type { TelegramStepConfig } from '../triggers/telegram/telegram.types';
 
 const TERMINAL_STATUSES: TaskStatus[] = [
@@ -66,6 +67,8 @@ export interface WorkflowStepConfig {
   payload?: Record<string, unknown>;
   timeout?: number;
   delayMs?: number;
+  /** Chờ sau bước (ms); ghi đè workflow.stepDelayMs nếu set */
+  delayAfterMs?: number;
   title?: string;
   ui?: { x: number; y: number };
   graphEdges?: WorkflowGraphEdgeStored[] | WorkflowGraphEdge[];
@@ -97,6 +100,22 @@ function parseConfig(raw: unknown): WorkflowStepConfig {
     return raw as WorkflowStepConfig;
   }
   return {};
+}
+
+function sleepMs(ms: number): Promise<void> {
+  if (ms <= 0) return Promise.resolve();
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function delayAfterStepMs(
+  step: { type: StepType; config: unknown },
+  workflowStepDelayMs: number,
+): number {
+  const cfg = parseConfig(step.config);
+  if (cfg.delayAfterMs != null && Number.isFinite(cfg.delayAfterMs)) {
+    return Math.max(0, Math.floor(cfg.delayAfterMs));
+  }
+  return Math.max(0, Math.floor(workflowStepDelayMs));
 }
 
 function getGraphEdges(
@@ -221,6 +240,8 @@ function resolveTaskType(stepType: StepType, config: WorkflowStepConfig): TaskTy
       return TaskType.OPEN_APP;
     case 'SYSTEM_INFO':
       return TaskType.SYSTEM_INFO;
+    case 'SCREEN_CAPTURE':
+      return TaskType.SCREEN_CAPTURE;
     case 'SCRIPT':
       return TaskType.SCRIPT;
     case 'FILE_OPERATION':
@@ -300,6 +321,7 @@ function resolveTaskType(stepType: StepType, config: WorkflowStepConfig): TaskTy
 function resolveCommand(taskType: TaskType, config: WorkflowStepConfig): string {
   const cmd = (config.command ?? '').trim();
   if (taskType === TaskType.SYSTEM_INFO) return cmd || 'collect';
+  if (taskType === TaskType.SCREEN_CAPTURE) return cmd || '0';
   if (taskType === TaskType.OPEN_BROWSER) return cmd || 'https://example.com';
   if (taskType === TaskType.DESKTOP_AUTOMATION) return cmd || '[]';
   if (taskType === CHROME_EXTENSION_TYPE) return cmd || '[]';
@@ -316,6 +338,7 @@ export class AutomationService {
     @Inject(forwardRef(() => WorkflowRuntimeService))
     private workflowRuntime: WorkflowRuntimeService,
     private telegramActions: TelegramActionService,
+    private telegramProgress: TelegramWorkflowProgressService,
   ) {}
 
   async create(userId: string, dto: CreateWorkflowDto) {
@@ -325,6 +348,7 @@ export class AutomationService {
         description: dto.description,
         cronExpression: dto.cronExpression,
         isActive: dto.isActive ?? true,
+        stepDelayMs: Math.max(0, dto.stepDelayMs ?? 0),
         ...(dto.variables != null ? { variables: dto.variables as object } : {}),
         ...(dto.graph != null ? { graph: dto.graph as object } : {}),
         userId,
@@ -473,6 +497,7 @@ export class AutomationService {
 
     const trackStart = async () => {
       if (!runId) return;
+      this.telegramProgress.onStepStart(runId, step.id);
       await this.workflowRuntime.upsertStepRun(runId, step, { flowPath, depth }, {
         status: StepRunStatus.RUNNING,
         startedAt: new Date(),
@@ -488,6 +513,7 @@ export class AutomationService {
       },
     ) => {
       if (!runId) return;
+      this.telegramProgress.onStepEnd(runId, step.id, status);
       await this.workflowRuntime.upsertStepRun(runId, step, { flowPath, depth }, {
         status,
         completedAt: new Date(),
@@ -640,6 +666,7 @@ export class AutomationService {
     }
     if (
       taskType !== TaskType.SYSTEM_INFO &&
+      taskType !== TaskType.SCREEN_CAPTURE &&
       taskType !== CHROME_EXTENSION_TYPE &&
       !command
     ) {
@@ -745,15 +772,56 @@ export class AutomationService {
     let runVars: Record<string, unknown> = {
       ...parseWorkflowVariables((workflow as { variables?: unknown }).variables),
     };
+    let telegramRunMeta:
+      | {
+          runId: string;
+          userId: string;
+          triggerId: string | null;
+          triggerPayload: unknown;
+        }
+      | undefined;
+
     if (runOpts?.workflowRunId) {
       const run = await this.prisma.workflowRun.findUnique({
         where: { id: runOpts.workflowRunId },
-        select: { variables: true },
+        select: {
+          variables: true,
+          triggerType: true,
+          triggerId: true,
+          triggerPayload: true,
+        },
       });
       if (run?.variables && typeof run.variables === 'object') {
         runVars = run.variables as Record<string, unknown>;
       }
+      if (
+        run?.triggerType === WorkflowTriggerType.TELEGRAM &&
+        runOpts.workflowRunId
+      ) {
+        telegramRunMeta = {
+          runId: runOpts.workflowRunId,
+          userId,
+          triggerId: run.triggerId,
+          triggerPayload: run.triggerPayload,
+        };
+      }
     }
+
+    if (telegramRunMeta) {
+      await this.telegramProgress.registerRun({
+        runId: telegramRunMeta.runId,
+        userId: telegramRunMeta.userId,
+        workflowName: workflow.name,
+        steps: workflow.steps,
+        triggerId: telegramRunMeta.triggerId,
+        triggerPayload: telegramRunMeta.triggerPayload,
+      });
+    }
+
+    const workflowStepDelayMs = Math.max(
+      0,
+      (workflow as { stepDelayMs?: number }).stepDelayMs ?? 0,
+    );
 
     const raw = await executeGraphIndependent(
       id,
@@ -771,6 +839,10 @@ export class AutomationService {
             depth: meta.depth,
           },
         );
+        const gap = delayAfterStepMs(step, workflowStepDelayMs);
+        if (gap > 0) {
+          await sleepMs(gap);
+        }
         return {
           result,
           nextCtx,

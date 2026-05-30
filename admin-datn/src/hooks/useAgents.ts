@@ -45,5 +45,13 @@ export function useAgentMutations() {
     onSuccess: invalidate,
   });
 
-  return { create, remove, regenerateKey };
+  const syncChromeProfiles = useMutation({
+    mutationFn: (id: string) => agentsApi.syncAgentChromeProfiles(id),
+    onSuccess: (_data, id) => {
+      void qc.invalidateQueries({ queryKey: queryKeys.agent(isAdmin, id) });
+      invalidate();
+    },
+  });
+
+  return { create, remove, regenerateKey, syncChromeProfiles };
 }

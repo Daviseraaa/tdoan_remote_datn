@@ -1,3 +1,5 @@
+mod chrome_script_cli;
+mod desktop_replay_cli;
 mod config;
 mod connection;
 mod platform;
@@ -93,9 +95,43 @@ fn main() {
                 let _ = platform::windows::pipe_server::run_svc_pipe_forever().await;
             });
         }
+        Some("chrome-replay") => {
+            let path = match args.next() {
+                Some(p) => std::path::PathBuf::from(p),
+                None => {
+                    eprintln!("Usage: datn-agent-native chrome-replay <path.json>");
+                    std::process::exit(2);
+                }
+            };
+            let rt = tokio::runtime::Builder::new_multi_thread()
+                .enable_all()
+                .build()
+                .expect("runtime");
+            if let Err(e) = rt.block_on(chrome_script_cli::run_chrome_replay(path)) {
+                eprintln!("{}", e);
+                std::process::exit(1);
+            }
+        }
+        Some("desktop-replay") => {
+            let path = match args.next() {
+                Some(p) => std::path::PathBuf::from(p),
+                None => {
+                    eprintln!("Usage: datn-agent-native desktop-replay <path.json>");
+                    std::process::exit(2);
+                }
+            };
+            let rt = tokio::runtime::Builder::new_multi_thread()
+                .enable_all()
+                .build()
+                .expect("runtime");
+            if let Err(e) = rt.block_on(desktop_replay_cli::run_desktop_replay(path)) {
+                eprintln!("{}", e);
+                std::process::exit(1);
+            }
+        }
         _ => {
             eprintln!(
-                "Usage:\n  datn-agent-native [agent]   WebSocket agent (mặc định)\n  datn-agent-native service   Windows Service\n  datn-agent-native worker    Named pipe user + desktop\n  datn-agent-native desktop-exec\n  datn-agent-native config-print\n  datn-agent-native ping-console\n"
+                "Usage:\n  datn-agent-native [agent]   WebSocket agent (mặc định)\n  datn-agent-native service   Windows Service\n  datn-agent-native worker    Named pipe user + desktop\n  datn-agent-native desktop-exec\n  datn-agent-native config-print\n  datn-agent-native ping-console\n  datn-agent-native chrome-replay <file.json>\n  datn-agent-native desktop-replay <file.json>\n"
             );
             std::process::exit(2);
         }

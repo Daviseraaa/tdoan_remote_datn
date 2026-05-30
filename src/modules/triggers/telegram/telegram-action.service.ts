@@ -26,6 +26,19 @@ export class TelegramActionService {
 
     const action = config.action ?? 'send_message';
 
+    const needsText =
+      action === 'send_message' ||
+      action === 'reply_message' ||
+      action === 'edit_message';
+    if (needsText && !text.trim()) {
+      const keys = Object.keys(scope.steps);
+      throw new Error(
+        keys.length > 0
+          ? `Nội dung Telegram rỗng sau khi thay biến. Các khóa step: ${keys.join(', ')}. Thử {{steps.<khóa>.stdout}} hoặc {{prev.stdout}} (khóa khớp badge trên node task).`
+          : 'Nội dung Telegram rỗng — không có output bước task phía trước trên nhánh này.',
+      );
+    }
+
     if (action === 'send_photo') {
       const photo = resolveTemplateString(config.photoUrl ?? '', scope);
       const res = await this.api.sendPhoto(botToken, {
@@ -71,7 +84,7 @@ export class TelegramActionService {
 
     const res = await this.api.sendMessage(botToken, {
       chat_id: chatId,
-      text: text || '(empty)',
+      text,
       reply_to_message_id:
         action === 'reply_message' ? replyTo : undefined,
       parse_mode: config.parseMode,

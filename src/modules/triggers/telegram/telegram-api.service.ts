@@ -112,6 +112,7 @@ export class TelegramApiService {
       message_id: number;
       text: string;
       reply_markup?: unknown;
+      parse_mode?: string;
     },
   ) {
     return this.callApi(botToken, 'editMessageText', params);

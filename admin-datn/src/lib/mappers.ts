@@ -266,15 +266,34 @@ export function isTaskTerminal(status: Task['status']): boolean {
   );
 }
 
-export function formatTaskCommandPreview(command?: string, type?: Task['type']): string {
+export function formatTaskCommandPreview(
+  command?: string,
+  type?: Task['type'],
+  payload?: Record<string, unknown> | null,
+): string {
+  if (type === 'DESKTOP_AUTOMATION') {
+    const steps = payload?.steps;
+    if (Array.isArray(steps) && steps.length > 0) {
+      const first = steps[0] as Record<string, unknown> | undefined;
+      const action = first?.action ? String(first.action) : '';
+      return action
+        ? `${steps.length} bước · ${action}…`
+        : `${steps.length} bước`;
+    }
+  }
+
   if (!command?.trim()) return '—';
 
   const trimmed = command.trim();
   if (type === 'DESKTOP_AUTOMATION' || trimmed.startsWith('{') || trimmed.startsWith('[')) {
     try {
-      const parsed = JSON.parse(trimmed) as { steps?: unknown[] };
-      if (Array.isArray(parsed.steps)) {
-        return `Automation script · ${parsed.steps.length} step(s)`;
+      const parsed = JSON.parse(trimmed) as unknown;
+      if (Array.isArray(parsed)) {
+        return `${parsed.length} bước`;
+      }
+      if (parsed && typeof parsed === 'object' && Array.isArray((parsed as { steps?: unknown[] }).steps)) {
+        const n = (parsed as { steps: unknown[] }).steps.length;
+        return `${n} bước`;
       }
     } catch {
       /* use truncated raw below */
@@ -302,7 +321,7 @@ export function mapTaskToListRow(task: Task): {
     shortId: shortId(task.id),
     type: task.type,
     status: task.status,
-    command: formatTaskCommandPreview(commandFull, task.type),
+    command: formatTaskCommandPreview(commandFull, task.type, task.payload),
     commandFull,
     agentName: task.agent?.name ?? shortId(task.agentId),
     updatedAt: formatRelativeTime(task.updatedAt ?? task.createdAt),

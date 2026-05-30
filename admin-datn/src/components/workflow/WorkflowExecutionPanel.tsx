@@ -236,7 +236,7 @@ export function WorkflowExecutionPanel({
   if (!open) return null;
 
   return (
-    <div className="border-t border-white/5 bg-surface-container-low/60 shrink-0 max-h-[280px] flex flex-col backdrop-blur-sm">
+    <div className="border-t border-white/5 bg-surface-container-low/60 shrink-0 max-h-[40vh] sm:max-h-[280px] flex flex-col backdrop-blur-sm min-w-0">
       <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/5">
         <div className="flex items-center gap-3 min-w-0">
           <h4 className="text-sm font-bold shrink-0">{t('workflows.executionTitle')}</h4>
