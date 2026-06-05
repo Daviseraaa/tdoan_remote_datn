@@ -80,10 +80,12 @@ export class AgentsGateway
 
   async handleConnection(client: AgentSocket) {
     try {
-      const agentKey =
+      const rawKey =
         client.handshake?.auth?.agentKey || client.handshake?.query?.agentKey;
+      const agentKey =
+        typeof rawKey === 'string' ? rawKey.trim() : '';
 
-      if (!agentKey || typeof agentKey !== 'string') {
+      if (!agentKey) {
         this.logger.warn(`Connection rejected: missing agentKey`);
         client.disconnect();
         return;

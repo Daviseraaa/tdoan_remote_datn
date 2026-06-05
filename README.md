@@ -139,9 +139,13 @@ src/
 └── modules/
     ├── auth/               # JWT auth, strategies
     ├── users/              # User CRUD
-    ├── agents/             # Agent CRUD + WebSocket gateway
-    ├── tasks/              # Task CRUD + BullMQ processor
-    ├── automation/         # Workflow CRUD + execution
+    ├── agents/             # Agent CRUD + AgentsGateway /ws/agent
+    ├── tasks/              # Tasks + templates + BullMQ
+    ├── automation/         # Workflows + WorkflowRuntime
+    ├── triggers/           # Schedule + Telegram triggers
+    ├── chrome-scripts/     # Chrome scripts + sync
+    ├── desktop-recordings/ # Desktop recordings + sync
+    ├── admin/              # Admin API + ClientGateway /ws/client
     └── health/             # Health checks
 ```
 
@@ -165,6 +169,15 @@ npm run lint          # ESLint
 npm run format        # Prettier
 npm run prisma:studio # Prisma Studio GUI
 ```
+
+## Tài liệu dự án
+
+| Tài liệu | Mô tả |
+|----------|--------|
+| [docs/README.md](./docs/README.md) | Hub tài liệu + sơ đồ tóm tắt |
+| [docs/project-memory/architecture.md](./docs/project-memory/architecture.md) | **Kiến trúc** (Mermaid: context, container, module, ER) |
+| [docs/project-memory/flows.md](./docs/project-memory/flows.md) | **Luồng hoạt động** (Mermaid: auth, task, workflow, trigger, sync) |
+| [docs/project-memory/code-reference.md](./docs/project-memory/code-reference.md) | Bản đồ file code |
 
 ## Workstation agent
 

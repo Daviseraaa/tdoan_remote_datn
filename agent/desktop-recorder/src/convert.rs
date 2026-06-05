@@ -11,6 +11,8 @@ pub struct RecorderState {
     mouse_y: f64,
     text_buf: String,
     modifiers: ModifierState,
+    /// Gắn metadata UIA vào bước click (Windows).
+    capture_uia: bool,
 }
 
 #[derive(Default, Clone, Copy)]
@@ -22,7 +24,7 @@ struct ModifierState {
 }
 
 impl RecorderState {
-    pub fn new() -> Self {
+    pub fn new(capture_uia: bool) -> Self {
         Self {
             steps: Vec::new(),
             last_time: Instant::now(),
@@ -30,6 +32,7 @@ impl RecorderState {
             mouse_y: 0.0,
             text_buf: String::new(),
             modifiers: ModifierState::default(),
+            capture_uia,
         }
     }
 
@@ -274,12 +277,28 @@ impl RecorderState {
                     Button::Right => "right",
                     _ => "left",
                 };
-                self.push_step(json!({
+                #[cfg(windows)]
+                let (x, y) = datn_windows_uia::physical_cursor_point().unwrap_or_else(|| {
+                    (self.mouse_x.round() as i32, self.mouse_y.round() as i32)
+                });
+                #[cfg(not(windows))]
+                let (x, y) = (self.mouse_x.round() as i32, self.mouse_y.round() as i32);
+                let mut step = json!({
                     "action": "click",
-                    "x": self.mouse_x.round() as i64,
-                    "y": self.mouse_y.round() as i64,
+                    "x": x,
+                    "y": y,
                     "button": btn,
-                }));
+                    "coordSpace": "physical",
+                });
+                #[cfg(windows)]
+                if self.capture_uia {
+                    if let Some(uia) =
+                        datn_windows_uia::capture_element_at_point(x, y, true)
+                    {
+                        step["uia"] = uia;
+                    }
+                }
+                self.push_step(step);
             }
             EventType::ButtonRelease(_) => {}
             EventType::Wheel { delta_x, delta_y } => {
@@ -328,7 +347,7 @@ mod tests {
 
     #[test]
     fn click_produces_desktop_step() {
-        let mut state = RecorderState::new();
+        let mut state = RecorderState::new(false);
         state.mouse_x = 100.0;
         state.mouse_y = 200.0;
         state.on_event(Event {
@@ -339,13 +358,18 @@ mod tests {
         let steps = state.flush_and_take_steps();
         assert_eq!(steps.len(), 1);
         assert_eq!(steps[0]["action"], "click");
-        assert_eq!(steps[0]["x"], 100);
-        assert_eq!(steps[0]["y"], 200);
+        assert_eq!(steps[0]["coordSpace"], "physical");
+        assert_eq!(steps[0]["button"], "left");
+        #[cfg(not(windows))]
+        {
+            assert_eq!(steps[0]["x"], 100);
+            assert_eq!(steps[0]["y"], 200);
+        }
     }
 
     #[test]
     fn arrow_key_produces_key_combo() {
-        let mut state = RecorderState::new();
+        let mut state = RecorderState::new(false);
         state.on_event(key_press(Key::DownArrow));
         let steps = state.flush_and_take_steps();
         assert_eq!(steps.len(), 1);
@@ -355,7 +379,7 @@ mod tests {
 
     #[test]
     fn ctrl_c_produces_combo_array() {
-        let mut state = RecorderState::new();
+        let mut state = RecorderState::new(false);
         state.on_event(key_press(Key::ControlLeft));
         state.on_event(key_press(Key::KeyC));
         let steps = state.flush_and_take_steps();
@@ -365,7 +389,7 @@ mod tests {
 
     #[test]
     fn enter_produces_key_combo() {
-        let mut state = RecorderState::new();
+        let mut state = RecorderState::new(false);
         state.on_event(key_press(Key::Return));
         let steps = state.flush_and_take_steps();
         assert_eq!(steps[0]["keys"], json!(["enter"]));

@@ -81,6 +81,10 @@ npm run build:desktop-recorder
 
 **CLI:** `datn-desktop-recorder.exe record --name "Mo ung dung"` — F12 dừng và lưu → `%ProgramData%\DATN\desktop-recordings\{uuid}.json`
 
+**UIA (mặc định bật):** mỗi click ghi thêm `uia` (control Windows qua UI Automation). Tắt: `--no-uia`. Chạy lại ưu tiên InvokePattern, không khớp thì click tọa độ.
+
+**Tọa độ:** ghi bằng `GetPhysicalCursorPos` (pixel vật lý, Per-Monitor DPI). Bản ghi cũ trước bản sửa có thể lệch trên màn 125%/150% — ghi lại nếu replay sai vị trí.
+
 **Chạy lại local:** GUI → chọn bản ghi → **Chạy lại**, hoặc:
 
 ```powershell

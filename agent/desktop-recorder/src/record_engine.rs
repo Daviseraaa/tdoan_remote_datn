@@ -14,6 +14,7 @@ pub struct RecordEngine {
 struct ActiveRecorder {
     state: RecorderState,
     draft_name: String,
+    capture_uia: bool,
 }
 
 static ENGINE: OnceLock<Arc<RecordEngine>> = OnceLock::new();
@@ -80,7 +81,10 @@ impl RecordEngine {
             .unwrap_or(0)
     }
 
-    pub fn start(&self, name: String) -> Result<(), String> {
+    pub fn start(&self, name: String, capture_uia: bool) -> Result<(), String> {
+        #[cfg(windows)]
+        datn_windows_uia::enable_per_monitor_v2();
+
         let mut guard = self.active.lock().map_err(|_| "lock poisoned")?;
         if guard.is_some() {
             return Err("Đang ghi một bản ghi khác.".into());
@@ -88,8 +92,9 @@ impl RecordEngine {
         self.stop_requested.store(false, Ordering::SeqCst);
         self.hotkey_stop.store(false, Ordering::SeqCst);
         *guard = Some(ActiveRecorder {
-            state: RecorderState::new(),
+            state: RecorderState::new(capture_uia),
             draft_name: name,
+            capture_uia,
         });
         Ok(())
     }
@@ -104,7 +109,7 @@ impl RecordEngine {
         if steps.is_empty() {
             return Err("Không có bước nào được ghi.".into());
         }
-        save_recording(&rec.draft_name, &steps).map_err(|e| e.to_string())
+        save_recording(&rec.draft_name, &steps, rec.capture_uia).map_err(|e| e.to_string())
     }
 
     pub fn cancel(&self) {

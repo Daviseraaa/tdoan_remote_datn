@@ -26,7 +26,11 @@ pub fn recordings_dir() -> PathBuf {
     PathBuf::from(pd).join("DATN").join("desktop-recordings")
 }
 
-pub fn save_recording(name: &str, steps: &[Value]) -> Result<SavedRecording, Box<dyn std::error::Error>> {
+pub fn save_recording(
+    name: &str,
+    steps: &[Value],
+    capture_uia: bool,
+) -> Result<SavedRecording, Box<dyn std::error::Error>> {
     let dir = recordings_dir();
     fs::create_dir_all(&dir)?;
 
@@ -41,6 +45,8 @@ pub fn save_recording(name: &str, steps: &[Value]) -> Result<SavedRecording, Box
         "id": id,
         "name": display_name,
         "version": 1,
+        "coordSpace": "physical",
+        "captureUia": capture_uia,
         "steps": steps,
         "createdAt": chrono::Utc::now().to_rfc3339(),
     });

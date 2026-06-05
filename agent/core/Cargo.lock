@@ -366,6 +366,7 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "base64 0.22.1",
+ "datn-windows-uia",
  "dotenvy",
  "env_logger",
  "futures-util",
@@ -381,6 +382,14 @@ dependencies = [
  "tokio-util",
  "windows 0.58.0",
  "windows-service",
+]
+
+[[package]]
+name = "datn-windows-uia"
+version = "0.1.0"
+dependencies = [
+ "serde_json",
+ "windows 0.58.0",
 ]
 
 [[package]]

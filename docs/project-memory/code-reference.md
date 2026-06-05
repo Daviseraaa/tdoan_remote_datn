@@ -61,23 +61,45 @@ Mô tả **thư mục / file quan trọng** theo từng package. Đường dẫn
 
 | File | Vai trò |
 |------|---------|
-| `tasks.controller.ts` | API task (`/api/tasks`). |
-| `tasks.service.ts` | Tạo task, enqueue. |
-| `tasks.processor.ts` | **BullMQ worker**: dispatch tới agent qua gateway. |
-| `dto/*.ts` | Create/query DTO. |
+| `tasks.controller.ts` | `/api/tasks` + **`/api/tasks/templates`** (CRUD, `…/run`). |
+| `tasks.service.ts` | Task + template, enqueue. |
+| `tasks.processor.ts` | **BullMQ worker** → `AgentsGateway`. |
+| `dto/*.ts` | Create/query/template DTO. |
 
 ### `src/modules/automation/`
 
 | File | Vai trò |
 |------|---------|
-| `automation.controller.ts` | Workflow API (`/api/workflows`). |
-| `automation.service.ts` | Logic workflow (theo schema hiện tại). |
+| `automation.controller.ts` | `/api/workflows`, `POST :id/execute`. |
+| `automation.service.ts` | CRUD workflow, graph, execute entry. |
+| `workflow-runtime.service.ts` | Chạy workflow, `WorkflowRun`. |
+| `workflow-runtime/graph-scheduler.ts` | Lập lịch bước theo graph. |
+| `workflow-graph.ts` | Deserialize/validate graph. |
+
+### `src/modules/triggers/`
+
+| File | Vai trò |
+|------|---------|
+| `triggers.controller.ts` | `/api/triggers`, Telegram bots. |
+| `triggers.service.ts` | CRUD trigger, list theo workflow. |
+| `schedule-trigger.service.ts` | Cron/schedule. |
+| `trigger-dispatcher.service.ts` | Dispatch → workflow runtime. |
+| `telegram/telegram-webhook.controller.ts` | Webhook Telegram (public). |
+
+### `src/modules/chrome-scripts/` · `desktop-recordings/`
+
+| File | Vai trò |
+|------|---------|
+| `*.controller.ts` | CRUD + **`POST …/sync`** → `AgentsGateway`. |
+| `*.service.ts` | Upsert DB từ payload agent. |
 
 ### `src/modules/admin/`
 
 | File | Vai trò |
 |------|---------|
-| `admin.controller.ts` | Endpoint quản trị tổng hợp (`/api/admin`). |
+| `admin.controller.ts` | `/api/admin` (users, agents, tasks, templates, audit). |
+| `client.gateway.ts` | WebSocket **`/ws/client`**. |
+| `audit.service.ts` | Audit log. |
 
 ### `src/modules/health/`
 
@@ -99,7 +121,12 @@ Mô tả **thư mục / file quan trọng** theo từng package. Đường dẫn
 | `views/Agents.tsx` | Danh sách agent. |
 | `views/Tasks.tsx` | Task + template. |
 | `views/Workflows.tsx` | Workflow editor (XYFlow). |
-| `views/Automations.tsx` | Triggers. |
+| `views/Automations.tsx` | Triggers (read-only list). |
+| `views/ChromeScripts.tsx`, `ChromeScriptEditor.tsx` | Chrome scripts + flow. |
+| `views/DesktopRecordings.tsx`, `DesktopRecordingEditor.tsx` | Desktop recordings. |
+| `views/TaskTemplateEditor.tsx` | Wizard template. |
+| `views/Settings.tsx` | Quản lý user (admin). |
+| `views/Documentation.tsx` | Trang docs. |
 | `views/AuditLog.tsx` | Audit log. |
 | `lib/api.ts` | Fetch wrapper + interceptors. |
 | `lib/auth.ts` | Token / logout helper. |
@@ -131,9 +158,10 @@ Mô tả **thư mục / file quan trọng** theo từng package. Đường dẫn
 
 ## Hằng số socket (tham chiếu nhanh)
 
-**Agent namespace** (`WS_EVENTS` trong `src/common/constants/index.ts`; payload trong `src/common/types/ws-protocol.ts`):
+`WS_EVENTS` — `src/common/constants/index.ts`; payload — `src/common/types/ws-protocol.ts`.
 
-- `task:execute`, `task:result`, `agent:heartbeat`, `agent:status`, …
+- **Agent** `/ws/agent`: `task:execute`, `task:result`, `agent:heartbeat`, `agent:chrome-scripts:sync`, …
+- **Admin** `/ws/client`: `task:completed`, `task:failed`, …
 
 ---
 

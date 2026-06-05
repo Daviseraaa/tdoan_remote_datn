@@ -10,8 +10,17 @@ use windows::Win32::UI::Input::KeyboardAndMouse::{
 use windows::Win32::UI::WindowsAndMessaging::SetCursorPos;
 
 const WHEEL_DELTA: i32 = 120;
+const CURSOR_SETTLE_MS: u64 = 40;
+
+fn set_cursor_physical(x: i32, y: i32) -> Result<(), String> {
+    datn_windows_uia::set_physical_cursor(x, y).or_else(|_| unsafe {
+        SetCursorPos(x, y).map_err(|e| e.message().to_string())
+    })
+}
 
 pub async fn run_steps_json(payload: Option<Value>) -> Result<Value, String> {
+    datn_windows_uia::enable_per_monitor_v2();
+
     let steps = payload
         .as_ref()
         .and_then(|p| p.get("steps"))
@@ -49,29 +58,35 @@ pub async fn run_steps_json(payload: Option<Value>) -> Result<Value, String> {
             "move" => {
                 let x = as_i32(obj.get("x")).ok_or("move.x")?;
                 let y = as_i32(obj.get("y")).ok_or("move.y")?;
-                unsafe {
-                    SetCursorPos(x, y).map_err(|e| e.message().to_string())?;
-                }
+                set_cursor_physical(x, y)?;
                 outcomes.push(json!({"index": i, "action": action, "ok": true}));
             }
             "click" => {
-                if let (Some(x), Some(y)) = (obj.get("x"), obj.get("y")) {
-                    let xi = as_i32(Some(x)).ok_or("click.x")?;
-                    let yi = as_i32(Some(y)).ok_or("click.y")?;
-                    unsafe {
-                        SetCursorPos(xi, yi).map_err(|e| e.message().to_string())?;
+                let step_val = Value::Object(obj.clone());
+                let (x, y) = datn_windows_uia::resolve_click_point(&step_val)
+                    .ok_or("click: thiếu tọa độ x/y")?;
+
+                let mut via = "coords";
+                if let Some(uia) = obj.get("uia") {
+                    if datn_windows_uia::try_invoke_click(uia, x, y) {
+                        via = "uia";
                     }
                 }
-                let button = obj
-                    .get("button")
-                    .and_then(|b| b.as_str())
-                    .unwrap_or("left");
-                let double = obj.get("double").and_then(|b| b.as_bool()).unwrap_or(false);
-                let n = if double { 2 } else { 1 };
-                for _ in 0..n {
-                    click_mouse(button)?;
+
+                if via == "coords" {
+                    set_cursor_physical(x, y)?;
+                    tokio::time::sleep(Duration::from_millis(CURSOR_SETTLE_MS)).await;
+                    let button = obj
+                        .get("button")
+                        .and_then(|b| b.as_str())
+                        .unwrap_or("left");
+                    let double = obj.get("double").and_then(|b| b.as_bool()).unwrap_or(false);
+                    let n = if double { 2 } else { 1 };
+                    for _ in 0..n {
+                        click_mouse(button)?;
+                    }
                 }
-                outcomes.push(json!({"index": i, "action": action, "ok": true}));
+                outcomes.push(json!({"index": i, "action": action, "ok": true, "via": via, "x": x, "y": y}));
             }
             "typeText" => {
                 let text = obj

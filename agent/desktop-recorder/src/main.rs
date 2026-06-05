@@ -29,15 +29,18 @@ fn print_usage() {
     eprintln!("  Luu tai: %ProgramData%\\DATN\\desktop-recordings\\");
 }
 
-fn run_record_cli(name: &str) -> Result<(), Box<dyn std::error::Error>> {
+fn run_record_cli(name: &str, capture_uia: bool) -> Result<(), Box<dyn std::error::Error>> {
     #[cfg(windows)]
     attach_parent_console();
 
     eprintln!("Dang ghi... Nhan F12 de dung va luu.");
+    if capture_uia {
+        eprintln!("UIA: bat (gan selector vao buoc click).");
+    }
     eprintln!("Thu muc: {}", store::recordings_dir().display());
 
     let eng = engine();
-    eng.start(name.to_string())?;
+    eng.start(name.to_string(), capture_uia)?;
 
     while eng.is_recording() {
         if eng.take_hotkey_stop() {
@@ -54,6 +57,9 @@ fn run_record_cli(name: &str) -> Result<(), Box<dyn std::error::Error>> {
 }
 
 fn main() {
+    #[cfg(windows)]
+    datn_windows_uia::enable_per_monitor_v2();
+
     let args: Vec<String> = std::env::args().collect();
 
     if args.len() < 2 {
@@ -73,16 +79,20 @@ fn main() {
         }
         "record" => {
             let mut name = String::new();
+            let mut capture_uia = true;
             let mut i = 2;
             while i < args.len() {
                 if args[i] == "--name" && i + 1 < args.len() {
                     name = args[i + 1].clone();
                     i += 2;
+                } else if args[i] == "--no-uia" {
+                    capture_uia = false;
+                    i += 1;
                 } else {
                     i += 1;
                 }
             }
-            if let Err(e) = run_record_cli(&name) {
+            if let Err(e) = run_record_cli(&name, capture_uia) {
                 eprintln!("Loi: {e}");
                 std::process::exit(1);
             }

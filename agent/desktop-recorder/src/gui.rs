@@ -62,6 +62,8 @@ struct RecorderApp {
     recordings: Vec<RecordingMeta>,
     selected_id: Option<String>,
     new_name: String,
+    /// Ghi metadata UIA (Button, Edit, …) vào bước click.
+    capture_uia: bool,
     filter: String,
     status: String,
     status_ok: bool,
@@ -77,6 +79,7 @@ impl RecorderApp {
             selected_id: recordings.first().map(|r| r.id.clone()),
             recordings,
             new_name: String::new(),
+            capture_uia: true,
             filter: String::new(),
             status: "Sẵn sàng.".into(),
             status_ok: true,
@@ -131,7 +134,7 @@ impl RecorderApp {
     }
 
     fn start_recording(&mut self, ctx: &egui::Context) {
-        match engine().start(self.new_name.clone()) {
+        match engine().start(self.new_name.clone(), self.capture_uia) {
             Ok(()) => {
                 self.busy = BusyMode::Recording;
                 self.set_status("Đang ghi — nhấn F12 để dừng và lưu.", true);
@@ -327,7 +330,7 @@ impl eframe::App for RecorderApp {
                         );
                         ui.label(
                             RichText::new(
-                                "Chuột, phím và cuộn được ghi thành JSON tương thích DESKTOP_AUTOMATION.",
+                                "Chuột, phím, cuộn → JSON DESKTOP_AUTOMATION. Click có thể kèm UIA (control Windows).",
                             )
                             .color(TEXT_DIM),
                         );
@@ -390,6 +393,10 @@ impl eframe::App for RecorderApp {
                             } else {
                                 ui.label("Tên (tùy chọn):");
                                 ui.text_edit_singleline(&mut self.new_name);
+                                ui.checkbox(
+                                    &mut self.capture_uia,
+                                    "Bắt UIA khi click (Button, TextBox, Menu…)",
+                                );
                                 ui.add_space(8.0);
                                 if ui
                                     .add(Self::primary_button("▶  Bắt đầu ghi"))

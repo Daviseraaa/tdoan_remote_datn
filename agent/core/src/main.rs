@@ -28,6 +28,8 @@ fn main() {
 
 #[cfg(windows)]
 fn main() {
+    datn_windows_uia::enable_per_monitor_v2();
+
     let mut args = std::env::args();
     let _exe = args.next();
     let cmd = args.next();
