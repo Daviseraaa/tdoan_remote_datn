@@ -94,6 +94,35 @@ pub fn element_snapshot(el: &IUIAutomationElement) -> Option<Value> {
     }
 }
 
+/// Phần tử người dùng thường click / tương tác (hiển thị viền khi ghi).
+pub fn is_interactive_control(target: &serde_json::Value) -> bool {
+    if target
+        .get("supportsInvoke")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false)
+    {
+        return true;
+    }
+    let ct = target
+        .get("controlTypeId")
+        .and_then(|v| v.as_i64())
+        .unwrap_or(0) as i32;
+    matches!(
+        ct,
+        50000 // Button
+            | 50002 // CheckBox
+            | 50003 // ComboBox
+            | 50005 // Hyperlink
+            | 50007 // ListItem
+            | 50011 // MenuItem
+            | 50013 // RadioButton
+            | 50018 // Tab
+            | 50019 // TabItem
+            | 50031 // SplitButton
+            | 50004 // Edit — có thể focus gõ
+    )
+}
+
 pub fn elements_match(expected: &Value, actual: &Value) -> bool {
     let exp_auto = expected.get("automationId").and_then(|v| v.as_str()).unwrap_or("");
     let act_auto = actual.get("automationId").and_then(|v| v.as_str()).unwrap_or("");

@@ -62,6 +62,7 @@ export function startRustAgent() {
   const childEnv: NodeJS.ProcessEnv = {
     ...process.env,
     DATN_AGENT_ROOT: root,
+    RUST_LOG: process.env.RUST_LOG ?? 'info',
   };
   const cloakScript = resolveCloakRunnerScript();
   if (cloakScript) childEnv.CLOAK_RUNNER_SCRIPT = cloakScript;
@@ -75,12 +76,20 @@ export function startRustAgent() {
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   rustAgent = child;
-  const onChunk = (buf: Buffer) => {
+  const onChunk = (buf: Buffer, level: 'INFO' | 'ERROR' = 'INFO') => {
     const s = buf.toString('utf8').trim();
-    if (s) pushLog('INFO', s);
+    if (!s) return;
+    for (const line of s.split(/\r?\n/)) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+      const isErr =
+        level === 'ERROR' ||
+        /panic|error|THẤT BẠI|failed|lỗi/i.test(trimmed);
+      pushLog(isErr ? 'ERROR' : 'INFO', trimmed);
+    }
   };
-  child.stdout?.on('data', onChunk);
-  child.stderr?.on('data', onChunk);
+  child.stdout?.on('data', (buf) => onChunk(buf, 'INFO'));
+  child.stderr?.on('data', (buf) => onChunk(buf, 'ERROR'));
   child.on('exit', (code, signal) => {
     rustAgent = null;
     pushLog('WARN', `Rust agent thoát code=${code} signal=${signal ?? ''}`);

@@ -117,7 +117,7 @@ pub async fn run_with_stop(stop: Arc<AtomicBool>) -> Result<(), Box<dyn std::err
     let sem_t = sem.clone();
     let cfg_t = cfg.clone();
     let platform_t = platform.clone();
-    let client = ClientBuilder::new(base)
+    let builder = ClientBuilder::new(base.clone())
         .namespace(NS)
         .transport_type(TransportType::Websocket)
         .auth(auth)
@@ -235,11 +235,26 @@ pub async fn run_with_stop(stop: Arc<AtomicBool>) -> Result<(), Box<dyn std::err
                 warn!("socket error: {:?}", err);
             }
             .boxed()
-        })
-        .connect()
-        .await?;
+        });
 
-    info!("Connected to server");
+    info!("Connecting to {} namespace {} …", base, NS);
+    eprintln!("[DATN] Socket.IO: đang kết nối {}{} …", base, NS);
+
+    let client = match builder.connect().await {
+        Ok(c) => {
+            info!("Socket connected — {} {}", base, NS);
+            eprintln!("[DATN] Socket.IO: kết nối THÀNH CÔNG — {}{}", base, NS);
+            c
+        }
+        Err(e) => {
+            error!("Socket connect failed — {} {}: {}", base, NS, e);
+            eprintln!(
+                "[DATN] Socket.IO: kết nối THẤT BẠI — {}{} — {}",
+                base, NS, e
+            );
+            return Err(e.into());
+        }
+    };
 
     const TELEMETRY_INTERVAL_MS: u64 = 2000;
     let hb_client = client.clone();

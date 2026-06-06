@@ -1,8 +1,8 @@
 use serde_json::Value;
 use windows::Win32::Foundation::POINT;
-use windows::Win32::UI::Accessibility::{IUIAutomationInvokePattern, UIA_InvokePatternId};
 
 use crate::com::automation;
+use crate::find::{invoke_element, live_click_point, try_invoke_by_find, find_target_element};
 use crate::screen::bounds_center;
 use crate::util::{element_snapshot, elements_match};
 
@@ -28,30 +28,24 @@ fn try_invoke_at(target: &Value, x: i32, y: i32) -> bool {
             return false;
         }
 
-        let pattern: IUIAutomationInvokePattern = match element
-            .GetCurrentPatternAs(UIA_InvokePatternId)
-        {
-            Ok(p) => p,
-            Err(_) => return false,
-        };
-
-        pattern.Invoke().is_ok()
+        invoke_element(&element)
     }
 }
 
-/// Thử click qua UIA InvokePattern. Trả về `true` nếu đã invoke thành công.
-pub fn try_invoke_click(uia: &Value, fallback_x: i32, fallback_y: i32) -> bool {
-    let target = match uia.get("target") {
-        Some(t) => t,
-        None => return false,
-    };
+/// Thử click qua UIA. Trả về `"find"` | `"point"` | None.
+pub fn try_invoke_click(uia: &Value, fallback_x: i32, fallback_y: i32) -> Option<&'static str> {
+    let target = uia.get("target")?;
 
     let supports = target
         .get("supportsInvoke")
         .and_then(|v| v.as_bool())
         .unwrap_or(false);
     if !supports {
-        return false;
+        return None;
+    }
+
+    if try_invoke_by_find(uia) {
+        return Some("find");
     }
 
     let px = uia
@@ -68,16 +62,41 @@ pub fn try_invoke_click(uia: &Value, fallback_x: i32, fallback_y: i32) -> bool {
         .unwrap_or(fallback_y);
 
     if try_invoke_at(target, px, py) {
-        return true;
+        return Some("point");
     }
 
     if let Some(bounds) = target.get("bounds") {
         if let Some((cx, cy)) = bounds_center(bounds) {
             if (cx, cy) != (px, py) && try_invoke_at(target, cx, cy) {
-                return true;
+                return Some("point");
             }
         }
     }
 
-    false
+    None
+}
+
+/// Tọa độ physical để click: live UIA → ghi lại → x/y bước.
+pub fn resolve_click_point_for_step(step: &Value) -> Option<(i32, i32)> {
+    if let Some(uia) = step.get("uia") {
+        if let Some(el) = find_target_element(uia) {
+            if let Some(pt) = live_click_point(&el) {
+                return Some(pt);
+            }
+        }
+        if let Some(bounds) = uia.get("target").and_then(|t| t.get("bounds")) {
+            if let Some(c) = bounds_center(bounds) {
+                return Some(c);
+            }
+        }
+        if let (Some(x), Some(y)) = (
+            uia.get("point").and_then(|p| p.get("x")).and_then(|v| v.as_i64()),
+            uia.get("point").and_then(|p| p.get("y")).and_then(|v| v.as_i64()),
+        ) {
+            return Some((x as i32, y as i32));
+        }
+    }
+    let x = step.get("x").and_then(|v| v.as_i64()).map(|n| n as i32)?;
+    let y = step.get("y").and_then(|v| v.as_i64()).map(|n| n as i32)?;
+    Some((x, y))
 }

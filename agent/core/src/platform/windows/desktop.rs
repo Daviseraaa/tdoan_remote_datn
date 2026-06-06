@@ -63,13 +63,18 @@ pub async fn run_steps_json(payload: Option<Value>) -> Result<Value, String> {
             }
             "click" => {
                 let step_val = Value::Object(obj.clone());
-                let (x, y) = datn_windows_uia::resolve_click_point(&step_val)
+                let focused = datn_windows_uia::focus_host_for_step(&step_val);
+                if focused {
+                    tokio::time::sleep(Duration::from_millis(datn_windows_uia::focus_settle_ms())).await;
+                }
+
+                let (x, y) = datn_windows_uia::resolve_click_point_for_step(&step_val)
                     .ok_or("click: thiếu tọa độ x/y")?;
 
                 let mut via = "coords";
                 if let Some(uia) = obj.get("uia") {
-                    if datn_windows_uia::try_invoke_click(uia, x, y) {
-                        via = "uia";
+                    if let Some(mode) = datn_windows_uia::try_invoke_click(uia, x, y) {
+                        via = mode;
                     }
                 }
 
@@ -86,9 +91,22 @@ pub async fn run_steps_json(payload: Option<Value>) -> Result<Value, String> {
                         click_mouse(button)?;
                     }
                 }
-                outcomes.push(json!({"index": i, "action": action, "ok": true, "via": via, "x": x, "y": y}));
+                outcomes.push(json!({
+                    "index": i,
+                    "action": action,
+                    "ok": true,
+                    "via": via,
+                    "x": x,
+                    "y": y,
+                    "focused": focused,
+                }));
             }
             "typeText" => {
+                let step_val = Value::Object(obj.clone());
+                let focused = datn_windows_uia::focus_host_for_step(&step_val);
+                if focused {
+                    tokio::time::sleep(Duration::from_millis(datn_windows_uia::focus_settle_ms())).await;
+                }
                 let text = obj
                     .get("text")
                     .and_then(|t| t.as_str())

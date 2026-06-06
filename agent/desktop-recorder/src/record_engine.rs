@@ -15,6 +15,7 @@ struct ActiveRecorder {
     state: RecorderState,
     draft_name: String,
     capture_uia: bool,
+    show_highlight: bool,
 }
 
 static ENGINE: OnceLock<Arc<RecordEngine>> = OnceLock::new();
@@ -81,7 +82,12 @@ impl RecordEngine {
             .unwrap_or(0)
     }
 
-    pub fn start(&self, name: String, capture_uia: bool) -> Result<(), String> {
+    pub fn start(
+        &self,
+        name: String,
+        capture_uia: bool,
+        show_highlight: bool,
+    ) -> Result<(), String> {
         #[cfg(windows)]
         datn_windows_uia::enable_per_monitor_v2();
 
@@ -91,12 +97,24 @@ impl RecordEngine {
         }
         self.stop_requested.store(false, Ordering::SeqCst);
         self.hotkey_stop.store(false, Ordering::SeqCst);
+        #[cfg(windows)]
+        if show_highlight {
+            datn_windows_uia::highlight_worker_start();
+        }
         *guard = Some(ActiveRecorder {
             state: RecorderState::new(capture_uia),
             draft_name: name,
             capture_uia,
+            show_highlight,
         });
         Ok(())
+    }
+
+    fn stop_highlight(rec: &ActiveRecorder) {
+        #[cfg(windows)]
+        if rec.show_highlight {
+            datn_windows_uia::highlight_worker_stop();
+        }
     }
 
     pub fn stop_and_save(&self) -> Result<SavedRecording, String> {
@@ -105,6 +123,7 @@ impl RecordEngine {
         let Some(mut rec) = guard.take() else {
             return Err("Không có phiên ghi đang chạy.".into());
         };
+        Self::stop_highlight(&rec);
         let steps = rec.state.flush_and_take_steps();
         if steps.is_empty() {
             return Err("Không có bước nào được ghi.".into());
@@ -115,7 +134,9 @@ impl RecordEngine {
     pub fn cancel(&self) {
         self.stop_requested.store(true, Ordering::SeqCst);
         if let Ok(mut guard) = self.active.lock() {
-            *guard = None;
+            if let Some(rec) = guard.take() {
+                Self::stop_highlight(&rec);
+            }
         }
     }
 

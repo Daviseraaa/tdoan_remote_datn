@@ -29,7 +29,8 @@ impl TelemetrySampler {
         Self {
             sys,
             cached_ip: String::new(),
-            ip_refresh_at: Instant::now() - Duration::from_secs(3600),
+            // Lần đầu `refresh_ip_if_needed` luôn chạy vì `cached_ip` rỗng (không trừ Duration khỏi Instant — gây panic).
+            ip_refresh_at: Instant::now(),
         }
     }
 
@@ -148,5 +149,15 @@ fn resolve_local_outbound_ip() -> Option<String> {
     match socket.local_addr().ok()?.ip() {
         std::net::IpAddr::V4(v4) => Some(v4.to_string()),
         std::net::IpAddr::V6(v6) => Some(v6.to_string()),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::TelemetrySampler;
+
+    #[test]
+    fn new_sampler_does_not_panic() {
+        let _ = TelemetrySampler::new();
     }
 }

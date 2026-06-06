@@ -64,6 +64,8 @@ struct RecorderApp {
     new_name: String,
     /// Ghi metadata UIA (Button, Edit, …) vào bước click.
     capture_uia: bool,
+    /// Viền cyan quanh control có thể bấm khi đang ghi.
+    show_highlight: bool,
     filter: String,
     status: String,
     status_ok: bool,
@@ -80,6 +82,7 @@ impl RecorderApp {
             recordings,
             new_name: String::new(),
             capture_uia: true,
+            show_highlight: true,
             filter: String::new(),
             status: "Sẵn sàng.".into(),
             status_ok: true,
@@ -134,7 +137,7 @@ impl RecorderApp {
     }
 
     fn start_recording(&mut self, ctx: &egui::Context) {
-        match engine().start(self.new_name.clone(), self.capture_uia) {
+        match engine().start(self.new_name.clone(), self.capture_uia, self.show_highlight) {
             Ok(()) => {
                 self.busy = BusyMode::Recording;
                 self.set_status("Đang ghi — nhấn F12 để dừng và lưu.", true);
@@ -396,6 +399,10 @@ impl eframe::App for RecorderApp {
                                 ui.checkbox(
                                     &mut self.capture_uia,
                                     "Bắt UIA khi click (Button, TextBox, Menu…)",
+                                );
+                                ui.checkbox(
+                                    &mut self.show_highlight,
+                                    "Hiện viền phần tử có thể bấm khi ghi",
                                 );
                                 ui.add_space(8.0);
                                 if ui
