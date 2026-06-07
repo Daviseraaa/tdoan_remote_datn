@@ -112,7 +112,7 @@ export default function ChromeScriptEditor() {
     }
     try {
       const wf = await createWorkflow.mutateAsync(dto);
-      navigate(`/workflows?fullscreen=1&workflowId=${wf.id}`);
+      navigate(`/workflows/${wf.id}/edit`);
     } catch (e) {
       setMsg(apiErrorMessage(e));
     }

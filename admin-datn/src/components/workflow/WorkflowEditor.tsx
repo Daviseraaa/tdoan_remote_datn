@@ -20,12 +20,11 @@ import {
   PlayCircle,
   Save,
   Loader2,
-  Maximize2,
-  Minimize2,
   AlertTriangle,
   PanelLeftOpen,
   Trash2,
   X,
+  ArrowLeft,
 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { useMediaQuery } from '@/src/hooks/useMediaQuery';
@@ -92,7 +91,7 @@ import type {
   TaskType,
   Workflow,
 } from '@/src/types/api';
-import type { WorkflowSavePayload } from '@/src/hooks/useWorkflowPage';
+import type { WorkflowSavePayload } from '@/src/hooks/useWorkflowEditor';
 
 type Props = {
   workflow: Workflow;
@@ -120,10 +119,10 @@ type Props = {
   runStatusByStepId: Record<string, WfRunStatus>;
   graphReloadToken: number;
   onOpenWorkflowList?: () => void;
+  onBack?: () => void;
   onEditorPaneClick?: () => void;
   onDeleteWorkflow?: () => void;
   isFullscreen?: boolean;
-  onToggleFullscreen?: () => void;
 };
 
 const EDGE_STYLE = { stroke: 'rgba(164, 230, 255, 0.65)', strokeWidth: 2 };
@@ -156,10 +155,10 @@ export function WorkflowEditor({
   runStatusByStepId,
   graphReloadToken,
   onOpenWorkflowList,
+  onBack,
   onEditorPaneClick,
   onDeleteWorkflow,
   isFullscreen = false,
-  onToggleFullscreen,
 }: Props) {
   const isLgUp = useMediaQuery('(min-width: 1024px)');
   const [propertiesOpen, setPropertiesOpen] = useState(false);
@@ -815,69 +814,58 @@ export function WorkflowEditor({
   return (
     <div className="w-full min-h-[70dvh] lg:h-full lg:min-h-0 flex flex-col overflow-hidden bg-surface-container-lowest">
       <header className="shrink-0 border-b border-white/5 bg-surface-container-low/30">
-        {!isFullscreen ? (
-          <div className="px-3 py-2 flex flex-wrap items-center gap-2">
-            <div className="w-full sm:flex-1 sm:min-w-0 min-w-0">
-              <input
-                value={workflow.name}
-                onChange={(e) => onMetaChange({ name: e.target.value })}
-                className="w-full text-base font-bold bg-transparent focus:outline-none placeholder:text-on-surface-variant/40"
-                placeholder={t('workflows.untitled')}
-              />
-              <input
-                value={workflow.description ?? ''}
-                onChange={(e) => onMetaChange({ description: e.target.value })}
-                className="w-full text-xs text-on-surface-variant mt-0.5 bg-transparent focus:outline-none"
-                placeholder={t('workflows.descriptionPlaceholder')}
-              />
-            </div>
-
-            {isDirty ? (
-              <span className="flex items-center gap-1.5 text-[10px] font-bold text-amber-400/90 px-2 py-1 rounded-lg bg-amber-400/10 border border-amber-400/20">
-                <AlertTriangle size={12} />
-                {t('workflows.unsavedChanges')}
-              </span>
-            ) : null}
-
-            {detailLoading ? (
-              <span className="text-[10px] font-mono text-primary flex items-center gap-1">
-                <Loader2 size={12} className="animate-spin" />
-                {t('workflows.loadingDetail')}
-              </span>
-            ) : null}
-
-            {error ? (
-              <span className="text-[10px] text-error max-w-[200px] truncate" title={error}>
-                {error}
-              </span>
-            ) : null}
+        <div className="px-3 py-2 flex flex-wrap items-center gap-2 border-b border-white/5">
+          <div className="w-full sm:flex-1 sm:min-w-[12rem] min-w-0 order-2 sm:order-1">
+            <input
+              value={workflow.name}
+              onChange={(e) => onMetaChange({ name: e.target.value })}
+              className="w-full text-base font-bold bg-transparent focus:outline-none placeholder:text-on-surface-variant/40"
+              placeholder={t('workflows.untitled')}
+            />
+            <input
+              value={workflow.description ?? ''}
+              onChange={(e) => onMetaChange({ description: e.target.value })}
+              className="w-full text-xs text-on-surface-variant mt-0.5 bg-transparent focus:outline-none"
+              placeholder={t('workflows.descriptionPlaceholder')}
+            />
           </div>
-        ) : null}
 
-        <div
-          className={cn(
-            'px-3 flex flex-wrap items-center gap-2',
-            isFullscreen ? 'py-2' : 'pb-2',
-          )}
-        >
-          {isFullscreen && isDirty ? (
-            <span className="flex items-center gap-1.5 text-[10px] font-bold text-amber-400/90 px-2 py-1 rounded-lg bg-amber-400/10 border border-amber-400/20">
+          {isDirty ? (
+            <span className="flex items-center gap-1.5 text-[10px] font-bold text-amber-400/90 px-2 py-1 rounded-lg bg-amber-400/10 border border-amber-400/20 order-1 sm:order-2 shrink-0">
               <AlertTriangle size={12} />
               {t('workflows.unsavedChanges')}
             </span>
           ) : null}
-          {isFullscreen && detailLoading ? (
-            <span className="text-[10px] font-mono text-primary flex items-center gap-1">
+
+          {detailLoading ? (
+            <span className="text-[10px] font-mono text-primary flex items-center gap-1 order-1 sm:order-3 shrink-0">
               <Loader2 size={12} className="animate-spin" />
               {t('workflows.loadingDetail')}
             </span>
           ) : null}
-          {isFullscreen && error ? (
-            <span className="text-[10px] text-error max-w-[200px] truncate" title={error}>
+
+          {error ? (
+            <span
+              className="text-[10px] text-error max-w-[200px] truncate order-1 sm:order-4 shrink-0"
+              title={error}
+            >
               {error}
             </span>
           ) : null}
-          {onOpenWorkflowList ? (
+        </div>
+
+        <div className="px-3 py-2 flex flex-wrap items-center gap-2">
+          {onBack ? (
+            <button
+              type="button"
+              onClick={onBack}
+              className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold border border-white/10 hover:bg-white/5 shrink-0"
+              title={t('workflows.backToList')}
+            >
+              <ArrowLeft size={14} />
+              <span className="truncate max-w-[8rem] sm:max-w-none">{t('workflows.backToList')}</span>
+            </button>
+          ) : onOpenWorkflowList ? (
             <button
               type="button"
               onClick={onOpenWorkflowList}
@@ -943,19 +931,6 @@ export function WorkflowEditor({
                   ? t('workflows.deleteNodes', { count: String(multiSelectCount) })
                   : t('workflows.deleteNode')}
               </span>
-            </button>
-          ) : null}
-
-          {onToggleFullscreen ? (
-            <button
-              type="button"
-              onClick={onToggleFullscreen}
-              className="p-2 rounded-xl border border-white/10 hover:bg-white/5"
-              title={
-                isFullscreen ? t('workflows.exitFullscreen') : t('workflows.enterFullscreen')
-              }
-            >
-              {isFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
             </button>
           ) : null}
 

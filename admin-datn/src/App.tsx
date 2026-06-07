@@ -13,6 +13,7 @@ import { WsProvider } from './context/WsProvider';
 import Dashboard from './views/Dashboard';
 import Agents from './views/Agents';
 import Workflows from './views/Workflows';
+import WorkflowEditorPage from './views/WorkflowEditorPage';
 import Automations from './views/Automations';
 import Tasks from './views/Tasks';
 import ChromeScripts from './views/ChromeScripts';
@@ -29,18 +30,16 @@ import Login from './views/Login';
 function AppContent() {
   const location = useLocation();
   const isNOC = location.pathname === '/noc';
-  const isWorkflows = location.pathname === '/workflows';
+  const isWorkflowEditor = /^\/workflows\/[^/]+\/edit$/.test(location.pathname);
   const isTaskTemplateEditor = /^\/tasks\/templates\//.test(location.pathname);
   const isChromeScriptEditor = /^\/chrome-scripts\/[^/]+\/edit$/.test(location.pathname);
   const isDesktopRecordingEditor = /^\/desktop-recordings\/[^/]+\/edit$/.test(
     location.pathname,
   );
-  const isWorkflowFullscreen =
-    isWorkflows && new URLSearchParams(location.search).get('fullscreen') === '1';
   const isImmersiveEditor =
-    isWorkflowFullscreen || isChromeScriptEditor || isDesktopRecordingEditor;
+    isWorkflowEditor || isChromeScriptEditor || isDesktopRecordingEditor;
   const isFullHeightPage =
-    isWorkflows || isTaskTemplateEditor || isChromeScriptEditor || isDesktopRecordingEditor;
+    isWorkflowEditor || isTaskTemplateEditor || isChromeScriptEditor || isDesktopRecordingEditor;
 
   const isLgUp = useMediaQuery('(min-width: 1024px)');
   /** Chỉ khóa viewport trên desktop — mobile dùng scroll document (tránh flex co về 0 / trang trắng) */
@@ -49,10 +48,34 @@ function AppContent() {
   const useDocumentScroll = !isLgUp;
   const isMobileRecordingEditor =
     !isLgUp && (isChromeScriptEditor || isDesktopRecordingEditor);
+  const isMobileWorkflowEditor = !isLgUp && isWorkflowEditor;
   const isMobileTaskTemplateEditor = !isLgUp && isTaskTemplateEditor;
 
   if (isNOC) {
     return <NOC />;
+  }
+
+  if (isMobileWorkflowEditor) {
+    return (
+      <NavLayoutProvider>
+        <div className="fixed inset-0 z-30 flex flex-col bg-surface overflow-hidden pb-[env(safe-area-inset-bottom,0px)]">
+          <div className="flex-1 min-h-0 h-full w-full">
+            <Routes location={location}>
+              <Route
+                path="/workflows/:id/edit"
+                element={
+                  <EditorErrorBoundary>
+                    <div className="h-full min-h-0">
+                      <WorkflowEditorPage />
+                    </div>
+                  </EditorErrorBoundary>
+                }
+              />
+            </Routes>
+          </div>
+        </div>
+      </NavLayoutProvider>
+    );
   }
 
   if (isMobileTaskTemplateEditor) {
@@ -148,10 +171,8 @@ function AppContent() {
               lockViewport
                 ? isImmersiveEditor
                   ? 'h-full overflow-hidden'
-                  : isWorkflows
-                    ? 'overflow-hidden px-0 py-0 lg:px-0 lg:pb-0'
-                    : 'overflow-hidden px-4 py-4 lg:px-8 lg:pb-4'
-                : isImmersiveEditor || isWorkflows
+                  : 'overflow-hidden px-4 py-4 lg:px-8 lg:pb-4'
+                : isImmersiveEditor
                   ? 'px-0 py-0'
                   : 'px-4 py-4 lg:px-8 lg:pb-8',
               'lg:flex lg:flex-col lg:flex-1 lg:min-h-0 lg:overflow-y-auto lg:custom-scrollbar',
@@ -162,10 +183,10 @@ function AppContent() {
             <motion.div
               key={location.pathname}
               initial={
-                useDocumentScroll ? false : { opacity: 0, y: isWorkflows ? 0 : 10 }
+                useDocumentScroll ? false : { opacity: 0, y: isImmersiveEditor ? 0 : 10 }
               }
               animate={{ opacity: 1, y: 0 }}
-              exit={useDocumentScroll ? undefined : { opacity: 0, y: isWorkflows ? 0 : -10 }}
+              exit={useDocumentScroll ? undefined : { opacity: 0, y: isImmersiveEditor ? 0 : -10 }}
               transition={{ duration: useDocumentScroll ? 0 : 0.3, ease: 'easeOut' }}
               className={cn(
                 'w-full',
@@ -206,6 +227,14 @@ function AppContent() {
                 <Route path="/tasks/templates/new" element={<TaskTemplateEditor />} />
                 <Route path="/tasks/templates/:id/edit" element={<TaskTemplateEditor />} />
                 <Route path="/workflows" element={<Workflows />} />
+                <Route
+                  path="/workflows/:id/edit"
+                  element={
+                    <EditorErrorBoundary>
+                      <WorkflowEditorPage />
+                    </EditorErrorBoundary>
+                  }
+                />
                 <Route path="/automations" element={<Automations />} />
                 <Route path="/docs" element={<Documentation />} />
                 <Route

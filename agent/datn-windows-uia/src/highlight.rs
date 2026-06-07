@@ -26,8 +26,8 @@ const ACCENT_BGR: u32 = 0x00_F8_BD_38; // #38bdf8
 
 static REGISTERED: AtomicBool = AtomicBool::new(false);
 static OVERLAY: Mutex<Option<BorderOverlay>> = Mutex::new(None);
-static WORKER_STOP: AtomicBool = AtomicBool::new(false);
-static WORKER_RUNNING: AtomicBool = AtomicBool::new(false);
+static WORKER_STARTED: AtomicBool = AtomicBool::new(false);
+static HIGHLIGHT_ACTIVE: AtomicBool = AtomicBool::new(false);
 
 struct BorderOverlay {
     bars: [isize; 4],
@@ -44,26 +44,28 @@ fn hwnd_to_raw(hwnd: HWND) -> isize {
     hwnd.0 as isize
 }
 
-/// Bật thread cập nhật viền theo con trỏ (~15 fps).
+/// Bật thread cập nhật viền theo con trỏ (~15 fps). Thread sống lâu — bật/tắt bằng `HIGHLIGHT_ACTIVE`.
 pub fn highlight_worker_start() {
-    if WORKER_RUNNING.swap(true, Ordering::SeqCst) {
+    HIGHLIGHT_ACTIVE.store(true, Ordering::SeqCst);
+    if WORKER_STARTED.swap(true, Ordering::SeqCst) {
         return;
     }
-    WORKER_STOP.store(false, Ordering::SeqCst);
     thread::spawn(|| {
-        while !WORKER_STOP.load(Ordering::SeqCst) {
-            if let Some((x, y)) = physical_cursor_point() {
-                let _ = highlight_at_point(x, y, true);
+        loop {
+            if HIGHLIGHT_ACTIVE.load(Ordering::SeqCst) {
+                if let Some((x, y)) = physical_cursor_point() {
+                    let _ = highlight_at_point(x, y, true);
+                }
+            } else {
+                highlight_clear();
             }
             thread::sleep(Duration::from_millis(66));
         }
-        highlight_clear();
-        WORKER_RUNNING.store(false, Ordering::SeqCst);
     });
 }
 
 pub fn highlight_worker_stop() {
-    WORKER_STOP.store(true, Ordering::SeqCst);
+    HIGHLIGHT_ACTIVE.store(false, Ordering::SeqCst);
     highlight_clear();
 }
 

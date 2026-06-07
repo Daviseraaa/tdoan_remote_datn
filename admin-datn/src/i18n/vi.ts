@@ -409,6 +409,7 @@ export const vi = {
   },
   workflows: {
     title: 'Workflow',
+    subtitle: 'Thiết kế và quản lý luồng tự động hóa trên agent.',
     filterPlaceholder: 'Lọc workflow…',
     filterFlows: 'Lọc luồng…',
     untitled: 'Workflow chưa đặt tên',
@@ -602,6 +603,12 @@ export const vi = {
     graphLegacyConverted:
       'Đã chuyển graph cũ sang định dạng mới — bấm Lưu để ghi v2.',
     isActive: 'Kích hoạt workflow',
+    inactive: 'Tắt',
+    stepCount: '{n} bước',
+    count: '{n} workflow',
+    updatedAt: 'Cập nhật {at}',
+    backToList: 'Danh sách workflow',
+    notFound: 'Không tìm thấy workflow.',
     emptyList: 'Không có workflow.',
     noSearchResults: 'Không khớp tìm kiếm.',
     emptyTitle: 'Chưa có workflow',

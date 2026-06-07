@@ -1,0 +1,10 @@
+C:\Users\trant\Documents\server_datn\agent\desktop-recorder\target\debug\deps\egui_phosphor-0802edadba119e12.d: C:\Users\trant\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\egui-phosphor-0.7.3\src\lib.rs C:\Users\trant\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\egui-phosphor-0.7.3\src\variants\mod.rs C:\Users\trant\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\egui-phosphor-0.7.3\src\variants\regular.rs C:\Users\trant\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\egui-phosphor-0.7.3\src\variants\../../res/Phosphor.ttf
+
+C:\Users\trant\Documents\server_datn\agent\desktop-recorder\target\debug\deps\libegui_phosphor-0802edadba119e12.rlib: C:\Users\trant\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\egui-phosphor-0.7.3\src\lib.rs C:\Users\trant\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\egui-phosphor-0.7.3\src\variants\mod.rs C:\Users\trant\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\egui-phosphor-0.7.3\src\variants\regular.rs C:\Users\trant\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\egui-phosphor-0.7.3\src\variants\../../res/Phosphor.ttf
+
+C:\Users\trant\Documents\server_datn\agent\desktop-recorder\target\debug\deps\libegui_phosphor-0802edadba119e12.rmeta: C:\Users\trant\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\egui-phosphor-0.7.3\src\lib.rs C:\Users\trant\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\egui-phosphor-0.7.3\src\variants\mod.rs C:\Users\trant\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\egui-phosphor-0.7.3\src\variants\regular.rs C:\Users\trant\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\egui-phosphor-0.7.3\src\variants\../../res/Phosphor.ttf
+
+C:\Users\trant\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\egui-phosphor-0.7.3\src\lib.rs:
+C:\Users\trant\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\egui-phosphor-0.7.3\src\variants\mod.rs:
+C:\Users\trant\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\egui-phosphor-0.7.3\src\variants\regular.rs:
+C:\Users\trant\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\egui-phosphor-0.7.3\src\variants\../../res/Phosphor.ttf:
