@@ -21,7 +21,7 @@ export function OpenAppTemplateForm({ state, onChange }: Props) {
 
   return (
     <div className="space-y-6">
-      <div className="glass-card rounded-2xl p-6 border border-white/5">
+      <div className="rounded-2xl p-6 border border-white/10 bg-transparent">
         <div className="flex items-center gap-3 mb-4">
           <AppWindow className="text-primary" size={22} />
           <h3 className="font-bold text-on-surface">{t('taskType.OPEN_APP')}</h3>

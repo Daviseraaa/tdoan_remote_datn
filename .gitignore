@@ -35,9 +35,12 @@ __pycache__/
 venv/
 .venv/
 
-# Agent artifacts (build:core → bin/; dist:desktop → desktop/release/)
+# Agent / Rust build artifacts
 agent/bin/
+agent/**/target/
 agent/desktop/release/
 agent/desktop/dist/
-agent/core/target/
-agent/chrome-bridge/target/
+
+# Frontend build
+admin-datn/dist/
+admin-datn/dist-ssr/

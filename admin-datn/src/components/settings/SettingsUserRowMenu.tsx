@@ -1,11 +1,11 @@
-import { useRef, useEffect } from 'react';
 import {
-  MoreVertical,
   Pencil,
   Trash2,
   UserX,
   UserCheck,
+  CalendarPlus,
 } from 'lucide-react';
+import { cn } from '@/src/lib/utils';
 import { t } from '@/src/i18n/t';
 
 export type SettingsUserRow = {
@@ -16,77 +16,75 @@ export type SettingsUserRow = {
   status: 'Active' | 'Disabled';
   lastSession: string;
   avatar: string;
+  subscriptionLabel?: string;
+  subscriptionStatus?: string;
+  subscriptionPlan?: string;
+  subscriptionExpires?: string;
 };
 
 type Props = {
   user: SettingsUserRow;
-  open: boolean;
-  onToggle: () => void;
-  onClose: () => void;
   onEdit: () => void;
   onToggleActive: () => void;
   onDelete: () => void;
+  onExtendSubscription?: () => void;
+  className?: string;
 };
+
+const iconBtn =
+  'p-2 rounded-lg transition-colors text-on-surface-variant hover:text-on-surface hover:bg-white/5 disabled:opacity-40';
 
 export function SettingsUserRowMenu({
   user,
-  open,
-  onToggle,
-  onClose,
   onEdit,
   onToggleActive,
   onDelete,
+  onExtendSubscription,
+  className,
 }: Props) {
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const onDocClick = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        onClose();
-      }
-    };
-    document.addEventListener('mousedown', onDocClick);
-    return () => document.removeEventListener('mousedown', onDocClick);
-  }, [open, onClose]);
-
   return (
-    <div className="relative shrink-0" ref={open ? menuRef : undefined}>
+    <div className={cn('flex items-center justify-end gap-0.5 shrink-0', className)}>
       <button
         type="button"
-        onClick={onToggle}
-        className="p-2 hover:bg-white/5 rounded-xl transition-all text-on-surface-variant hover:text-primary"
-        aria-expanded={open}
-        aria-haspopup="menu"
+        onClick={onEdit}
+        className={cn(iconBtn, 'hover:text-primary')}
+        title={t('common.edit')}
+        aria-label={t('common.edit')}
       >
-        <MoreVertical size={20} />
+        <Pencil size={16} />
       </button>
-      {open ? (
-        <div className="absolute right-0 top-full mt-1 z-30 min-w-[11rem] glass-card rounded-xl border border-white/10 py-1 shadow-2xl">
-          <button
-            type="button"
-            onClick={onEdit}
-            className="w-full px-4 py-2.5 text-left text-xs font-bold flex items-center gap-2 hover:bg-white/5"
-          >
-            <Pencil size={14} /> {t('common.edit')}
-          </button>
-          <button
-            type="button"
-            onClick={onToggleActive}
-            className="w-full px-4 py-2.5 text-left text-xs font-bold flex items-center gap-2 hover:bg-white/5"
-          >
-            {user.status === 'Active' ? <UserX size={14} /> : <UserCheck size={14} />}
-            {user.status === 'Active' ? t('settings.deactivate') : t('settings.activate')}
-          </button>
-          <button
-            type="button"
-            onClick={onDelete}
-            className="w-full px-4 py-2.5 text-left text-xs font-bold flex items-center gap-2 hover:bg-error/10 text-error"
-          >
-            <Trash2 size={14} /> {t('common.delete')}
-          </button>
-        </div>
+      {onExtendSubscription ? (
+        <button
+          type="button"
+          onClick={onExtendSubscription}
+          className={cn(iconBtn, 'hover:text-primary')}
+          title={t('settings.extendSubscription')}
+          aria-label={t('settings.extendSubscription')}
+        >
+          <CalendarPlus size={16} />
+        </button>
       ) : null}
+      <button
+        type="button"
+        onClick={onToggleActive}
+        className={cn(
+          iconBtn,
+          user.status === 'Active' ? 'hover:text-amber-400' : 'hover:text-tertiary',
+        )}
+        title={user.status === 'Active' ? t('settings.deactivate') : t('settings.activate')}
+        aria-label={user.status === 'Active' ? t('settings.deactivate') : t('settings.activate')}
+      >
+        {user.status === 'Active' ? <UserX size={16} /> : <UserCheck size={16} />}
+      </button>
+      <button
+        type="button"
+        onClick={onDelete}
+        className={cn(iconBtn, 'hover:text-error hover:bg-error/10')}
+        title={t('common.delete')}
+        aria-label={t('common.delete')}
+      >
+        <Trash2 size={16} />
+      </button>
     </div>
   );
 }

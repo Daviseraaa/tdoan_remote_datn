@@ -17,6 +17,7 @@ import { OpenAppTemplateForm } from '@/src/components/taskTemplate/OpenAppTempla
 import { DesktopAutomationBuilder } from '@/src/components/taskTemplate/DesktopAutomationBuilder';
 import { ChromeExtensionBuilder } from '@/src/components/taskTemplate/ChromeExtensionBuilder';
 import { ScreenCaptureTemplateForm } from '@/src/components/taskTemplate/ScreenCaptureTemplateForm';
+import { HttpRequestTemplateForm } from '@/src/components/taskTemplate/HttpRequestTemplateForm';
 import { TaskTemplateWizardShell } from '@/src/components/taskTemplate/wizard/TaskTemplateWizardShell';
 import { TaskTemplateWizardFooter } from '@/src/components/taskTemplate/wizard/TaskTemplateWizardFooter';
 import { TaskTemplateFilterRow } from '@/src/components/taskTemplate/wizard/TaskTemplateFilterRow';
@@ -389,7 +390,12 @@ export default function TaskTemplateEditor() {
         ) : null}
 
         {step === 'config' ? (
-          <div className="flex-1 min-h-0 flex flex-col">
+          <div
+            className={cn(
+              'flex-1 min-h-0 flex flex-col',
+              !isFlowConfig && 'overflow-y-auto custom-scrollbar lg:pr-1',
+            )}
+          >
             {form.type === 'CHROME_EXTENSION' || form.type === 'DESKTOP_AUTOMATION' ? (
               form.type === 'CHROME_EXTENSION' ? (
                 <ChromeExtensionBuilder state={form} onChange={patch} compact={isCompact} />
@@ -397,7 +403,13 @@ export default function TaskTemplateEditor() {
                 <DesktopAutomationBuilder state={form} onChange={patch} compact={isCompact} />
               )
             ) : (
-              <div className="rounded-xl border border-white/5 bg-surface-container-low/40 p-4 sm:p-5">
+              <div
+                className={cn(
+                  form.type === 'HTTP_REQUEST'
+                    ? 'bg-transparent'
+                    : 'rounded-xl border border-white/5 bg-surface-container-low/40 p-4 sm:p-5',
+                )}
+              >
                 {form.type === 'COMMAND' ? (
                   <CommandTemplateForm state={form} onChange={patch} />
                 ) : form.type === 'SCRIPT' ? (
@@ -410,6 +422,8 @@ export default function TaskTemplateEditor() {
                   <CommandTemplateForm state={form} onChange={patch} />
                 ) : form.type === 'SCREEN_CAPTURE' ? (
                   <ScreenCaptureTemplateForm form={form} patch={patch} />
+                ) : form.type === 'HTTP_REQUEST' ? (
+                  <HttpRequestTemplateForm state={form} onChange={patch} />
                 ) : null}
               </div>
             )}

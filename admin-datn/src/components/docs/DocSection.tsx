@@ -19,10 +19,10 @@ export function DocSection({ id, title, subtitle, icon: Icon, children, classNam
             <Icon size={20} className="text-primary" />
           </div>
         ) : null}
-        <div className="min-w-0">
+        <div className="flex-1 min-w-0">
           <h2 className="text-xl font-bold text-on-surface tracking-tight">{title}</h2>
           {subtitle ? (
-            <p className="text-sm text-on-surface-variant mt-1 max-w-3xl">{subtitle}</p>
+            <p className="prose-description text-sm text-on-surface-variant mt-1">{subtitle}</p>
           ) : null}
         </div>
       </div>

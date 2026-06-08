@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   UserPlus,
   ChevronRight,
@@ -17,6 +18,7 @@ import { useUsersList, useUserMutations } from '@/src/hooks/useUsers';
 import { mapUserToTableRow } from '@/src/lib/mappers';
 import { apiErrorMessage } from '@/src/lib/api';
 import { t } from '@/src/i18n/t';
+import * as billingApi from '@/src/api/billing';
 
 const PAGE_LIMIT = 20;
 
@@ -66,37 +68,20 @@ function UserIdentity({ user }: { user: SettingsUserRow }) {
 type UserListProps = {
   users: SettingsUserRow[];
   isLoading: boolean;
-  menuUserId: string | null;
-  setMenuUserId: (id: string | null) => void;
   onEdit: (user: SettingsUserRow) => void;
   onToggleActive: (id: string) => void;
   onDelete: (id: string) => void;
+  onExtendSubscription: (user: SettingsUserRow) => void;
 };
 
 function SettingsUserList({
   users,
   isLoading,
-  menuUserId,
-  setMenuUserId,
   onEdit,
   onToggleActive,
   onDelete,
+  onExtendSubscription,
 }: UserListProps) {
-  const openMenu = (user: SettingsUserRow) => ({
-    open: menuUserId === user.id,
-    onToggle: () => setMenuUserId(menuUserId === user.id ? null : user.id),
-    onClose: () => setMenuUserId(null),
-    onEdit: () => {
-      setMenuUserId(null);
-      onEdit(user);
-    },
-    onToggleActive: () => void onToggleActive(user.id),
-    onDelete: () => {
-      setMenuUserId(null);
-      onDelete(user.id);
-    },
-  });
-
   return (
     <>
       <ul className="lg:hidden divide-y divide-white/5">
@@ -112,12 +97,7 @@ function SettingsUserList({
                 user.status === 'Disabled' && 'opacity-50 grayscale',
               )}
             >
-              <div className="flex items-start gap-2">
-                <div className="min-w-0 flex-1">
-                  <UserIdentity user={user} />
-                </div>
-                <SettingsUserRowMenu user={user} {...openMenu(user)} />
-              </div>
+              <UserIdentity user={user} />
               <div className="flex flex-wrap items-center gap-2 pl-[52px]">
                 <RoleBadge role={user.role} />
                 <span
@@ -129,6 +109,17 @@ function SettingsUserList({
                   {user.status === 'Active' ? t('common.active') : t('common.disabled')}
                 </span>
               </div>
+              <SettingsUserRowMenu
+                user={user}
+                className="pl-[52px] justify-start"
+                onEdit={() => onEdit(user)}
+                onToggleActive={() => void onToggleActive(user.id)}
+                onDelete={() => onDelete(user.id)}
+                onExtendSubscription={() => onExtendSubscription(user)}
+              />
+              <p className="text-[11px] font-mono text-on-surface-variant opacity-80 pl-[52px]">
+                {t('settings.subscription')}: {user.subscriptionLabel}
+              </p>
               <p className="text-[11px] font-mono text-on-surface-variant opacity-80 pl-[52px]">
                 {t('settings.lastSession')}: {user.lastSession}
               </p>
@@ -136,7 +127,7 @@ function SettingsUserList({
           ))}
       </ul>
 
-      <div className="hidden lg:block overflow-x-auto">
+      <div className="hidden lg:block overflow-x-auto overflow-y-visible">
         <table className="w-full text-left">
           <thead>
             <tr className="bg-white/[0.01] border-b border-white/5">
@@ -150,15 +141,20 @@ function SettingsUserList({
                 {t('common.status')}
               </th>
               <th className="px-6 xl:px-8 py-4 text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-on-surface-variant opacity-60">
+                {t('settings.subscription')}
+              </th>
+              <th className="px-6 xl:px-8 py-4 text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-on-surface-variant opacity-60">
                 {t('settings.lastSession')}
               </th>
-              <th className="px-6 xl:px-8 py-4 text-right" />
+              <th className="px-6 xl:px-8 py-4 text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-on-surface-variant opacity-60 text-right">
+                {t('settings.actions')}
+              </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-white/5">
             {isLoading ? (
               <tr>
-                <td colSpan={5} className="px-8 py-8 text-on-surface-variant">
+                <td colSpan={6} className="px-8 py-8 text-on-surface-variant">
                   {t('settings.loadingUsers')}
                 </td>
               </tr>
@@ -188,10 +184,21 @@ function SettingsUserList({
                   </span>
                 </td>
                 <td className="px-6 xl:px-8 py-4 font-mono text-xs text-on-surface-variant opacity-80">
+                  <p className="font-bold text-on-surface">{user.subscriptionStatus}</p>
+                  <p className="mt-0.5">{user.subscriptionPlan}</p>
+                  <p className="mt-0.5 opacity-70">{user.subscriptionExpires}</p>
+                </td>
+                <td className="px-6 xl:px-8 py-4 font-mono text-xs text-on-surface-variant opacity-80">
                   {user.lastSession}
                 </td>
-                <td className="px-6 xl:px-8 py-4 text-right">
-                  <SettingsUserRowMenu user={user} {...openMenu(user)} />
+                <td className="px-6 xl:px-8 py-4">
+                  <SettingsUserRowMenu
+                    user={user}
+                    onEdit={() => onEdit(user)}
+                    onToggleActive={() => void onToggleActive(user.id)}
+                    onDelete={() => onDelete(user.id)}
+                    onExtendSubscription={() => onExtendSubscription(user)}
+                  />
                 </td>
               </tr>
             ))}
@@ -203,6 +210,7 @@ function SettingsUserList({
 }
 
 export default function Settings() {
+  const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
   const { data, isLoading } = useUsersList({ page, limit: PAGE_LIMIT });
   const { create, update, toggleActive, remove } = useUserMutations();
@@ -214,11 +222,15 @@ export default function Settings() {
     role: 'USER' as 'ADMIN' | 'USER',
   });
   const [error, setError] = useState('');
-  const [menuUserId, setMenuUserId] = useState<string | null>(null);
   const [editUser, setEditUser] = useState<{ id: string; name: string; role: 'ADMIN' | 'USER' } | null>(
     null,
   );
   const [deleteUserId, setDeleteUserId] = useState<string | null>(null);
+  const [extendUser, setExtendUser] = useState<{
+    id: string;
+    subscriptionExpiresAt?: string | null;
+  } | null>(null);
+  const [extendDays, setExtendDays] = useState(30);
 
   const users = (data?.items ?? []).map(mapUserToTableRow);
   const total = data?.meta.total ?? 0;
@@ -249,7 +261,6 @@ export default function Settings() {
   };
 
   const handleToggleActive = async (id: string) => {
-    setMenuUserId(null);
     setError('');
     try {
       await toggleActive.mutateAsync(id);
@@ -264,6 +275,29 @@ export default function Settings() {
     try {
       await remove.mutateAsync(deleteUserId);
       setDeleteUserId(null);
+    } catch (err) {
+      setError(apiErrorMessage(err));
+    }
+  };
+
+  const handleSaveExtend = async () => {
+    if (!extendUser) return;
+    setError('');
+    try {
+      const base = extendUser.subscriptionExpiresAt
+        ? new Date(extendUser.subscriptionExpiresAt)
+        : new Date();
+      if (Number.isNaN(base.getTime())) {
+        throw new Error(t('settings.invalidExpiry'));
+      }
+      const start = new Date(Math.max(base.getTime(), Date.now()));
+      start.setDate(start.getDate() + extendDays);
+      await billingApi.adminSetSubscription(extendUser.id, {
+        subscriptionExpiresAt: start.toISOString(),
+        subscriptionStatus: 'ACTIVE',
+      });
+      await queryClient.invalidateQueries({ queryKey: ['users'] });
+      setExtendUser(null);
     } catch (err) {
       setError(apiErrorMessage(err));
     }
@@ -296,7 +330,7 @@ export default function Settings() {
   return (
     <div className="pb-12 sm:pb-20 min-w-0 max-w-full space-y-6 sm:space-y-10">
       <header className="flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-end">
-        <div className="min-w-0">
+        <div className="flex-1 min-w-0">
           <nav className="flex flex-wrap items-center gap-1.5 sm:gap-2 mb-2 text-[10px] sm:text-xs font-bold uppercase tracking-widest text-on-surface-variant opacity-60">
             <span>{t('settings.title')}</span>
             <ChevronRight size={12} className="shrink-0" />
@@ -305,7 +339,7 @@ export default function Settings() {
           <h2 className="text-2xl sm:text-4xl font-bold tracking-tight text-on-surface">
             {t('settings.accessControl')}
           </h2>
-          <p className="text-on-surface-variant text-sm sm:text-body-md mt-1 italic">
+          <p className="prose-description text-on-surface-variant text-sm sm:text-body-md mt-1 italic">
             {t('settings.subtitle')}
           </p>
         </div>
@@ -319,11 +353,11 @@ export default function Settings() {
         </button>
       </header>
 
-      {error && !showInvite && !editUser && !deleteUserId ? (
+      {error && !showInvite && !editUser && !deleteUserId && !extendUser ? (
         <p className="text-error text-sm px-0.5 break-words">{error}</p>
       ) : null}
 
-      <div className="glass-panel rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl min-w-0">
+      <div className="glass-panel rounded-2xl sm:rounded-3xl shadow-2xl min-w-0">
         <div className="flex items-center justify-between px-4 sm:p-6 py-3 border-b border-white/5 bg-white/[0.02]">
           <div className="text-[10px] sm:text-[11px] font-mono text-on-surface-variant uppercase tracking-widest font-bold opacity-60">
             {t('settings.registeredUsers', { n: total })}
@@ -333,13 +367,19 @@ export default function Settings() {
         <SettingsUserList
           users={users}
           isLoading={isLoading}
-          menuUserId={menuUserId}
-          setMenuUserId={setMenuUserId}
           onEdit={(user) =>
             setEditUser({ id: user.id, name: user.name, role: user.role as 'ADMIN' | 'USER' })
           }
           onToggleActive={handleToggleActive}
           onDelete={setDeleteUserId}
+          onExtendSubscription={(user) => {
+            const raw = data?.items.find((u) => u.id === user.id);
+            setExtendUser({
+              id: user.id,
+              subscriptionExpiresAt: raw?.subscriptionExpiresAt,
+            });
+            setExtendDays(30);
+          }}
         />
 
         <Pagination
@@ -508,6 +548,45 @@ export default function Settings() {
                 className="flex-1 py-3 rounded-xl bg-error text-on-error font-bold text-sm"
               >
                 {t('common.delete')}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {extendUser ? (
+        <div className={MODAL_SHELL}>
+          <div className={MODAL_PANEL}>
+            <h3 className="text-lg sm:text-xl font-bold">{t('settings.extendSubscription')}</h3>
+            {error ? <p className="text-error text-sm break-words">{error}</p> : null}
+            <label className="block text-xs font-mono uppercase tracking-widest text-on-surface-variant">
+              {t('settings.extendDays')}
+            </label>
+            <input
+              type="number"
+              min={1}
+              max={3650}
+              className="w-full px-4 py-3 rounded-xl bg-surface-container-low border border-white/10 text-sm"
+              value={extendDays}
+              onChange={(e) => setExtendDays(Math.max(1, parseInt(e.target.value, 10) || 30))}
+            />
+            <div className="flex gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setExtendUser(null);
+                  setError('');
+                }}
+                className="flex-1 py-3 rounded-xl border border-white/10 text-sm font-bold"
+              >
+                {t('common.cancel')}
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleSaveExtend()}
+                className="flex-1 py-3 rounded-xl bg-primary text-on-primary font-bold text-sm"
+              >
+                {t('settings.saveSubscription')}
               </button>
             </div>
           </div>

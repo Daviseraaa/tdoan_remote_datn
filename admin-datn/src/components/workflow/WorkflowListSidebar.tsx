@@ -178,9 +178,11 @@ export function WorkflowListSidebar({
                 />
               </div>
               {wf.description ? (
-                <p className="text-[10px] text-on-surface-variant/70 line-clamp-2 mb-2">
-                  {wf.description}
-                </p>
+                <div className="line-clamp-box mb-2">
+                  <p className="line-clamp-text text-[10px] text-on-surface-variant/70 [-webkit-line-clamp:2] w-full">
+                    {wf.description}
+                  </p>
+                </div>
               ) : null}
               <div className="flex items-center justify-between text-[9px] font-mono text-on-surface-variant/50">
                 <span>{formatUpdated(wf)}</span>

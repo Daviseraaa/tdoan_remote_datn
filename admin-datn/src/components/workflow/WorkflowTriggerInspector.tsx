@@ -123,15 +123,6 @@ export function WorkflowTriggerInspector({
               className={inputCls}
             />
           </div>
-
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={draft.enabled}
-              onChange={(e) => onChange({ enabled: e.target.checked })}
-            />
-            {t('triggers.fieldEnabled')}
-          </label>
         </>
       ) : (
         <p className="text-xs text-on-surface-variant rounded-xl border border-dashed border-white/10 p-4">

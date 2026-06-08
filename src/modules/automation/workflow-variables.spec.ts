@@ -114,4 +114,24 @@ describe('workflow-variables', () => {
     expect(key).toBe('sys');
     expect(output.stdout).toBe('ok');
   });
+
+  it('resolves HTTP_REQUEST steps.data and nested json paths', () => {
+    const httpResult = JSON.stringify({
+      stdout: '{"success":true,"data":{"status":"ok"}}',
+      stderr: '',
+      statusCode: 200,
+      ok: true,
+      data: { success: true, data: { status: 'ok' } },
+    });
+    const { output } = buildStepOutput(
+      { id: 's1', order: 1 },
+      { outputKey: 'api' },
+      { exitCode: 0, failed: false, result: httpResult },
+    );
+    const scope = scopeFromContext({}, { api: output });
+    expect(resolveTemplateString('{{steps.api.data}}', scope)).toContain('"status":"ok"');
+    expect(resolveTemplateString('{{steps.api.data.data.status}}', scope)).toBe('ok');
+    expect(resolveTemplateString('{{steps.api.statusCode}}', scope)).toBe('200');
+    expect(resolveTemplateString('{{steps.api.ok}}', scope)).toBe('true');
+  });
 });

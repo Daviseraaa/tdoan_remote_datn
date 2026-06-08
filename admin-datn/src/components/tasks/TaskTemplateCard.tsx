@@ -59,12 +59,14 @@ export function TaskTemplateCard({
 
       <p className="text-[10px] font-mono text-on-surface-variant/80 mt-2">{agentLabel}</p>
 
-      <p
-        className="text-xs font-mono text-on-surface-variant mt-3 line-clamp-2 break-all flex-1"
-        title={commandPreview}
-      >
-        {commandPreview}
-      </p>
+      <div className="line-clamp-box flex-1 mt-3">
+        <p
+          className="line-clamp-text text-xs font-mono text-on-surface-variant [-webkit-line-clamp:2] break-all w-full"
+          title={commandPreview}
+        >
+          {commandPreview}
+        </p>
+      </div>
 
       <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-white/5">
         <button

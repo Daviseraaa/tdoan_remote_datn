@@ -7,8 +7,10 @@ import {
 import * as bcrypt from 'bcrypt';
 import {
   AgentStatus,
+  PaymentStatus,
   Prisma,
   Role,
+  SubscriptionStatus,
   TaskStatus,
   TaskType,
 } from '@prisma/client';
@@ -18,8 +20,12 @@ import {
   PaginationDto,
 } from '../../common/dto/pagination.dto';
 import { CreateUserDto, UpdateUserDto } from './dto/admin-user.dto';
+import { CreateAdminPlanDto, UpdateAdminPlanDto } from './dto/admin-plan.dto';
 import { QueryTasksDto } from './dto/query-tasks.dto';
+import { QueryWorkflowRunsDto } from './dto/query-workflow-runs.dto';
+import { QueryPaymentsDto } from './dto/query-payments.dto';
 import { AgentTelemetryStore } from '../agents/agent-telemetry.store';
+import { SubscriptionService } from '../billing/subscription.service';
 
 const USER_SELECT = {
   id: true,
@@ -27,8 +33,20 @@ const USER_SELECT = {
   name: true,
   role: true,
   isActive: true,
+  subscriptionStatus: true,
+  subscriptionExpiresAt: true,
   createdAt: true,
   updatedAt: true,
+  plan: {
+    select: {
+      id: true,
+      name: true,
+      priceVnd: true,
+      durationDays: true,
+      maxAgents: true,
+      description: true,
+    },
+  },
 } as const;
 
 @Injectable()
@@ -36,6 +54,7 @@ export class AdminService {
   constructor(
     private prisma: PrismaService,
     private telemetry: AgentTelemetryStore,
+    private subscription: SubscriptionService,
   ) {}
 
   async getStats() {
@@ -56,6 +75,10 @@ export class AdminService {
       totalWorkflows,
       activeWorkflows,
       taskTrendRaw,
+      subscriptionCounts,
+      workflowRunsByTrigger,
+      paymentTrendRaw,
+      recentWorkflowRuns,
     ] = await Promise.all([
       this.prisma.user.count(),
       this.prisma.user.count({ where: { role: Role.ADMIN } }),
@@ -77,6 +100,14 @@ export class AdminService {
       this.prisma.workflow.count(),
       this.prisma.workflow.count({ where: { isActive: true } }),
       this.buildTaskTrend(7),
+      this.buildSubscriptionCounts(),
+      this.buildWorkflowRunsByTrigger(),
+      this.buildPaymentTrend(7),
+      this.prisma.workflowRun.count({
+        where: {
+          startedAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+        },
+      }),
     ]);
 
     return {
@@ -97,7 +128,83 @@ export class AdminService {
       },
       workflows: { total: totalWorkflows, active: activeWorkflows },
       taskTrend: taskTrendRaw,
+      subscriptions: subscriptionCounts,
+      workflowRunsByTrigger,
+      paymentTrend: paymentTrendRaw,
+      workflowRunsLast24h: recentWorkflowRuns,
     };
+  }
+
+  private async buildSubscriptionCounts() {
+    const [trial, active, expired, cancelled] = await Promise.all([
+      this.prisma.user.count({
+        where: { role: Role.USER, subscriptionStatus: SubscriptionStatus.TRIAL },
+      }),
+      this.prisma.user.count({
+        where: { role: Role.USER, subscriptionStatus: SubscriptionStatus.ACTIVE },
+      }),
+      this.prisma.user.count({
+        where: { role: Role.USER, subscriptionStatus: SubscriptionStatus.EXPIRED },
+      }),
+      this.prisma.user.count({
+        where: { role: Role.USER, subscriptionStatus: SubscriptionStatus.CANCELLED },
+      }),
+    ]);
+    return { trial, active, expired, cancelled };
+  }
+
+  private async buildWorkflowRunsByTrigger() {
+    const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const rows = await this.prisma.workflowRun.groupBy({
+      by: ['triggerType'],
+      where: { startedAt: { gte: since } },
+      _count: { id: true },
+    });
+    const map: Record<string, number> = {
+      MANUAL: 0,
+      SCHEDULE: 0,
+      TELEGRAM: 0,
+      UNKNOWN: 0,
+    };
+    for (const row of rows) {
+      const key = row.triggerType ?? 'UNKNOWN';
+      map[key] = row._count.id;
+    }
+    return Object.entries(map).map(([triggerType, count]) => ({
+      triggerType,
+      count,
+    }));
+  }
+
+  private async buildPaymentTrend(days: number) {
+    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+    const payments = await this.prisma.payment.findMany({
+      where: {
+        status: PaymentStatus.PAID,
+        paidAt: { gte: since },
+      },
+      select: { paidAt: true, amountVnd: true },
+    });
+    const buckets = new Map<string, { count: number; amountVnd: number }>();
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const key = d.toISOString().slice(0, 10);
+      buckets.set(key, { count: 0, amountVnd: 0 });
+    }
+    for (const p of payments) {
+      if (!p.paidAt) continue;
+      const key = p.paidAt.toISOString().slice(0, 10);
+      const b = buckets.get(key);
+      if (!b) continue;
+      b.count += 1;
+      b.amountVnd += p.amountVnd;
+    }
+    return [...buckets.entries()].map(([date, v]) => ({
+      date,
+      count: v.count,
+      amountVnd: v.amountVnd,
+    }));
   }
 
   /** Bucket 5 phút trong `days` ngày — client lọc 1H / 24H / 7D, không gọi lại API. */
@@ -145,6 +252,99 @@ export class AdminService {
       });
   }
 
+  async listUsers(pagination: PaginationDto) {
+    const [data, total] = await Promise.all([
+      this.prisma.user.findMany({
+        orderBy: { createdAt: 'desc' },
+        skip: pagination.skip,
+        take: pagination.limit,
+        select: USER_SELECT,
+      }),
+      this.prisma.user.count(),
+    ]);
+    return new PaginatedResponseDto(data, total, pagination);
+  }
+
+  async listPlans() {
+    return this.prisma.subscriptionPlan.findMany({
+      orderBy: { priceVnd: 'asc' },
+    });
+  }
+
+  async createPlan(dto: CreateAdminPlanDto) {
+    return this.prisma.subscriptionPlan.create({
+      data: {
+        name: dto.name,
+        priceVnd: dto.priceVnd,
+        durationDays: dto.durationDays ?? 30,
+        maxAgents: dto.maxAgents ?? 3,
+        description: dto.description,
+        isActive: dto.isActive ?? true,
+        isTrial: false,
+      },
+    });
+  }
+
+  async updatePlan(id: string, dto: UpdateAdminPlanDto) {
+    const plan = await this.prisma.subscriptionPlan.findUnique({ where: { id } });
+    if (!plan) throw new NotFoundException('Plan not found');
+
+    if (plan.isTrial) {
+      if (dto.isActive === false) {
+        throw new BadRequestException('Không thể tắt gói trial hệ thống');
+      }
+      if (dto.priceVnd != null && dto.priceVnd !== 0) {
+        throw new BadRequestException('Gói trial phải miễn phí (priceVnd = 0)');
+      }
+    }
+
+    return this.prisma.subscriptionPlan.update({
+      where: { id },
+      data: dto,
+    });
+  }
+
+  async deletePlan(id: string) {
+    const plan = await this.prisma.subscriptionPlan.findUnique({ where: { id } });
+    if (!plan) throw new NotFoundException('Plan not found');
+
+    if (plan.isTrial) {
+      throw new BadRequestException('Không thể xóa gói trial hệ thống');
+    }
+
+    const paymentCount = await this.prisma.payment.count({ where: { planId: id } });
+    if (paymentCount > 0) {
+      throw new BadRequestException(
+        'Không thể xóa gói đã có giao dịch thanh toán. Hãy ngừng bán (tắt isActive) thay vì xóa.',
+      );
+    }
+
+    await this.prisma.subscriptionPlan.delete({ where: { id } });
+    return { message: 'Plan deleted', id };
+  }
+
+  async listWorkflowRuns(query: QueryWorkflowRunsDto) {
+    const where: Prisma.WorkflowRunWhereInput = {
+      ...(query.userId && { userId: query.userId }),
+      ...(query.status && { status: query.status }),
+      ...(query.triggerType && { triggerType: query.triggerType }),
+    };
+    const [data, total] = await Promise.all([
+      this.prisma.workflowRun.findMany({
+        where,
+        orderBy: { startedAt: 'desc' },
+        skip: query.skip,
+        take: query.limit,
+        include: {
+          user: { select: { id: true, email: true, name: true } },
+          workflow: { select: { id: true, name: true, isActive: true } },
+        },
+      }),
+      this.prisma.workflowRun.count({ where }),
+    ]);
+    return new PaginatedResponseDto(data, total, query);
+  }
+
   async createUser(dto: CreateUserDto) {
     const existing = await this.prisma.user.findUnique({
       where: { email: dto.email },
@@ -152,7 +352,7 @@ export class AdminService {
     if (existing) throw new ConflictException('Email already exists');
 
     const hashed = await bcrypt.hash(dto.password, 10);
-    return this.prisma.user.create({
+    const user = await this.prisma.user.create({
       data: {
         email: dto.email,
         name: dto.name,
@@ -161,6 +361,15 @@ export class AdminService {
       },
       select: USER_SELECT,
     });
+    if (user.role === Role.USER) {
+      await this.subscription.startTrial(user.id);
+      const refreshed = await this.prisma.user.findUnique({
+        where: { id: user.id },
+        select: USER_SELECT,
+      });
+      return refreshed ?? user;
+    }
+    return user;
   }
 
   async updateUser(id: string, dto: UpdateUserDto) {
@@ -188,6 +397,9 @@ export class AdminService {
         orderBy: { createdAt: 'desc' },
         skip: pagination.skip,
         take: pagination.limit,
+        include: {
+          user: { select: { id: true, email: true, name: true } },
+        },
       }),
       this.prisma.agent.count({ where }),
     ]);
@@ -294,6 +506,40 @@ export class AdminService {
     if (dto.type && !Object.values(TaskType).includes(dto.type)) {
       throw new BadRequestException('Invalid type');
     }
+  }
+
+  async listPayments(query: QueryPaymentsDto) {
+    const where: Prisma.PaymentWhereInput = {
+      ...(query.status && { status: query.status }),
+      ...(query.userId && { userId: query.userId }),
+    };
+    const [rows, total] = await Promise.all([
+      this.prisma.payment.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip: query.skip,
+        take: query.limit,
+        select: {
+          id: true,
+          amountVnd: true,
+          status: true,
+          orderCode: true,
+          paymentCode: true,
+          paidAt: true,
+          createdAt: true,
+          user: { select: { id: true, email: true, name: true } },
+          plan: {
+            select: { id: true, name: true, durationDays: true, priceVnd: true },
+          },
+        },
+      }),
+      this.prisma.payment.count({ where }),
+    ]);
+    const data = rows.map((row) => ({
+      ...row,
+      orderCode: row.orderCode.toString(),
+    }));
+    return new PaginatedResponseDto(data, total, query);
   }
 }
 

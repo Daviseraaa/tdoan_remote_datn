@@ -1,7 +1,7 @@
 import { Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
-import { Public } from '../../common/decorators/index';
+import { Public, SkipSubscription } from '../../common/decorators/index';
 import { CurrentUser, JwtPayload } from '../../common/decorators/current-user.decorator';
 import { AuthService } from './auth.service';
 import { RegisterDto, LoginDto, RefreshTokenDto } from './dto/index';
@@ -38,6 +38,7 @@ export class AuthController {
   }
 
   @Post('logout')
+  @SkipSubscription()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Logout and invalidate refresh token' })
   logout(

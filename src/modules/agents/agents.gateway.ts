@@ -20,6 +20,7 @@ import {
 } from '../../common/types/ws-protocol';
 import { AgentsService } from './agents.service';
 import { AgentTelemetryStore } from './agent-telemetry.store';
+import { SubscriptionService } from '../billing/subscription.service';
 import { ChromeScriptsService } from '../chrome-scripts/chrome-scripts.service';
 import { DesktopRecordingsService } from '../desktop-recordings/desktop-recordings.service';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -76,6 +77,7 @@ export class AgentsGateway
     private prisma: PrismaService,
     private chromeScriptsService: ChromeScriptsService,
     private desktopRecordingsService: DesktopRecordingsService,
+    private subscriptionService: SubscriptionService,
   ) {}
 
   async handleConnection(client: AgentSocket) {
@@ -93,6 +95,16 @@ export class AgentsGateway
 
       const agent = await this.prisma.agent.findUnique({
         where: { agentKey },
+        include: {
+          user: {
+            select: {
+              id: true,
+              role: true,
+              subscriptionStatus: true,
+              subscriptionExpiresAt: true,
+            },
+          },
+        },
       });
 
       if (!agent) {
@@ -101,7 +113,19 @@ export class AgentsGateway
         return;
       }
 
-      client.data = { agent };
+      if (!this.subscriptionService.isSubscriptionActive(agent.user)) {
+        client.emit(WS_EVENTS.AGENT_SUBSCRIPTION_EXPIRED, {
+          reason: 'SUBSCRIPTION_EXPIRED',
+          message: 'Gói đăng ký đã hết hạn. Vui lòng gia hạn trên trang quản trị.',
+        });
+        this.logger.warn(
+          `Connection rejected: subscription expired for user ${agent.user.id}`,
+        );
+        client.disconnect();
+        return;
+      }
+
+      client.data = { agent: { id: agent.id, agentKey: agent.agentKey, userId: agent.userId, name: agent.name } };
       client.join(`agent:${agent.id}`);
 
       const handshakeMeta = client.handshake?.auth?.metadata as
@@ -144,6 +168,23 @@ export class AgentsGateway
   ) {
     const agent = client.data?.agent;
     if (!agent) {
+      return { event: WS_EVENTS.AGENT_HEARTBEAT, data: { ok: false } };
+    }
+
+    const owner = await this.prisma.user.findUnique({
+      where: { id: agent.userId },
+      select: {
+        id: true,
+        role: true,
+        subscriptionStatus: true,
+        subscriptionExpiresAt: true,
+      },
+    });
+    if (!owner || !this.subscriptionService.isSubscriptionActive(owner)) {
+      client.emit(WS_EVENTS.AGENT_SUBSCRIPTION_EXPIRED, {
+        reason: 'SUBSCRIPTION_EXPIRED',
+      });
+      client.disconnect();
       return { event: WS_EVENTS.AGENT_HEARTBEAT, data: { ok: false } };
     }
 
@@ -548,6 +589,21 @@ export class AgentsGateway
       return parent;
     }
     return null;
+  }
+
+  /** Push task status tới admin UI (tránh chờ poll). */
+  emitTaskStatusToUser(userId: string, taskId: string, status: TaskStatus) {
+    const event =
+      status === TaskStatus.RUNNING
+        ? WS_EVENTS.TASK_RUNNING
+        : status === TaskStatus.COMPLETED
+          ? WS_EVENTS.TASK_COMPLETED
+          : status === TaskStatus.FAILED || status === TaskStatus.TIMEOUT
+            ? WS_EVENTS.TASK_FAILED
+            : WS_EVENTS.TASK_PROGRESS;
+    const payload = { taskId, status };
+    this.emitToClientRoom(`user:${userId}`, event, payload);
+    this.emitToClientRoom('admins', event, payload);
   }
 
   emitToAgent(agentId: string, event: string, data: unknown) {

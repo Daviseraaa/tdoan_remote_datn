@@ -34,6 +34,11 @@ describe('AuthService.refresh', () => {
   };
 
   let service: AuthService;
+  const subscriptionService = {
+    computeDaysLeft: jest.fn(() => 7),
+    startTrial: jest.fn().mockResolvedValue(undefined),
+    resolveEffectivePlan: jest.fn(async (_id: string, _status: string, plan: unknown) => plan),
+  };
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -41,6 +46,7 @@ describe('AuthService.refresh', () => {
       prisma as never,
       jwt as never as JwtService,
       config as never as ConfigService,
+      subscriptionService as never,
     );
   });
 
@@ -54,6 +60,9 @@ describe('AuthService.refresh', () => {
       email: 'admin@datn.com',
       role: Role.ADMIN,
       isActive: true,
+      subscriptionStatus: 'ACTIVE',
+      subscriptionExpiresAt: new Date('2099-01-01'),
+      plan: null,
     });
     jwt.verifyAsync.mockResolvedValue({ sub: 'u1', email: 'admin@datn.com', role: Role.ADMIN });
     jwt.signAsync.mockResolvedValueOnce('access-token').mockResolvedValueOnce('refresh-token');

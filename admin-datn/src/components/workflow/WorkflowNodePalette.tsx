@@ -15,6 +15,9 @@ import type { DesktopAction } from '@/src/lib/desktopRecordingSteps';
 /** Lệnh shell, script, thu thập thông tin hệ thống */
 const SHELL_TASK_ITEMS: TaskType[] = ['COMMAND', 'SCRIPT', 'SYSTEM_INFO'];
 
+/** Gọi HTTP/API từ mạng agent */
+const NETWORK_TASK_ITEMS: TaskType[] = ['HTTP_REQUEST'];
+
 /** Mở app, tự động hóa desktop, chụp màn hình */
 const DESKTOP_TASK_ITEMS: TaskType[] = ['OPEN_APP', 'DESKTOP_AUTOMATION', 'SCREEN_CAPTURE'];
 
@@ -23,6 +26,7 @@ const BROWSER_TASK_ITEMS: TaskType[] = ['OPEN_BROWSER', 'CHROME_EXTENSION'];
 
 const ALL_TASK_ITEMS: TaskType[] = [
   ...SHELL_TASK_ITEMS,
+  ...NETWORK_TASK_ITEMS,
   ...DESKTOP_TASK_ITEMS,
   ...BROWSER_TASK_ITEMS,
 ];
@@ -202,6 +206,7 @@ export function WorkflowNodePalette({
           compact
         />
         <TaskPaletteButtons items={SHELL_TASK_ITEMS} onAddTask={onAddTask} compact />
+        <TaskPaletteButtons items={NETWORK_TASK_ITEMS} onAddTask={onAddTask} compact />
         <TaskPaletteButtons items={DESKTOP_TASK_ITEMS} onAddTask={onAddTask} compact />
         <WfRecordingStepPalette module="desktop" compact onAddDesktopStep={onAddDesktopStep} />
         <TaskPaletteButtons items={BROWSER_TASK_ITEMS} onAddTask={onAddTask} compact />
@@ -229,6 +234,11 @@ export function WorkflowNodePalette({
       <PaletteSectionLabel label={t('workflows.paletteShell')} />
       <div className="px-2 pb-1">
         <TaskPaletteButtons items={SHELL_TASK_ITEMS} onAddTask={onAddTask} />
+      </div>
+
+      <PaletteSectionLabel label={t('workflows.paletteNetwork')} />
+      <div className="px-2 pb-1">
+        <TaskPaletteButtons items={NETWORK_TASK_ITEMS} onAddTask={onAddTask} />
       </div>
 
       <PaletteSectionLabel label={t('workflows.paletteDesktop')} />

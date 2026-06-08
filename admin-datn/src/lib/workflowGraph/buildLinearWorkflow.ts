@@ -21,7 +21,8 @@ export function buildLinearWorkflowDto(
     id: WF_TRIGGER_ID,
     type: 'wfNode',
     deletable: false,
-    selectable: false,
+    selectable: true,
+    draggable: false,
     position: { x: TRIGGER_X, y: BASE_Y },
     data: {
       kind: 'trigger',

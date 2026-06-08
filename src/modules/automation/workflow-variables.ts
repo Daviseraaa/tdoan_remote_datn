@@ -4,6 +4,11 @@ export type StepOutput = {
   stderr?: string;
   result?: string;
   json?: unknown;
+  /** Body JSON từ HTTP_REQUEST (payload.data) — dùng {{steps.<key>.data.*}} */
+  data?: unknown;
+  statusCode?: number;
+  ok?: boolean;
+  headers?: unknown;
   failed: boolean;
   stepId: string;
   order: number;
@@ -64,7 +69,13 @@ function readStepField(out: StepOutput, field: string): unknown {
     }
     return out.stderr ?? '';
   }
-  return getByPath(out, field);
+  const direct = getByPath(out, field);
+  if (direct !== undefined) return direct;
+  if (out.json !== undefined && field !== 'json') {
+    const nested = getByPath(out.json, field);
+    if (nested !== undefined) return nested;
+  }
+  return undefined;
 }
 
 function resolveStepScopePath(
@@ -161,11 +172,18 @@ export function parseTaskResult(
   result: string | undefined,
   exitCode: number | null,
   failed: boolean,
-): Pick<StepOutput, 'stdout' | 'stderr' | 'result' | 'json'> {
+): Pick<
+  StepOutput,
+  'stdout' | 'stderr' | 'result' | 'json' | 'data' | 'statusCode' | 'ok' | 'headers'
+> {
   const raw = result ?? '';
   let stdout: string | undefined;
   let stderr: string | undefined;
   let json: unknown;
+  let data: unknown;
+  let statusCode: number | undefined;
+  let ok: boolean | undefined;
+  let headers: unknown;
 
   if (raw.trim()) {
     try {
@@ -182,14 +200,30 @@ export function parseTaskResult(
       ) {
         stdout = `telegram:${parsed.telegramMessageId}`;
       }
-      if (parsed.data !== undefined) json = parsed.data;
-      else json = parsed;
+      if (typeof parsed.statusCode === 'number') statusCode = parsed.statusCode;
+      if (typeof parsed.ok === 'boolean') ok = parsed.ok;
+      if (parsed.headers !== undefined) headers = parsed.headers;
+      if (parsed.data !== undefined) {
+        data = parsed.data;
+        json = parsed.data;
+      } else {
+        json = parsed;
+      }
     } catch {
       stdout = raw;
     }
   }
 
-  return { stdout, stderr, result: raw || undefined, json };
+  return {
+    stdout,
+    stderr,
+    result: raw || undefined,
+    json,
+    data,
+    statusCode,
+    ok,
+    headers,
+  };
 }
 
 export function defaultOutputKey(

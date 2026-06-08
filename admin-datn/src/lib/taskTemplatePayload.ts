@@ -8,6 +8,12 @@ import {
 import { parseStepsFromJson } from '@/src/lib/desktopRecordingSteps';
 import { t } from '@/src/i18n/t';
 import { randomId } from '@/src/lib/randomId';
+import {
+  buildHttpRequestPayload,
+  parseHttpRequestPayload,
+  validateHttpHeadersJson,
+  type HttpMethod,
+} from '@/src/lib/httpRequest';
 
 export type { ChromeScriptStep };
 
@@ -59,6 +65,9 @@ export interface TemplateEditorState {
   screenTelegramCaption: string;
   screenTelegramSendAs: 'photo' | 'document';
   screenTelegramFileName: string;
+  httpMethod: HttpMethod;
+  httpHeadersJson: string;
+  httpBody: string;
   timeout: number;
   priority: number;
 }
@@ -75,6 +84,7 @@ export const SELECTABLE_TEMPLATE_TYPES: TaskType[] = [
   'CHROME_EXTENSION',
   'DESKTOP_AUTOMATION',
   'SCREEN_CAPTURE',
+  'HTTP_REQUEST',
 ];
 
 export const DEFAULT_TEMPLATE_STATE: TemplateEditorState = {
@@ -99,6 +109,9 @@ export const DEFAULT_TEMPLATE_STATE: TemplateEditorState = {
   screenTelegramCaption: '',
   screenTelegramSendAs: 'photo',
   screenTelegramFileName: 'screenshot.png',
+  httpMethod: 'GET',
+  httpHeadersJson: '{}',
+  httpBody: '',
   timeout: 60000,
   priority: 5,
 };
@@ -266,6 +279,12 @@ export function formatTemplateCommandPreview(
     return '—';
   }
   if (tpl.type === 'SYSTEM_INFO') return 'collect';
+  if (tpl.type === 'HTTP_REQUEST') {
+    const p = tpl.payload as { method?: string } | null | undefined;
+    const method = (p?.method ?? 'GET').toUpperCase();
+    const url = tpl.command?.trim() || '—';
+    return `${method} ${url}`;
+  }
   return tpl.command?.trim() || '—';
 }
 
@@ -325,6 +344,16 @@ export function parseTemplateToForm(tpl: TaskTemplate, agent: Agent | null): Tem
     if (p?.url && typeof p.url === 'string') {
       base.command = p.url;
     }
+    return base;
+  }
+
+  if (tpl.type === 'HTTP_REQUEST') {
+    const http = parseHttpRequestPayload(tpl.payload as Record<string, unknown> | null);
+    base.httpMethod = http.method;
+    base.httpHeadersJson = http.headersJson;
+    base.httpBody = http.body;
+    const p = tpl.payload as { url?: string } | null;
+    if (p?.url && typeof p.url === 'string') base.command = p.url;
     return base;
   }
 
@@ -401,6 +430,16 @@ export function buildTemplateDto(state: TemplateEditorState): CreateTaskTemplate
         payload,
       };
     }
+    case 'HTTP_REQUEST':
+      return {
+        ...base,
+        command: state.command.trim() || 'https://example.com/api',
+        payload: buildHttpRequestPayload(
+          state.httpMethod,
+          state.httpHeadersJson,
+          state.httpBody,
+        ),
+      };
     case 'SCREEN_CAPTURE': {
       const onlySend = state.screenOnlySendTelegram;
       const saveToFile = onlySend ? false : state.screenSaveToFile;
@@ -465,6 +504,12 @@ export function validateTemplateState(state: TemplateEditorState): string | null
         return t('templateWizard.desktopStepsMax', { max: String(DESKTOP_STEPS_MAX) });
       }
       break;
+    case 'HTTP_REQUEST': {
+      if (!state.command.trim()) return t('httpRequest.urlRequired');
+      const headerErr = validateHttpHeadersJson(state.httpHeadersJson);
+      if (headerErr) return headerErr;
+      break;
+    }
     case 'SCREEN_CAPTURE':
       if (!isWindowsAgent(state.agent?.os)) return t('screenCapture.windowsOnly');
       if (state.screenSendTelegram) {

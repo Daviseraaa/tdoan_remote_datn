@@ -150,7 +150,7 @@ export function TriggersPanel({ triggers, loading, onDetail }: Props) {
         <div className="glass-panel rounded-2xl border border-white/5 p-8 sm:p-12 text-center">
           <CalendarClock size={40} className="mx-auto mb-4 text-on-surface-variant/50" />
           <p className="text-on-surface font-medium mb-2">{t('triggers.emptyViewOnly')}</p>
-          <p className="text-sm text-on-surface-variant max-w-md mx-auto mb-6">
+          <p className="prose-description text-sm text-on-surface-variant mx-auto mb-6">
             {t('triggers.emptyViewOnlyDesc')}
           </p>
           <Link

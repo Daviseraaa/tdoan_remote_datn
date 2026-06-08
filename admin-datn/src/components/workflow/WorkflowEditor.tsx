@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ReactFlow,
   Background,
@@ -161,6 +161,7 @@ export function WorkflowEditor({
   isFullscreen = false,
 }: Props) {
   const isLgUp = useMediaQuery('(min-width: 1024px)');
+  const queryClient = useQueryClient();
   const [propertiesOpen, setPropertiesOpen] = useState(false);
   const [executionOpen, setExecutionOpen] = useState(false);
   const [paletteCollapsed, setPaletteCollapsed] = useState(false);
@@ -169,7 +170,7 @@ export function WorkflowEditor({
   const [rfInstance, setRfInstance] = useState<{ fitView: (o?: { padding?: number }) => void } | null>(
     null,
   );
-  const [entryTrigger, setEntryTrigger] = useState<EntryTriggerDraft>(defaultEntryTriggerDraft);
+  const [entryTrigger, setEntryTrigger] = useState<EntryTriggerDraft>(() => defaultEntryTriggerDraft());
   const [newTelegramBot, setNewTelegramBot] = useState<{ name: string; botToken: string } | null>(
     null,
   );
@@ -267,6 +268,21 @@ export function WorkflowEditor({
 
   const patchEntryTrigger = useCallback(
     (patch: Partial<EntryTriggerDraft>) => {
+      if (patch.type === 'MANUAL') {
+        setEntryTrigger((prev) => {
+          if (prev.triggerId) {
+            void triggersApi.deleteTrigger(prev.triggerId).then(() => {
+              void queryClient.invalidateQueries({ queryKey: ['workflow-triggers', workflow.id] });
+            });
+          }
+          const cleared: EntryTriggerDraft = { ...defaultEntryTriggerDraft(), type: 'MANUAL' };
+          applyEntryTriggerToCanvas(cleared);
+          return cleared;
+        });
+        onDirty();
+        return;
+      }
+
       setEntryTrigger((prev) => {
         const next = { ...prev, ...patch };
         applyEntryTriggerToCanvas(next);
@@ -274,7 +290,7 @@ export function WorkflowEditor({
       });
       onDirty();
     },
-    [applyEntryTriggerToCanvas, onDirty],
+    [applyEntryTriggerToCanvas, onDirty, queryClient, workflow.id],
   );
 
   const currentPayload = useCallback(
@@ -1032,6 +1048,13 @@ export function WorkflowEditor({
             multiSelectionKeyCode="Alt"
             panOnDrag
             onSelectionChange={onSelectionChange}
+            onNodeClick={(_, node) => {
+              if (node.id === WF_TRIGGER_ID) {
+                setSelectedEdgeId(null);
+                setSelectedNodeId(WF_TRIGGER_ID);
+                setPropertiesOpen(true);
+              }
+            }}
             onBeforeDelete={async ({ nodes: nodesToDelete, edges: edgesToDelete }) => ({
               nodes: nodesToDelete.filter((n) => n.id !== WF_TRIGGER_ID),
               edges: edgesToDelete,

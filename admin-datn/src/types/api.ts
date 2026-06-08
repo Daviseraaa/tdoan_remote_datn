@@ -28,7 +28,8 @@ export type TaskType =
   | 'OPEN_BROWSER'
   | 'CHROME_EXTENSION'
   | 'DESKTOP_AUTOMATION'
-  | 'SCREEN_CAPTURE';
+  | 'SCREEN_CAPTURE'
+  | 'HTTP_REQUEST';
 
 export type AgentStatus = 'ONLINE' | 'OFFLINE' | 'BUSY';
 
@@ -65,15 +66,78 @@ export interface PaginatedResponse<T> {
   meta: PaginatedMeta;
 }
 
+export type SubscriptionStatus = 'TRIAL' | 'ACTIVE' | 'EXPIRED' | 'CANCELLED';
+
+export interface SubscriptionPlan {
+  id: string;
+  name: string;
+  priceVnd: number;
+  durationDays: number;
+  maxAgents: number;
+  description?: string | null;
+  isActive?: boolean;
+  isTrial?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface User {
   id: string;
   email: string;
   name: string;
   role: Role;
   isActive: boolean;
+  subscriptionStatus?: SubscriptionStatus;
+  subscriptionExpiresAt?: string | null;
+  daysLeft?: number;
+  isSubscriptionActive?: boolean;
+  plan?: SubscriptionPlan | null;
   createdAt?: string;
   updatedAt?: string;
   lastLoginAt?: string;
+}
+
+export interface SubscriptionSnapshot {
+  subscriptionStatus: SubscriptionStatus;
+  subscriptionExpiresAt: string | null;
+  daysLeft: number;
+  isActive: boolean;
+  plan: SubscriptionPlan | null;
+}
+
+export interface PaymentRecord {
+  id: string;
+  amountVnd: number;
+  status: string;
+  orderCode: string;
+  paymentCode?: string;
+  paidAt?: string | null;
+  createdAt: string;
+  plan: { name: string; durationDays: number };
+}
+
+export interface CheckoutResponse {
+  paymentId: string;
+  orderCode: string;
+  paymentCode: string;
+  amountVnd: number;
+  planName: string;
+  expiresAt: string;
+  bankName: string;
+  accountNumber: string;
+  accountHolder: string;
+  transferContent: string;
+  qrUrl: string;
+  webhookHint?: string;
+}
+
+export interface PaymentStatusResponse {
+  id: string;
+  status: string;
+  paymentCode: string;
+  amountVnd: number;
+  paidAt?: string | null;
+  expiresAt?: string | null;
 }
 
 export interface ChromeScript {
@@ -129,6 +193,7 @@ export interface Agent {
   createdAt?: string;
   updatedAt?: string;
   agentKey?: string;
+  user?: { id: string; email: string; name: string };
 }
 
 export interface Task {
@@ -343,6 +408,43 @@ export interface AdminStats {
     completed: number;
     failed: number;
   }>;
+  subscriptions: {
+    trial: number;
+    active: number;
+    expired: number;
+    cancelled: number;
+  };
+  workflowRunsByTrigger: Array<{ triggerType: string; count: number }>;
+  paymentTrend: Array<{ date: string; count: number; amountVnd: number }>;
+  workflowRunsLast24h: number;
+}
+
+export interface AdminWorkflowRun {
+  id: string;
+  status: string;
+  triggerType: string | null;
+  triggerId: string | null;
+  startedAt: string;
+  completedAt: string | null;
+  user: { id: string; email: string; name: string };
+  workflow: { id: string; name: string; isActive: boolean };
+}
+
+export interface AdminPaymentRecord {
+  id: string;
+  amountVnd: number;
+  status: string;
+  orderCode: string;
+  paymentCode: string;
+  paidAt: string | null;
+  createdAt: string;
+  user: { id: string; email: string; name: string };
+  plan: {
+    id: string;
+    name: string;
+    durationDays: number;
+    priceVnd: number;
+  };
 }
 
 export interface AuditLogEntry {

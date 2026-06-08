@@ -51,6 +51,8 @@ function kindIcon(kind: WfNodeData['kind'], taskType?: TaskType) {
       return MousePointer2;
     case 'SCREEN_CAPTURE':
       return Camera;
+    case 'HTTP_REQUEST':
+      return Globe;
     default:
       return Terminal;
   }

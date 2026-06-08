@@ -26,7 +26,7 @@ export function AgentRecordingListHeader({
     <header className="mb-6 sm:mb-8 flex flex-col gap-4">
       <div className="min-w-0">
         <h2 className="text-2xl sm:text-4xl font-bold tracking-tight text-on-surface">{title}</h2>
-        <p className="text-on-surface-variant text-sm sm:text-body-md mt-1 max-w-2xl break-words">
+        <p className="prose-description text-on-surface-variant text-sm sm:text-body-md mt-1">
           {subtitle}
         </p>
       </div>

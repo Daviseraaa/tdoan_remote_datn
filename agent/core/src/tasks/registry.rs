@@ -58,6 +58,7 @@ static HANDLERS: &[&dyn TaskHandler] = &[
     &handlers::desktop::Handler,
     &handlers::chrome_extension::Handler,
     &handlers::screen_capture::Handler,
+    &handlers::http_request::Handler,
 ];
 
 pub fn supported_task_types(platform: &Platform, _cfg: &AgentConfig) -> Vec<&'static str> {

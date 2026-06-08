@@ -2,7 +2,14 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as tasksApi from '@/src/api/tasks';
 import { useAuth } from '@/src/hooks/useAuth';
 import { queryKeys } from '@/src/lib/queryKeys';
-import type { CreateTaskDto, TaskStatus, TaskType } from '@/src/types/api';
+import type { CreateTaskDto, Task, TaskStatus, TaskType } from '@/src/types/api';
+
+const TERMINAL_TASK: TaskStatus[] = ['COMPLETED', 'FAILED', 'TIMEOUT', 'CANCELLED'];
+
+function taskPollMs(status?: TaskStatus): number | false {
+  if (!status || TERMINAL_TASK.includes(status)) return false;
+  return 800;
+}
 
 export function useTasksList(params: {
   page?: number;
@@ -14,7 +21,11 @@ export function useTasksList(params: {
   return useQuery({
     queryKey: queryKeys.tasks(isAdmin, params),
     queryFn: () => tasksApi.listTasks(isAdmin, params),
-    refetchInterval: 10_000,
+    refetchInterval: (query) => {
+      const items = query.state.data?.items as Task[] | undefined;
+      const hasActive = items?.some((t) => !TERMINAL_TASK.includes(t.status));
+      return hasActive ? 800 : 10_000;
+    },
   });
 }
 
@@ -24,7 +35,7 @@ export function useTaskDetail(taskId: string | null) {
     queryKey: ['task', isAdmin, taskId],
     queryFn: () => tasksApi.getTask(isAdmin, taskId!),
     enabled: !!taskId,
-    refetchInterval: 3_000,
+    refetchInterval: (query) => taskPollMs(query.state.data?.status),
   });
 }
 

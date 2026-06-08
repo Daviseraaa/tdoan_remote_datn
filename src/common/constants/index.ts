@@ -12,6 +12,7 @@ export const WS_EVENTS = {
   TASK_EXECUTE: 'task:execute',
   TASK_RESULT: 'task:result',
   TASK_PROGRESS: 'task:progress',
+  TASK_RUNNING: 'task:running',
   TASK_COMPLETED: 'task:completed',
   TASK_FAILED: 'task:failed',
   CHROME_PROFILES_SYNC: 'agent:chrome-profiles:sync',
@@ -20,4 +21,5 @@ export const WS_EVENTS = {
   CHROME_SCRIPTS_RESULT: 'agent:chrome-scripts:result',
   DESKTOP_RECORDINGS_SYNC: 'agent:desktop-recordings:sync',
   DESKTOP_RECORDINGS_RESULT: 'agent:desktop-recordings:result',
+  AGENT_SUBSCRIPTION_EXPIRED: 'agent:subscription:expired',
 } as const;

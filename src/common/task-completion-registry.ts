@@ -13,7 +13,16 @@ type Waiter = {
   timer: NodeJS.Timeout;
 };
 
-const waiters = new Map<string, Waiter>();
+/** Nhiều listener / task (workflow wait + Bull worker). */
+const waiters = new Map<string, Waiter[]>();
+
+function removeWaiter(taskId: string, entry: Waiter) {
+  const list = waiters.get(taskId);
+  if (!list) return;
+  const next = list.filter((w) => w !== entry);
+  if (next.length) waiters.set(taskId, next);
+  else waiters.delete(taskId);
+}
 
 export function registerTaskCompletionWaiter(
   taskId: string,
@@ -21,22 +30,26 @@ export function registerTaskCompletionWaiter(
 ): Promise<TaskTerminalOutcome> {
   return new Promise((resolve, reject) => {
     const deadline = Math.min(timeoutMs + 30_000, 600_000);
-    const timer = setTimeout(() => {
-      waiters.delete(taskId);
-      reject(new Error('Workflow step timed out waiting for task'));
-    }, deadline);
-
-    waiters.set(taskId, {
+    const entry: Waiter = {
       resolve: (outcome) => {
-        clearTimeout(timer);
+        clearTimeout(entry.timer);
+        removeWaiter(taskId, entry);
         resolve(outcome);
       },
       reject: (err) => {
-        clearTimeout(timer);
+        clearTimeout(entry.timer);
+        removeWaiter(taskId, entry);
         reject(err);
       },
-      timer,
-    });
+      timer: setTimeout(() => {
+        removeWaiter(taskId, entry);
+        reject(new Error('Timed out waiting for task'));
+      }, deadline),
+    };
+
+    const list = waiters.get(taskId) ?? [];
+    list.push(entry);
+    waiters.set(taskId, list);
   });
 }
 
@@ -44,9 +57,12 @@ export function notifyTaskCompleted(
   taskId: string,
   outcome: TaskTerminalOutcome,
 ): boolean {
-  const waiter = waiters.get(taskId);
-  if (!waiter) return false;
+  const list = waiters.get(taskId);
+  if (!list?.length) return false;
   waiters.delete(taskId);
-  waiter.resolve(outcome);
+  for (const w of list) {
+    clearTimeout(w.timer);
+    w.resolve(outcome);
+  }
   return true;
 }

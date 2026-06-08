@@ -20,6 +20,7 @@ import {
   type ScreenCapturePayload,
 } from './ScreenCaptureOptionsFields';
 import { OpenBrowserChromeProfileFields } from './OpenBrowserChromeProfileFields';
+import { HttpRequestConfigFields } from './HttpRequestConfigFields';
 import { isChromeReplayCommand } from '@/src/lib/workflowGraph';
 import { WfImportMenu } from './WfImportMenu';
 import {
@@ -280,9 +281,14 @@ export function WorkflowStepInspector({
             </p>
           </div>
 
+          {data.taskType === 'HTTP_REQUEST' ? (
+            <HttpRequestConfigFields config={cfg} onPatch={patchConfig} />
+          ) : null}
+
           {data.taskType !== 'SYSTEM_INFO' &&
           data.taskType !== 'CHROME_EXTENSION' &&
-          data.taskType !== 'SCREEN_CAPTURE' ? (
+          data.taskType !== 'SCREEN_CAPTURE' &&
+          data.taskType !== 'HTTP_REQUEST' ? (
             <div>
               <label className="text-[10px] font-mono font-bold uppercase text-on-surface-variant">
                 {t('workflows.command')}

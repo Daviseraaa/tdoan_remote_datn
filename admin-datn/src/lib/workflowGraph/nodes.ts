@@ -26,7 +26,9 @@ export function newTaskNodeData(
               ? '[]'
               : taskType === 'SCREEN_CAPTURE'
                 ? '0'
-                : '',
+                : taskType === 'HTTP_REQUEST'
+                  ? 'https://example.com/api'
+                  : '',
       payload:
         taskType === 'OPEN_BROWSER'
           ? { useChromeProfile: false }
@@ -39,7 +41,9 @@ export function newTaskNodeData(
                   saveToFile: true,
                   sendTelegram: false,
                 }
-              : undefined,
+              : taskType === 'HTTP_REQUEST'
+                ? { method: 'GET' }
+                : undefined,
       timeout: 60000,
       stepKey,
       ui: position,

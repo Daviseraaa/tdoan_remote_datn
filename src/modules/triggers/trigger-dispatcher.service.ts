@@ -4,6 +4,7 @@ import {
   WorkflowTriggerType,
 } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { SubscriptionService } from '../billing/subscription.service';
 import { WorkflowRuntimeService } from '../automation/workflow-runtime.service';
 import { parseWorkflowVariables } from '../automation/workflow-variables';
 import { computeNextRunAt } from './schedule.util';
@@ -16,6 +17,7 @@ export class TriggerDispatcherService {
 
   constructor(
     private readonly prisma: PrismaService,
+    private readonly subscription: SubscriptionService,
     private readonly workflowRuntime: WorkflowRuntimeService,
   ) {}
 
@@ -37,6 +39,28 @@ export class TriggerDispatcherService {
     userId: string,
     payload: TriggerDispatchPayload,
   ) {
+    try {
+      await this.subscription.assertActive(userId);
+    } catch {
+      this.logger.warn(
+        `Trigger ${triggerId} skipped: subscription inactive for user ${userId}`,
+      );
+      await this.prisma.triggerExecution.create({
+        data: {
+          triggerId,
+          status: TriggerExecutionStatus.SKIPPED,
+          error: 'Subscription expired',
+          payload: payload as object,
+          completedAt: new Date(),
+        },
+      });
+      await this.prisma.workflowTrigger.update({
+        where: { id: triggerId },
+        data: { lastRunAt: new Date(), lastRunStatus: 'SKIPPED' },
+      });
+      return;
+    }
+
     const trigger = await this.prisma.workflowTrigger.findFirst({
       where: { id: triggerId, userId, enabled: true },
       include: { workflow: true },

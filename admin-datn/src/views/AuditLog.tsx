@@ -236,7 +236,7 @@ export default function AuditLog() {
     <div className="w-full max-w-6xl mx-auto pb-20 min-w-0">
       <div className="mb-8 sm:mb-10">
         <h2 className="text-2xl sm:text-4xl font-bold tracking-tight text-on-surface">{t('audit.title')}</h2>
-        <p className="text-on-surface-variant text-body-md mt-2 max-w-2xl leading-relaxed">
+        <p className="prose-description text-on-surface-variant text-body-md mt-2">
           {t('audit.subtitle')}
         </p>
       </div>

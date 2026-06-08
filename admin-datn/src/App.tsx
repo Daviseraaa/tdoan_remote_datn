@@ -1,12 +1,12 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'motion/react';
 import { cn } from '@/src/lib/utils';
 import { useMediaQuery } from '@/src/hooks/useMediaQuery';
 import { Sidebar, TopBar } from './components/Navigation';
 import { EditorErrorBoundary } from './components/EditorErrorBoundary';
 import { ProtectedRoute } from './components/ProtectedRoute';
-import { AdminOnlyRoute } from './components/AdminOnlyRoute';
+import { UserOnlyRoute } from './components/UserOnlyRoute';
 import { AuthProvider } from './context/AuthContext';
 import { NavLayoutProvider } from './context/NavLayoutContext';
 import { WsProvider } from './context/WsProvider';
@@ -21,11 +21,14 @@ import ChromeScriptEditor from './views/ChromeScriptEditor';
 import DesktopRecordings from './views/DesktopRecordings';
 import DesktopRecordingEditor from './views/DesktopRecordingEditor';
 import TaskTemplateEditor from './views/TaskTemplateEditor';
-import AuditLog from './views/AuditLog';
-import Settings from './views/Settings';
 import Documentation from './views/Documentation';
 import NOC from './views/NOC';
 import Login from './views/Login';
+import Register from './views/Register';
+import Billing from './views/Billing';
+import Bots from './views/Bots';
+import { SubscriptionBanner } from './components/SubscriptionBanner';
+import { AdminAppRoutes } from './views/admin/AdminAppRoutes';
 
 function AppContent() {
   const location = useLocation();
@@ -163,6 +166,7 @@ function AppContent() {
           )}
         >
           {!isImmersiveEditor ? <TopBar /> : null}
+          {!isImmersiveEditor ? <SubscriptionBanner /> : null}
           <main
             className={cn(
               'min-w-0 w-full',
@@ -236,23 +240,11 @@ function AppContent() {
                   }
                 />
                 <Route path="/automations" element={<Automations />} />
+                <Route path="/bots" element={<Bots />} />
+                <Route path="/billing" element={<Billing />} />
                 <Route path="/docs" element={<Documentation />} />
-                <Route
-                  path="/audit-log"
-                  element={
-                    <AdminOnlyRoute>
-                      <AuditLog />
-                    </AdminOnlyRoute>
-                  }
-                />
-                <Route
-                  path="/settings"
-                  element={
-                    <AdminOnlyRoute>
-                      <Settings />
-                    </AdminOnlyRoute>
-                  }
-                />
+                <Route path="/settings" element={<Navigate to="/admin/users" replace />} />
+                <Route path="/audit-log" element={<Navigate to="/admin/audit" replace />} />
               </Routes>
             </motion.div>
           </AnimatePresence>
@@ -270,11 +262,22 @@ export default function App() {
         <WsProvider>
           <Routes>
             <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            <Route
+              path="/admin/*"
+              element={
+                <ProtectedRoute>
+                  <AdminAppRoutes />
+                </ProtectedRoute>
+              }
+            />
             <Route
               path="/*"
               element={
                 <ProtectedRoute>
-                  <AppContent />
+                  <UserOnlyRoute>
+                    <AppContent />
+                  </UserOnlyRoute>
                 </ProtectedRoute>
               }
             />

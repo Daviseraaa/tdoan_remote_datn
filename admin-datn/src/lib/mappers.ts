@@ -282,6 +282,13 @@ export function formatTaskCommandPreview(
     }
   }
 
+  if (type === 'HTTP_REQUEST') {
+    const p = payload as { method?: string } | null | undefined;
+    const method = (p?.method ?? 'GET').toUpperCase();
+    const url = command?.trim() || '—';
+    return `${method} ${url}`;
+  }
+
   if (!command?.trim()) return '—';
 
   const trimmed = command.trim();
@@ -422,8 +429,15 @@ export function mapUserToTableRow(user: User): {
   status: 'Active' | 'Disabled';
   lastSession: string;
   avatar: string;
+  subscriptionLabel: string;
+  subscriptionStatus: string;
+  subscriptionPlan: string;
+  subscriptionExpires: string;
   _raw: User;
 } {
+  const expires = formatSubscriptionExpiry(user.subscriptionExpiresAt);
+  const sub = formatSubscriptionStatus(user.subscriptionStatus);
+  const plan = user.plan?.name?.trim() || t('billing.noPlan');
   return {
     id: user.id,
     name: user.name,
@@ -432,8 +446,34 @@ export function mapUserToTableRow(user: User): {
     status: user.isActive ? 'Active' : 'Disabled',
     lastSession: formatRelativeTime(user.lastLoginAt ?? user.updatedAt),
     avatar: user.name.split(' ')[0] ?? user.email,
+    subscriptionLabel: `${sub} · ${plan} · ${expires}`,
+    subscriptionStatus: sub,
+    subscriptionPlan: plan,
+    subscriptionExpires: expires,
     _raw: user,
   };
+}
+
+function formatSubscriptionStatus(status?: User['subscriptionStatus']): string {
+  switch (status) {
+    case 'TRIAL':
+      return t('billing.statusTrial');
+    case 'ACTIVE':
+      return t('billing.statusActive');
+    case 'EXPIRED':
+      return t('billing.statusExpired');
+    case 'CANCELLED':
+      return t('billing.statusCancelled');
+    default:
+      return '—';
+  }
+}
+
+function formatSubscriptionExpiry(iso?: string | null): string {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '—';
+  return d.toLocaleDateString('vi-VN');
 }
 
 export interface AgentHealthClusterUi {

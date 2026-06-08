@@ -24,6 +24,9 @@ import { CreateUserDto, UpdateUserDto } from './dto/admin-user.dto';
 import { QueryTasksDto } from './dto/query-tasks.dto';
 import { QueryAgentsAdminDto } from './dto/query-agents.dto';
 import { QueryAuditDto } from './dto/query-audit.dto';
+import { QueryWorkflowRunsDto } from './dto/query-workflow-runs.dto';
+import { QueryPaymentsDto } from './dto/query-payments.dto';
+import { CreateAdminPlanDto, UpdateAdminPlanDto } from './dto/admin-plan.dto';
 import { PaginationDto } from '../../common/dto/pagination.dto';
 import {
   CreateTaskTemplateDto,
@@ -45,6 +48,51 @@ export class AdminController {
   @ApiOperation({ summary: 'Dashboard stats' })
   stats() {
     return this.admin.getStats();
+  }
+
+  @Get('users')
+  @ApiOperation({ summary: 'List all users' })
+  listUsers(@Query() pagination: PaginationDto) {
+    return this.admin.listUsers(pagination);
+  }
+
+  @Get('plans')
+  @ApiOperation({ summary: 'List subscription plans' })
+  listPlans() {
+    return this.admin.listPlans();
+  }
+
+  @Post('plans')
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
+  @ApiOperation({ summary: 'Create subscription plan' })
+  createPlan(@Body() dto: CreateAdminPlanDto) {
+    return this.admin.createPlan(dto);
+  }
+
+  @Patch('plans/:id')
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
+  @ApiOperation({ summary: 'Update subscription plan' })
+  updatePlan(@Param('id') id: string, @Body() dto: UpdateAdminPlanDto) {
+    return this.admin.updatePlan(id, dto);
+  }
+
+  @Delete('plans/:id')
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
+  @ApiOperation({ summary: 'Delete subscription plan' })
+  deletePlan(@Param('id') id: string) {
+    return this.admin.deletePlan(id);
+  }
+
+  @Get('workflow-runs')
+  @ApiOperation({ summary: 'Workflow runs — user, flow, trigger channel' })
+  listWorkflowRuns(@Query() query: QueryWorkflowRunsDto) {
+    return this.admin.listWorkflowRuns(query);
+  }
+
+  @Get('payments')
+  @ApiOperation({ summary: 'Subscription payment history (all users)' })
+  listPayments(@Query() query: QueryPaymentsDto) {
+    return this.admin.listPayments(query);
   }
 
   @Post('users')

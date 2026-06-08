@@ -1,4 +1,5 @@
 import { Module, forwardRef } from '@nestjs/common';
+import { BillingModule } from '../billing/billing.module';
 import { AutomationModule } from '../automation/automation.module';
 import { TriggerDispatcherService } from './trigger-dispatcher.service';
 import { ScheduleTriggerService } from './schedule-trigger.service';
@@ -12,7 +13,7 @@ import { TelegramWorkflowProgressService } from './telegram/telegram-workflow-pr
 import { TriggerRegistryService } from './trigger-registry.service';
 
 @Module({
-  imports: [forwardRef(() => AutomationModule)],
+  imports: [BillingModule, forwardRef(() => AutomationModule)],
   controllers: [TriggersController, TelegramWebhookController],
   providers: [
     TriggersService,

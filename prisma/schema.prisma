@@ -28,6 +28,7 @@ enum TaskType {
   DESKTOP_AUTOMATION
   CHROME_EXTENSION
   SCREEN_CAPTURE
+  HTTP_REQUEST
 }
 
 enum TaskStatus {
@@ -113,6 +114,68 @@ enum StepRunStatus {
   SKIPPED
 }
 
+enum SubscriptionStatus {
+  TRIAL
+  ACTIVE
+  EXPIRED
+  CANCELLED
+}
+
+enum PaymentProvider {
+  SEPAY
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  CANCELLED
+  EXPIRED
+}
+
+model SubscriptionPlan {
+  id           String   @id @default(uuid())
+  name         String
+  priceVnd     Int
+  durationDays Int      @default(30)
+  maxAgents    Int      @default(3)
+  description  String?
+  isActive     Boolean  @default(true)
+  /** Gói trial — chỉ gán khi đăng ký, không bán qua checkout */
+  isTrial      Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  users    User[]
+  payments Payment[]
+
+  @@map("subscription_plans")
+}
+
+model Payment {
+  id                 String          @id @default(uuid())
+  userId             String
+  planId             String
+  amountVnd          Int
+  provider           PaymentProvider @default(SEPAY)
+  status             PaymentStatus   @default(PENDING)
+  orderCode          BigInt          @unique
+  paymentCode        String          @unique
+  sepayTransactionId String?         @unique
+  paidAt             DateTime?
+  expiresAt          DateTime?
+  metadata           Json?
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+
+  user User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan SubscriptionPlan @relation(fields: [planId], references: [id], onDelete: Restrict)
+
+  @@index([userId])
+  @@index([status])
+  @@map("payments")
+}
+
 model User {
   id        String   @id @default(uuid())
   email     String   @unique
@@ -120,9 +183,15 @@ model User {
   name      String
   role      Role     @default(USER)
   isActive  Boolean  @default(true)
+  subscriptionStatus    SubscriptionStatus @default(TRIAL)
+  subscriptionExpiresAt DateTime?
+  planId                String?
+  trialUsedAt           DateTime?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  plan           SubscriptionPlan? @relation(fields: [planId], references: [id], onDelete: SetNull)
+  payments       Payment[]
   agents         Agent[]
   tasks          Task[]
   taskTemplates  TaskTemplate[]
@@ -134,6 +203,8 @@ model User {
   workflowTriggers WorkflowTrigger[]
   remoteSessions RemoteSession[] @relation("RemoteOperator")
 
+  @@index([subscriptionStatus])
+  @@index([subscriptionExpiresAt])
   @@map("users")
 }
 

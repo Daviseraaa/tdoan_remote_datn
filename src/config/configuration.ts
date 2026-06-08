@@ -43,4 +43,23 @@ export default () => ({
     webhookBaseUrl:
       process.env.PUBLIC_API_BASE_URL || 'http://localhost:3000/api',
   },
+
+  subscription: {
+    /** @deprecated Dùng subscription_plans.durationDays của gói isTrial=true */
+    trialDays: parseInt(process.env.SUBSCRIPTION_TRIAL_DAYS || '7', 10),
+  },
+
+  sepay: {
+    bankName: process.env.SEPAY_BANK_NAME || '',
+    accountNumber: process.env.SEPAY_ACCOUNT_NUMBER || '',
+    accountHolder: process.env.SEPAY_ACCOUNT_HOLDER || '',
+    paymentPrefix: process.env.SEPAY_PAYMENT_PREFIX || 'DATN',
+    qrTemplate: process.env.SEPAY_QR_TEMPLATE || 'qronly',
+    webhookApiKey: process.env.SEPAY_WEBHOOK_API_KEY || '',
+    webhookSecret: process.env.SEPAY_WEBHOOK_SECRET || '',
+    webhookBaseUrl:
+      process.env.PUBLIC_WEBHOOK_BASE_URL ||
+      process.env.PUBLIC_API_BASE_URL ||
+      'http://localhost:3000/api',
+  },
 });

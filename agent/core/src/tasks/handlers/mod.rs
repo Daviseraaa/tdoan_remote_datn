@@ -2,6 +2,7 @@ pub mod chrome_extension;
 pub mod command;
 pub mod desktop;
 pub mod file_operation;
+pub mod http_request;
 pub mod open_app;
 pub mod open_browser;
 pub mod screen_capture;

@@ -340,9 +340,9 @@ export default function Tasks() {
     <div className="relative pb-16 min-w-0 max-w-full w-full">
       {/* Page header */}
       <header className="mb-6 sm:mb-8 flex flex-wrap justify-between items-end gap-4">
-        <div className="min-w-0">
+        <div className="flex-1 min-w-0">
           <h2 className="text-2xl sm:text-4xl font-bold tracking-tight text-on-surface">{t('tasks.title')}</h2>
-          <p className="text-on-surface-variant text-body-md mt-1 max-w-2xl">{t('tasks.subtitle')}</p>
+          <p className="prose-description text-on-surface-variant text-body-md mt-1">{t('tasks.subtitle')}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {tab === 'history' ? (

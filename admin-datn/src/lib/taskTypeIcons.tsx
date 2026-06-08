@@ -3,6 +3,7 @@ import {
   Camera,
   FileCode,
   Globe,
+  Webhook,
   Info,
   MousePointer2,
   Puzzle,
@@ -21,6 +22,7 @@ const ICONS: Record<TaskType, LucideIcon> = {
   CHROME_EXTENSION: Puzzle,
   DESKTOP_AUTOMATION: MousePointer2,
   SCREEN_CAPTURE: Camera,
+  HTTP_REQUEST: Webhook,
 };
 
 export function taskTypeIcon(type: string): LucideIcon {

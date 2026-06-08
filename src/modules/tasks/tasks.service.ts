@@ -11,12 +11,14 @@ import { PaginatedResponseDto, PaginationDto } from '../../common/dto/pagination
 import { TASK_QUEUE } from '../../common/constants/index';
 import { CreateTaskDto, QueryTaskDto, CreateTaskTemplateDto, UpdateTaskTemplateDto } from './dto/index';
 import { AgentsService } from '../agents/agents.service';
+import { SubscriptionService } from '../billing/subscription.service';
 
 @Injectable()
 export class TasksService {
   constructor(
     private prisma: PrismaService,
     private agentsService: AgentsService,
+    private subscription: SubscriptionService,
     @InjectQueue(TASK_QUEUE) private taskQueue: Queue,
   ) {}
 
@@ -25,6 +27,8 @@ export class TasksService {
     dto: CreateTaskDto,
     opts?: { workflowRunId?: string },
   ) {
+    await this.subscription.assertActive(userId);
+
     const agent = await this.prisma.agent.findFirst({
       where: { id: dto.agentId, userId },
     });

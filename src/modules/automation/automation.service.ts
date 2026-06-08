@@ -242,6 +242,8 @@ function resolveTaskType(stepType: StepType, config: WorkflowStepConfig): TaskTy
       return TaskType.SYSTEM_INFO;
     case 'SCREEN_CAPTURE':
       return TaskType.SCREEN_CAPTURE;
+    case 'HTTP_REQUEST':
+      return TaskType.HTTP_REQUEST;
     case 'SCRIPT':
       return TaskType.SCRIPT;
     case 'FILE_OPERATION':
@@ -325,6 +327,7 @@ function resolveCommand(taskType: TaskType, config: WorkflowStepConfig): string 
   if (taskType === TaskType.OPEN_BROWSER) return cmd || 'https://example.com';
   if (taskType === TaskType.DESKTOP_AUTOMATION) return cmd || '[]';
   if (taskType === CHROME_EXTENSION_TYPE) return cmd || '[]';
+  if (taskType === TaskType.HTTP_REQUEST) return cmd || 'https://example.com/api';
   return cmd;
 }
 

@@ -4,6 +4,7 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { AgentStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { PaginatedResponseDto } from '../../common/dto/pagination.dto';
+import { SubscriptionService } from '../billing/subscription.service';
 import { CreateAgentDto, QueryAgentDto } from './dto/index';
 import { AgentTelemetryStore } from './agent-telemetry.store';
 
@@ -15,9 +16,11 @@ export class AgentsService {
   constructor(
     private prisma: PrismaService,
     private telemetry: AgentTelemetryStore,
+    private subscription: SubscriptionService,
   ) {}
 
   async create(userId: string, dto: CreateAgentDto) {
+    await this.subscription.assertCanAddAgent(userId);
     return this.prisma.agent.create({
       data: {
         name: dto.name,

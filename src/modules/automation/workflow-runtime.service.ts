@@ -13,6 +13,7 @@ import {
   WorkflowTriggerType,
 } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { SubscriptionService } from '../billing/subscription.service';
 import { TelegramWorkflowProgressService } from '../triggers/telegram/telegram-workflow-progress.service';
 import { AutomationService, type WorkflowStepResult } from './automation.service';
 import { getStartStepIds, buildAdjacency } from './workflow-runtime/graph-utils';
@@ -24,6 +25,7 @@ export class WorkflowRuntimeService {
 
   constructor(
     private readonly prisma: PrismaService,
+    private readonly subscription: SubscriptionService,
     @Inject(forwardRef(() => AutomationService))
     private readonly automation: AutomationService,
     private readonly telegramProgress: TelegramWorkflowProgressService,
@@ -52,6 +54,8 @@ export class WorkflowRuntimeService {
       variables: Record<string, unknown>;
     },
   ): Promise<{ runId: string; status: WorkflowRunStatus }> {
+    await this.subscription.assertActive(userId);
+
     const workflow = await this.automation.findOne(workflowId, userId);
     const wfRow = workflow as { graph?: unknown; graphEdges?: unknown };
     const graphEdges = resolveWorkflowGraphEdges(
@@ -154,6 +158,8 @@ export class WorkflowRuntimeService {
         results: WorkflowStepResult[];
       }
   > {
+    await this.subscription.assertActive(userId);
+
     const workflow = await this.automation.findOne(workflowId, userId);
     const wfRow = workflow as { graph?: unknown; graphEdges?: unknown };
     const graphEdges = resolveWorkflowGraphEdges(

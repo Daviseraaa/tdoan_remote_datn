@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
-import { Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { Terminal, AlertCircle } from 'lucide-react';
 import { useAuth } from '@/src/hooks/useAuth';
 import { apiErrorMessage } from '@/src/lib/api';
 import { isAuthenticated } from '@/src/lib/auth';
+import { isAdmin as checkAdmin } from '@/src/lib/apiScope';
 import { t } from '@/src/i18n/t';
 
 export default function Login() {
-  const { login } = useAuth();
+  const { login, isAdmin, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const from = (location.state as { from?: { pathname: string } })?.from?.pathname ?? '/';
@@ -17,8 +18,9 @@ export default function Login() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  if (isAuthenticated()) {
-    return <Navigate to={from} replace />;
+  if (!authLoading && isAuthenticated()) {
+    const dest = isAdmin ? '/admin' : from.startsWith('/admin') ? '/' : from;
+    return <Navigate to={dest} replace />;
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -26,8 +28,13 @@ export default function Login() {
     setError('');
     setLoading(true);
     try {
-      await login(email, password);
-      navigate(from, { replace: true });
+      const user = await login(email, password);
+      const dest = checkAdmin(user)
+        ? '/admin'
+        : from.startsWith('/admin')
+          ? '/'
+          : from;
+      navigate(dest, { replace: true });
     } catch (err) {
       setError(apiErrorMessage(err));
     } finally {
@@ -89,6 +96,12 @@ export default function Login() {
             {loading ? t('login.signingIn') : t('login.signIn')}
           </button>
         </form>
+        <p className="mt-6 text-center text-sm text-on-surface-variant">
+          {t('login.noAccount')}{' '}
+          <Link to="/register" className="text-primary font-bold hover:underline">
+            {t('login.registerLink')}
+          </Link>
+        </p>
       </div>
     </div>
   );

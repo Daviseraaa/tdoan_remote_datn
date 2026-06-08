@@ -115,7 +115,7 @@ function formOpts(workflowId: string, draft: EntryTriggerDraft) {
     type: draft.type,
     workflowId,
     name: draft.name,
-    enabled: draft.enabled,
+    enabled: true,
     timezone: draft.timezone,
     scheduleKind: draft.scheduleKind,
     cronExpression: draft.cronExpression,

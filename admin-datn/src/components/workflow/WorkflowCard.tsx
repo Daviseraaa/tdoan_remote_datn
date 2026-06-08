@@ -70,10 +70,12 @@ export function WorkflowCard({
       </div>
 
       <p
-        className="text-xs text-on-surface-variant mt-3 line-clamp-2 break-words flex-1 min-h-[2.5rem]"
+        className="line-clamp-box flex-1 min-h-[2.5rem] mt-3"
         title={description || undefined}
       >
-        {description || t('workflows.newDescription')}
+        <span className="line-clamp-text text-xs text-on-surface-variant [-webkit-line-clamp:2] break-words w-full">
+          {description || t('workflows.newDescription')}
+        </span>
       </p>
 
       <p className="text-[10px] font-mono text-on-surface-variant/80 mt-2">

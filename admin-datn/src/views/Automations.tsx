@@ -52,7 +52,7 @@ export default function Automations() {
   return (
     <div className="pb-12 min-w-0 max-w-full space-y-6 sm:space-y-0">
       <header className="mb-6 sm:mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0">
+        <div className="flex-1 min-w-0">
           <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-1.5 sm:mb-2">
             <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-on-surface">
               {t('automations.title')}
@@ -61,7 +61,7 @@ export default function Automations() {
               {t('automations.viewOnlyBadge')}
             </span>
           </div>
-          <p className="text-on-surface-variant text-sm leading-relaxed max-w-2xl">
+          <p className="prose-description text-on-surface-variant text-sm">
             {t('automations.subtitleViewOnly')}
           </p>
         </div>

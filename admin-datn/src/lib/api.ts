@@ -142,6 +142,14 @@ export async function apiFetch<T>(
   const json = await res.json().catch(() => ({}));
 
   if (!res.ok) {
+    if (
+      res.status === 402 &&
+      typeof window !== 'undefined' &&
+      !window.location.pathname.startsWith('/billing') &&
+      !window.location.pathname.startsWith('/login')
+    ) {
+      window.location.href = '/billing';
+    }
     throw new Error(extractHttpErrorMessage(json, res.status));
   }
 

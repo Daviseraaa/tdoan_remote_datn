@@ -1,4 +1,5 @@
 import { Module, forwardRef } from '@nestjs/common';
+import { BillingModule } from '../billing/billing.module';
 import { ChromeScriptsModule } from '../chrome-scripts/chrome-scripts.module';
 import { DesktopRecordingsModule } from '../desktop-recordings/desktop-recordings.module';
 import { AgentsController } from './agents.controller';
@@ -8,6 +9,7 @@ import { AgentTelemetryStore } from './agent-telemetry.store';
 
 @Module({
   imports: [
+    BillingModule,
     forwardRef(() => ChromeScriptsModule),
     forwardRef(() => DesktopRecordingsModule),
   ],

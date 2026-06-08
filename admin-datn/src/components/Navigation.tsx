@@ -4,6 +4,7 @@ import {
   Users, 
   Share2, 
   Zap,
+  Bot,
   ListTodo,
   FileJson,
   MousePointer2,
@@ -22,7 +23,9 @@ import {
   Headphones,
   Menu,
   X,
+  CreditCard,
 } from 'lucide-react';
+import { SubscriptionBanner } from '@/src/components/SubscriptionBanner';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@/src/lib/utils';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
@@ -44,6 +47,8 @@ export function Sidebar() {
     { icon: MousePointer2, label: t('nav.desktopRecordings'), path: '/desktop-recordings', adminOnly: false },
     { icon: Share2, label: t('nav.workflows'), path: '/workflows', adminOnly: false },
     { icon: Zap, label: t('nav.automations'), path: '/automations', adminOnly: false },
+    { icon: Bot, label: t('nav.bots'), path: '/bots', adminOnly: false },
+    { icon: CreditCard, label: t('nav.billing'), path: '/billing', adminOnly: false },
     { icon: History, label: t('nav.auditLog'), path: '/audit-log', adminOnly: true },
     { icon: Settings, label: t('nav.settings'), path: '/settings', adminOnly: true },
   ].filter((item) => !item.adminOnly || isAdmin);

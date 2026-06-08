@@ -1,6 +1,12 @@
 export const queryKeys = {
   me: ['auth', 'me'] as const,
   adminStats: ['admin', 'stats'] as const,
+  adminPlans: ['admin', 'plans'] as const,
+  adminPayments: (params: Record<string, unknown>) =>
+    ['admin', 'payments', params] as const,
+  adminWorkflowRuns: (params: Record<string, unknown>) =>
+    ['admin', 'workflow-runs', params] as const,
+  adminUsers: (params: Record<string, unknown>) => ['admin', 'users', params] as const,
   adminTasks: (params: Record<string, unknown>) => ['admin', 'tasks', params] as const,
   userStats: ['user', 'stats'] as const,
   agents: (admin: boolean, params: object) =>

@@ -5,7 +5,13 @@ const WS_URL = import.meta.env.VITE_WS_URL ?? 'http://localhost:3000';
 
 let socket: Socket | null = null;
 
-export type TaskWsEvent = 'task:completed' | 'task:failed';
+export type TaskWsEvent = 'task:running' | 'task:completed' | 'task:failed';
+
+export type TaskWsPayload = {
+  taskId: string;
+  status: string;
+  exitCode?: number;
+};
 
 export interface AgentTelemetryWsPayload {
   agentId: string;
@@ -18,7 +24,7 @@ export interface AgentTelemetryWsPayload {
 }
 
 export function connectWs(
-  onEvent: (event: TaskWsEvent) => void,
+  onEvent: (event: TaskWsEvent, payload: TaskWsPayload) => void,
   onAgentTelemetry?: (payload: AgentTelemetryWsPayload) => void,
 ): Socket | null {
   const token = getAccessToken();
@@ -34,8 +40,13 @@ export function connectWs(
     transports: ['websocket', 'polling'],
   });
 
-  socket.on('task:completed', () => onEvent('task:completed'));
-  socket.on('task:failed', () => onEvent('task:failed'));
+  socket.on('task:running', (payload: TaskWsPayload) =>
+    onEvent('task:running', payload),
+  );
+  socket.on('task:completed', (payload: TaskWsPayload) =>
+    onEvent('task:completed', payload),
+  );
+  socket.on('task:failed', (payload: TaskWsPayload) => onEvent('task:failed', payload));
   if (onAgentTelemetry) {
     socket.on('agent:telemetry', (payload: AgentTelemetryWsPayload) => {
       onAgentTelemetry(payload);
