@@ -9,11 +9,12 @@ Monorepo triển khai hệ thống **điều phối agent máy trạm**, **hàng
 1. [Tổng quan](#tổng-quan)
 2. [Công nghệ](#công-nghệ)
 3. [Cấu trúc thư mục](#cấu-trúc-thư-mục)
-4. [Cài đặt & chạy dev](#cài-đặt--chạy-dev)
-5. [Triển khai production](#triển-khai-production)
-6. [Luồng hoạt động](#luồng-hoạt-động)
-7. [API & WebSocket](#api--websocket)
-8. [Tài liệu chi tiết](#tài-liệu-chi-tiết)
+4. [Chrome & Desktop recording](#chrome--desktop-recording-agent)
+5. [Cài đặt & chạy dev](#cài-đặt--chạy-dev)
+6. [Triển khai production](#triển-khai-production)
+7. [Luồng hoạt động](#luồng-hoạt-động)
+8. [API & WebSocket](#api--websocket)
+9. [Tài liệu chi tiết](#tài-liệu-chi-tiết)
 
 ---
 
@@ -127,6 +128,109 @@ server_datn/
 ├── docker-compose.yml            # PostgreSQL, Redis, app
 ├── Dockerfile                    # Multi-stage build NestJS
 └── .env.example                  # Biến môi trường server
+```
+
+---
+
+## Chrome & Desktop recording (Agent)
+
+Hai công cụ ghi **trên máy agent** (Windows), lưu JSON local rồi **đồng bộ lên server** để tạo task template / import vào workflow.
+
+### Chrome Extension — ghi thao tác trình duyệt
+
+Ghi lại click, nhập text, delay trên **một tab Chrome** qua extension MV3 + Native Messaging — **không dùng CDP**.
+
+| Hạng mục | Chi tiết |
+|----------|----------|
+| Thành phần | `agent/chrome-extension/` (UI popup), `agent/chrome-bridge/` (`datn-chrome-bridge.exe`) |
+| Task type | `CHROME_EXTENSION` — replay `steps[]`: `snapshotDom`, `click`, `fill`, `waitFor`, `delay` |
+| Lưu local | `%ProgramData%\DATN\chrome-scripts\{uuid}.json` |
+| Admin | **Chrome scripts** → chọn agent online → **Đồng bộ từ agent** → sửa / import workflow |
+| Tray agent | **Chrome scripts** → **Chạy lại** (replay local, không cần server) |
+
+**Cài đặt (một lần trên máy agent):**
+
+```powershell
+cd agent
+npm run build:chrome-bridge
+npm run chrome-bridge:install    # registry Native Messaging
+```
+
+1. Chrome → `chrome://extensions` → Developer mode → **Load unpacked** → `agent/chrome-extension/`
+2. Trong `%ProgramData%\DATN\agent.env`: `CHROME_EXTENSION_ENABLED=true`
+3. Popup extension → **Bắt đầu ghi** → thao tác trang → **Dừng & lưu**
+
+**Luồng ghi → chạy → đồng bộ:**
+
+```mermaid
+sequenceDiagram
+  participant EXT as Chrome Extension
+  participant BR as datn-chrome-bridge
+  participant AG as datn-agent-native
+  participant API as Server
+  participant UI as Admin
+
+  EXT->>BR: Native Messaging (bước ghi)
+  BR->>AG: lưu file JSON
+  Note over AG: chrome-scripts/*.json
+  AG->>AG: chrome-replay (tray, local)
+  UI->>API: POST /chrome-scripts/sync
+  API->>AG: đọc danh sách file
+  AG-->>API: metadata + nội dung
+  API-->>UI: import template / workflow
+```
+
+---
+
+### Desktop Recorder — ghi thao tác Windows
+
+Ghi chuột, phím, delay trên desktop; tùy chọn **UI Automation (UIA)** cho click chính xác theo control.
+
+| Hạng mục | Chi tiết |
+|----------|----------|
+| Thành phần | `agent/desktop-recorder/` → `datn-desktop-recorder.exe` (GUI egui + CLI) |
+| Task type | `DESKTOP_AUTOMATION` — payload `steps[]`: `click`, `typeText`, `delay`, `openApp`, … |
+| Lưu local | `%ProgramData%\DATN\desktop-recordings\{uuid}.json` |
+| Admin | **Desktop recordings** → **Đồng bộ từ agent** → tạo template / workflow |
+| UIA | Mặc định bật — replay ưu tiên `InvokePattern`, fallback tọa độ vật lý (DPI-aware) |
+
+**Build & chạy:**
+
+```powershell
+cd agent
+npm run build:desktop-recorder
+# GUI: double-click datn-desktop-recorder.exe
+# CLI: datn-desktop-recorder.exe record --name "Mo ung dung"
+# Dừng ghi: F12
+```
+
+**Chạy lại local (không qua server):**
+
+```powershell
+datn-desktop-recorder.exe replay C:\ProgramData\DATN\desktop-recordings\<id>.json
+# hoặc
+datn-agent-native.exe desktop-replay <path.json>
+```
+
+Chạy qua task trên server cần `DESKTOP_AUTOMATION_ENABLED=true` trong `agent.env`.
+
+**Luồng ghi → chạy → đồng bộ:**
+
+```mermaid
+sequenceDiagram
+  participant REC as desktop-recorder
+  participant FS as ProgramData DATN
+  participant AG as datn-agent-native
+  participant API as Server
+  participant UI as Admin
+
+  REC->>FS: ghi desktop-recordings/*.json
+  REC->>REC: replay local (GUI)
+  AG->>FS: desktop-replay / task handler
+  UI->>API: POST /desktop-recordings/sync
+  API->>AG: pull bản ghi
+  AG-->>API: danh sách + JSON
+  API-->>UI: template DESKTOP_AUTOMATION
 ```
 
 ---
@@ -372,14 +476,16 @@ sequenceDiagram
 
 ### Workflow đồ thị
 
+> Trong sơ đồ Mermaid, biến template viết dạng `steps.ten_buoc.*` (không dùng `{{ }}` — ký tự `}` làm hỏi parser).
+
 ```mermaid
 flowchart LR
-  T[Trigger<br/>Manual / Schedule / Telegram]
-  W[Workflow Graph<br/>nodes + edges]
+  T["Trigger<br/>Manual / Schedule / Telegram"]
+  W["Workflow Graph<br/>nodes + edges"]
   R[WorkflowRuntime]
-  S1[Bước 1<br/>outputKey → scope]
-  S2[Bước 2<br/>{{steps.key.*}}]
-  SN[Bước N]
+  S1["Bước 1<br/>outputKey vào scope"]
+  S2["Bước 2<br/>resolve steps.ten_buoc.*"]
+  SN["Bước N"]
 
   T --> R
   W --> R
@@ -399,7 +505,7 @@ sequenceDiagram
   RT->>VAR: workflow.*, telegram.*
   RT->>AG: task bước 1
   AG-->>RT: result → steps.api.data
-  RT->>VAR: merge {{steps.api.*}}
+  RT->>VAR: merge biến steps.api.*
   RT->>AG: task bước 2 (command đã resolve template)
   RT-->>TR: WorkflowRun COMPLETED
 ```
@@ -414,7 +520,7 @@ sequenceDiagram
   participant DP as TriggerDispatcher
   participant RT as WorkflowRuntime
 
-  TG->>WH: POST /webhooks/telegram/{botId}/{secret}
+  TG->>WH: POST /webhooks/telegram/botId/secret
   WH->>WH: verify secret
   WH->>UP: processUpdate
   UP->>UP: match triggers (commands, events)
@@ -422,21 +528,7 @@ sequenceDiagram
   DP->>RT: startRunFromTrigger
 ```
 
-### Đồng bộ Chrome script / Desktop recording
-
-```mermaid
-sequenceDiagram
-  participant REC as Recorder / Extension
-  participant AG as Agent local store
-  participant API as Server API
-  participant UI as Admin
-
-  REC->>AG: lưu JSON %ProgramData%\DATN\
-  UI->>API: POST /chrome-scripts/sync (agent online)
-  API->>AG: pull qua task hoặc API agent
-  AG-->>API: danh sách file
-  API-->>UI: hiển thị + import workflow
-```
+Xem chi tiết ghi hình và đồng bộ tại [Chrome & Desktop recording](#chrome--desktop-recording-agent).
 
 ---
 
