@@ -41,31 +41,36 @@ async function bootstrap() {
     }),
   );
 
-  const swaggerConfig = new DocumentBuilder()
-    .setTitle('StationHub API')
-    .setDescription(
-      'API for automation and agent task management system. ' +
-      'Supports command execution, task management, workflow automation, ' +
-      'and real-time agent communication via WebSocket.',
-    )
-    .setVersion('1.0')
-    .addBearerAuth()
-    .addTag('Auth', 'Authentication & Authorization')
-    .addTag('Users', 'User management')
-    .addTag('Agents', 'Agent registration & management')
-    .addTag('Tasks', 'Task execution & management')
-    .addTag('Automation / Workflows', 'Workflow automation')
-    .addTag('Health', 'System health checks')
-    .build();
+  const logger = app.get(Logger);
 
-  const document = SwaggerModule.createDocument(app, swaggerConfig);
-  SwaggerModule.setup('api/docs', app, document);
+  if (nodeEnv !== 'production') {
+    const swaggerConfig = new DocumentBuilder()
+      .setTitle('StationHub API')
+      .setDescription(
+        'API for automation and agent task management system. ' +
+          'Supports command execution, task management, workflow automation, ' +
+          'and real-time agent communication via WebSocket.',
+      )
+      .setVersion('1.0')
+      .addBearerAuth()
+      .addTag('Auth', 'Authentication & Authorization')
+      .addTag('Users', 'User management')
+      .addTag('Agents', 'Agent registration & management')
+      .addTag('Tasks', 'Task execution & management')
+      .addTag('Automation / Workflows', 'Workflow automation')
+      .addTag('Health', 'System health checks')
+      .build();
+
+    const document = SwaggerModule.createDocument(app, swaggerConfig);
+    SwaggerModule.setup('api/docs', app, document);
+  }
 
   await app.listen(port);
 
-  const logger = app.get(Logger);
   logger.log(`Server running on http://localhost:${port}`);
-  logger.log(`Swagger docs: http://localhost:${port}/api/docs`);
+  if (nodeEnv !== 'production') {
+    logger.log(`Swagger docs: http://localhost:${port}/api/docs`);
+  }
 }
 
 bootstrap();

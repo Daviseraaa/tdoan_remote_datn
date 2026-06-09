@@ -1,0 +1,66 @@
+# Application
+APP_PORT=3000
+NODE_ENV=development
+LOG_LEVEL=info
+
+# Database (PostgreSQL)
+DB_HOST=localhost
+DB_PORT=5432
+DB_USER=postgres
+DB_PASSWORD=root
+DB_NAME=stationhub_db
+DATABASE_URL=postgresql://postgres:root@localhost:5432/stationhub_db
+
+# Redis
+REDIS_HOST=redis-13805.c299.asia-northeast1-1.gce.cloud.redislabs.com
+REDIS_PORT=13805
+REDIS_USERNAME=default
+REDIS_PASSWORD=6pHfXGbObQy8LKtTMeJhKlVb4wjhqINC
+REDIS_TLS=true
+REDIS_URL=rediss://default:6pHfXGbObQy8LKtTMeJhKlVb4wjhqINC@redis-13805.c299.asia-northeast1-1.gce.cloud.redislabs.com:13805
+
+# BullMQ task worker — số job chạy song song (workflow flows độc lập)
+TASK_WORKER_CONCURRENCY=10
+
+# Workflow triggers — Telegram webhook (bắt buộc URL public HTTPS, vd. ngrok → /api)
+PUBLIC_API_BASE_URL=https://collie-framing-unwoven.ngrok-free.dev/api
+# URL webhook của backend
+PUBLIC_WEBHOOK_BASE_URL=
+
+# JWT
+JWT_ACCESS_SECRET=your-access-secret-change-this-in-production
+JWT_ACCESS_EXPIRATION=15m
+JWT_REFRESH_SECRET=your-refresh-secret-change-this-in-production
+JWT_REFRESH_EXPIRATION=7d
+
+# CORS
+CORS_ORIGINS=http://localhost:3001,http://localhost:5173,http://100.108.185.69:5173
+
+# Throttle (Rate Limiting)
+THROTTLE_TTL=60000
+THROTTLE_LIMIT=100
+
+# Subscription
+SUBSCRIPTION_TRIAL_DAYS=7
+
+# SePay — VietQR (qr.sepay.vn) + webhook (https://sepay.vn)
+# SEPAY_BANK_NAME = mã ngân hàng SePay (Vietcombank, MBBank, ACB, …)
+SEPAY_BANK_NAME=MBBank
+SEPAY_ACCOUNT_NUMBER=0369775065
+SEPAY_ACCOUNT_HOLDER=Tran Tuan Doan
+SEPAY_PAYMENT_PREFIX=StationHub
+SEPAY_QR_TEMPLATE=qronly
+SEPAY_WEBHOOK_API_KEY=qnmE7MSC3XdlddaWupUJMjd9ZWhOoHCK
+SEPAY_WEBHOOK_SECRET=LGPVK2CSKXT7OMMG5DKTGYP46ZJRFRS7
+
+# Gmail SMTP — OTP xác thực đăng ký (dùng App Password, không dùng mật khẩu Gmail thường)
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=davisera5611@gmail.com
+SMTP_PASS=drwy xodh uvse hlok
+SMTP_FROM=StationHub <davisera5611@gmail.com>
+SMTP_APP_NAME=StationHub
+
+# Google OAuth — đăng nhập / đăng ký bằng Google (Client ID từ Google Cloud Console)
+GOOGLE_CLIENT_ID=967811538774-b6efan63qp0o7ttmq4td260bth69vvqv.apps.googleusercontent.com
