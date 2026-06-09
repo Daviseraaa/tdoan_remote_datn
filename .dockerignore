@@ -3,3 +3,5 @@ dist
 .env
 .git
 *.md
+admin-stationhub
+agent
