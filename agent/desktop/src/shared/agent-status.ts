@@ -60,6 +60,11 @@ export function ingestAgentLogLine(line: string): void {
     touch('Đang kết nối server…');
     return;
   }
+  if (/socket\.io:.*chờ xác thực/i.test(trimmed)) {
+    connection = 'connecting';
+    touch('Đang xác thực Agent Key…');
+    return;
+  }
   if (/socket\.io:\s*kết nối thành công/i.test(trimmed)) {
     connection = 'connected';
     touch('Đã kết nối server');

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Copy, Check } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
+import { copyToClipboard } from '@/src/lib/copyToClipboard';
 import { t } from '@/src/i18n/t';
 import { formatStepVar } from '@/src/lib/workflowGraph';
 import type { UpstreamOutputKey } from '@/src/lib/workflowGraph';
@@ -10,15 +11,6 @@ type Props = {
   workflowVarKeys?: string[];
   className?: string;
 };
-
-async function copyText(text: string): Promise<boolean> {
-  try {
-    await navigator.clipboard.writeText(text);
-    return true;
-  } catch {
-    return false;
-  }
-}
 
 function VarChip({
   label,
@@ -32,7 +24,7 @@ function VarChip({
   const [copied, setCopied] = useState<string | null>(null);
 
   const pick = async (text: string) => {
-    const ok = await copyText(text);
+    const ok = await copyToClipboard(text);
     if (ok) {
       setCopied(text);
       window.setTimeout(() => setCopied((c) => (c === text ? null : c)), 1500);
@@ -84,6 +76,36 @@ function VarChip({
   );
 }
 
+function WorkflowVarButton({ varKey }: { varKey: string }) {
+  const ref = `{{workflow.${varKey}}}`;
+  const [copied, setCopied] = useState(false);
+
+  const onCopy = async () => {
+    const ok = await copyToClipboard(ref);
+    if (ok) {
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={() => void onCopy()}
+      title={t('workflows.varCopyHint')}
+      className={cn(
+        'inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[9px] font-mono border transition-colors',
+        copied
+          ? 'border-tertiary/30 bg-tertiary/10 text-tertiary'
+          : 'border-white/15 bg-white/5 hover:bg-white/10',
+      )}
+    >
+      {copied ? <Check size={10} /> : <Copy size={10} />}
+      workflow.{varKey}
+    </button>
+  );
+}
+
 export function WfVarRefPanel({ upstream, workflowVarKeys = [], className }: Props) {
   if (upstream.length === 0 && workflowVarKeys.length === 0) return null;
 
@@ -96,19 +118,9 @@ export function WfVarRefPanel({ upstream, workflowVarKeys = [], className }: Pro
 
       {workflowVarKeys.length > 0 ? (
         <div className="flex flex-wrap gap-1">
-          {workflowVarKeys.map((k) => {
-            const ref = `{{workflow.${k}}}`;
-            return (
-              <button
-                key={k}
-                type="button"
-                onClick={() => void copyText(ref)}
-                className="px-2 py-1 rounded-lg text-[9px] font-mono border border-white/15 bg-white/5 hover:bg-white/10"
-              >
-                workflow.{k}
-              </button>
-            );
-          })}
+          {workflowVarKeys.map((k) => (
+            <WorkflowVarButton key={k} varKey={k} />
+          ))}
         </div>
       ) : null}
 

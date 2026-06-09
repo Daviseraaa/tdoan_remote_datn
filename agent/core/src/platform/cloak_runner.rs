@@ -25,6 +25,8 @@ pub struct CloakOpenResponse {
     #[serde(default)]
     pub runner_pid: Option<u32>,
     #[serde(default)]
+    pub browser_pid: Option<u32>,
+    #[serde(default)]
     pub chrome_profile: Option<String>,
     #[serde(default)]
     pub chrome_user_data_dir: Option<String>,
@@ -42,6 +44,7 @@ pub struct CloakOpenSuccess {
     pub title: Option<String>,
     pub method: String,
     pub runner_pid: Option<u32>,
+    pub browser_pid: Option<u32>,
     pub chrome_profile: Option<String>,
     pub chrome_user_data_dir: Option<String>,
 }
@@ -414,6 +417,7 @@ pub async fn open_url(
             .method
             .unwrap_or_else(|| "cloakbrowser".to_string()),
         runner_pid: parsed.runner_pid,
+        browser_pid: parsed.browser_pid,
         chrome_profile: parsed.chrome_profile,
         chrome_user_data_dir: parsed.chrome_user_data_dir,
     };

@@ -50,9 +50,14 @@ pub async fn run_steps_json(payload: Option<Value>) -> Result<Value, String> {
                     .get("target")
                     .and_then(|t| t.as_str())
                     .ok_or("openApp.target")?;
-                crate::platform::open_app::open_app_resolve(target)
-                    .await
-                    .map_err(|e| e)?;
+                crate::platform::open_app::open_app_resolve(
+                    target,
+                    &crate::platform::OpenAppOptions {
+                        fullscreen: false,
+                    },
+                )
+                .await
+                .map_err(|e| e)?;
                 outcomes.push(json!({"index": i, "action": action, "ok": true, "detail": target}));
             }
             "move" => {

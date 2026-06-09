@@ -6,6 +6,7 @@ export const vi = {
     yes: 'Có',
     no: 'Không',
     copy: 'SAO CHÉP',
+    copied: 'Đã sao chép',
     cancel: 'Hủy',
     save: 'Lưu',
     saved: 'Đã lưu',
@@ -93,6 +94,7 @@ export const vi = {
     SYSTEM_INFO: 'Thông tin hệ thống',
     OPEN_APP: 'Mở ứng dụng',
     OPEN_BROWSER: 'Mở trình duyệt',
+    CLOSE_APP: 'Đóng ứng dụng',
     CHROME_EXTENSION: 'Chrome extension (DOM)',
     DESKTOP_AUTOMATION: 'Tự động hóa desktop',
     SCREEN_CAPTURE: 'Chụp màn hình',
@@ -103,6 +105,8 @@ export const vi = {
     OPEN_APP_desc: 'Mở app theo đường dẫn, tên hoặc tìm kiếm.',
     OPEN_BROWSER_desc:
       'Mở URL bằng CloakBrowser (stealth) hoặc Chrome thật (giữ đăng nhập). Cần cloak-runner trên agent.',
+    CLOSE_APP_desc:
+      'Đóng app hoặc trình duyệt đã mở — theo PID, tên process, tiêu đề cửa sổ, hoặc tất cả app mở trong workflow.',
     CHROME_EXTENSION_desc:
       'Snapshot DOM / click / fill trên Chrome thật qua extension + Native Messaging. Cần cài extension và CHROME_EXTENSION_ENABLED=true.',
     DESKTOP_AUTOMATION_desc: 'Chuỗi bước chuột, phím, mở app trên Windows.',
@@ -110,6 +114,27 @@ export const vi = {
     HTTP_REQUEST_desc:
       'Agent gửi HTTP request (GET/POST/…) tới URL — hữu ích cho API nội bộ, localhost hoặc mạng VPN của máy agent.',
     FILE_OPERATION_desc: 'Chưa hỗ trợ trên agent.',
+  },
+  openApp: {
+    subtitle: 'Mở ứng dụng trên agent — đường dẫn, tên hoặc tìm Start Menu.',
+    target: 'App / đường dẫn',
+    fullscreen: 'Mở toàn màn hình (phóng to)',
+    fullscreenHint:
+      'Sau khi cửa sổ hiện, agent phóng to tối đa (Windows). Một số app UWP có thể không hỗ trợ.',
+  },
+  closeApp: {
+    subtitle: 'Đóng cửa sổ / process trên agent Windows.',
+    mode: 'Cách đóng',
+    mode_openedInRun: 'Đã mở trong workflow',
+    mode_pid: 'Theo PID',
+    mode_processName: 'Theo tên process',
+    mode_windowTitle: 'Theo tiêu đề cửa sổ',
+    pid: 'PID process',
+    pidHint: 'Dùng {{steps.<key>.json.pid}} hoặc {{steps.<key>.json.runnerPid}} từ bước OPEN_APP/OPEN_BROWSER.',
+    processName: 'Tên process',
+    windowTitle: 'Tiêu đề cửa sổ (chứa)',
+    openedInRunHint:
+      'Đóng tất cả app/browser đã mở bởi OPEN_APP hoặc OPEN_BROWSER trong lần chạy workflow này.',
   },
   openBrowser: {
     subtitle: 'Mở trang web trên agent — URL, loại trình duyệt và tuỳ chọn nâng cao.',
@@ -807,6 +832,9 @@ export const vi = {
     cronPlaceholder: '0 8 * * *',
     stepDelayMs: 'Delay (ms)',
     stepDelayMsHint: 'Chờ sau mỗi bước trước khi bước kế tiếp trên nhánh được chạy.',
+    closeOpenedOnFinish: 'Đóng app đã mở khi xong',
+    closeOpenedOnFinishHint:
+      'Tự đóng app/browser được mở bởi OPEN_APP hoặc OPEN_BROWSER sau khi workflow hoàn tất (thành công hoặc lỗi).',
     delayAfterStep: 'Delay sau bước (ms)',
     delayAfterStepHint: 'Để trống = dùng delay workflow ({ms} ms). Node Chờ (DELAY) chỉ dùng delay của node.',
     fitView: 'Vừa khung',
@@ -1019,7 +1047,7 @@ export const vi = {
   botsPage: {
     title: 'Bot Telegram',
     subtitle: 'Đăng ký bot từ BotFather để nhận webhook và dùng trong workflow, trigger hoặc gửi ảnh/tin nhắn.',
-    hint: 'Lấy token tại @BotFather → dán vào form. Server tự đăng ký webhook qua PUBLIC_API_BASE_URL (bắt buộc HTTPS public, ví dụ ngrok). Một bot có thể gắn nhiều trigger Telegram.',
+    hint: 'Lấy token tại @BotFather → dán vào form. Một bot có thể gắn nhiều trigger Telegram.',
   },
   settings: {
     title: 'Cài đặt',

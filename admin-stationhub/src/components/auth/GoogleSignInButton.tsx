@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { t } from '@/src/i18n/t';
@@ -21,6 +21,7 @@ declare global {
             client_id: string;
             callback: (response: { credential?: string }) => void;
             auto_select?: boolean;
+            ux_mode?: 'popup' | 'redirect';
           }) => void;
           renderButton: (
             parent: HTMLElement,
@@ -65,9 +66,11 @@ export function GoogleSignInButton({
   onSuccess,
   onError,
 }: GoogleSignInButtonProps) {
-  const hiddenHostRef = useRef<HTMLDivElement>(null);
+  const shellRef = useRef<HTMLDivElement>(null);
+  const googleHostRef = useRef<HTMLDivElement>(null);
   const onSuccessRef = useRef(onSuccess);
   const onErrorRef = useRef(onError);
+  const [ready, setReady] = useState(false);
 
   onSuccessRef.current = onSuccess;
   onErrorRef.current = onError;
@@ -77,17 +80,21 @@ export function GoogleSignInButton({
 
     let cancelled = false;
 
-    const mountHiddenButton = () => {
-      if (cancelled || !hiddenHostRef.current || !window.google?.accounts?.id) {
+    const mountGoogleButton = () => {
+      const shell = shellRef.current;
+      const host = googleHostRef.current;
+      if (cancelled || !shell || !host || !window.google?.accounts?.id) {
         return false;
       }
 
-      const host = hiddenHostRef.current;
+      const width = Math.min(400, Math.max(200, Math.floor(shell.offsetWidth)));
+
       host.innerHTML = '';
 
       window.google.accounts.id.initialize({
         client_id: GOOGLE_CLIENT_ID,
         auto_select: false,
+        ux_mode: 'popup',
         callback: (response) => {
           const token = response.credential;
           if (!token) {
@@ -102,21 +109,22 @@ export function GoogleSignInButton({
         type: 'standard',
         theme: 'outline',
         size: 'large',
-        width: 320,
+        width,
         text: 'continue_with',
       });
 
+      setReady(true);
       return true;
     };
 
-    if (mountHiddenButton()) {
+    if (mountGoogleButton()) {
       return () => {
         cancelled = true;
       };
     }
 
     const timer = window.setInterval(() => {
-      if (mountHiddenButton()) {
+      if (mountGoogleButton()) {
         window.clearInterval(timer);
       }
     }, 80);
@@ -126,11 +134,6 @@ export function GoogleSignInButton({
       window.clearInterval(timer);
     };
   }, []);
-
-  const triggerGoogleSignIn = () => {
-    if (disabled) return;
-    hiddenHostRef.current?.querySelector<HTMLElement>('[role="button"]')?.click();
-  };
 
   if (!isGoogleSignInEnabled()) return null;
 
@@ -143,35 +146,26 @@ export function GoogleSignInButton({
         <p className="block text-[10px] font-mono font-bold uppercase tracking-widest text-on-surface-variant mb-2">
           {t('auth.oauthLabel')}
         </p>
-        <button
-          type="button"
-          disabled={disabled}
-          onClick={triggerGoogleSignIn}
+        {/* Google iframe phải nằm trong viewport — overlay trong suốt, không click giả từ nút ẩn */}
+        <div
+          ref={shellRef}
           className={cn(
-            'group relative w-full overflow-hidden',
-            'rounded-xl border border-white/10',
-            'bg-surface-container-low',
-            'transition-all duration-200',
-            'hover:border-primary/50 hover:bg-surface-container',
-            'focus-visible:outline-none focus-visible:border-primary/50 focus-visible:ring-2 focus-visible:ring-primary/15',
-            'active:scale-[0.995]',
-            'disabled:opacity-50 disabled:pointer-events-none disabled:active:scale-100',
+            'relative w-full min-h-[52px] rounded-xl',
+            disabled && 'pointer-events-none opacity-50',
           )}
         >
-          <span
-            aria-hidden
+          <div
             className={cn(
-              'pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-300',
-              'bg-gradient-to-r from-transparent via-primary/8 to-transparent',
-              'group-hover:opacity-100',
+              'pointer-events-none select-none',
+              'rounded-xl border border-white/10 bg-surface-container-low',
+              'flex items-center px-4 py-3',
             )}
-          />
-          <span className="relative flex items-center px-4 py-3">
+            aria-hidden
+          >
             <span
               className={cn(
                 'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg',
                 'bg-surface-container-high border border-white/10',
-                'transition-colors duration-200 group-hover:border-primary/30',
               )}
             >
               {disabled ? (
@@ -183,15 +177,19 @@ export function GoogleSignInButton({
             <span className="flex-1 text-center pr-8 text-sm font-bold text-on-surface">
               {label}
             </span>
-          </span>
-        </button>
-      </div>
+          </div>
 
-      <div
-        ref={hiddenHostRef}
-        className="fixed -left-[9999px] top-0 h-px w-px overflow-hidden opacity-0"
-        aria-hidden
-      />
+          <div
+            ref={googleHostRef}
+            className={cn(
+              'absolute inset-0 z-10 overflow-hidden rounded-xl',
+              'opacity-[0.011] cursor-pointer',
+              !ready && 'invisible',
+            )}
+            aria-label={label}
+          />
+        </div>
+      </div>
 
       <div className="flex items-center gap-3">
         <div className="h-px flex-1 bg-white/10" />

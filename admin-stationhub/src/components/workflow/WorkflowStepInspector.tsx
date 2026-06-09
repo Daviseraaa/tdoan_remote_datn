@@ -20,6 +20,8 @@ import {
   type ScreenCapturePayload,
 } from './ScreenCaptureOptionsFields';
 import { OpenBrowserConfigFields } from './OpenBrowserConfigFields';
+import { CloseAppConfigFields } from './CloseAppConfigFields';
+import { OpenAppConfigFields } from './OpenAppConfigFields';
 import { HttpRequestConfigFields } from './HttpRequestConfigFields';
 import { isChromeReplayCommand } from '@/src/lib/workflowGraph';
 import { WfImportMenu } from './WfImportMenu';
@@ -298,11 +300,23 @@ export function WorkflowStepInspector({
             />
           ) : null}
 
+          {data.taskType === 'CLOSE_APP' ? (
+            <CloseAppConfigFields
+              compact
+              payload={(cfg.payload as Record<string, unknown>) ?? {}}
+              onChange={({ command, payload }) =>
+                patchConfig({ command, payload, taskType: 'CLOSE_APP' })
+              }
+            />
+          ) : null}
+
           {data.taskType !== 'SYSTEM_INFO' &&
           data.taskType !== 'CHROME_EXTENSION' &&
           data.taskType !== 'SCREEN_CAPTURE' &&
           data.taskType !== 'HTTP_REQUEST' &&
-          data.taskType !== 'OPEN_BROWSER' ? (
+          data.taskType !== 'OPEN_BROWSER' &&
+          data.taskType !== 'OPEN_APP' &&
+          data.taskType !== 'CLOSE_APP' ? (
             <div>
               <label className="text-[10px] font-mono font-bold uppercase text-on-surface-variant">
                 {t('workflows.command')}
@@ -338,23 +352,14 @@ export function WorkflowStepInspector({
           ) : null}
 
           {data.taskType === 'OPEN_APP' ? (
-            <div>
-              <label className="text-[10px] font-mono font-bold uppercase text-on-surface-variant">
-                {t('workflows.payloadJson')}
-              </label>
-              <textarea
-                value={JSON.stringify(cfg.payload ?? {}, null, 2)}
-                onChange={(e) => {
-                  try {
-                    patchConfig({ payload: JSON.parse(e.target.value) as Record<string, unknown> });
-                  } catch {
-                    /* ignore invalid json while typing */
-                  }
-                }}
-                rows={4}
-                className="w-full mt-1 px-4 py-3 rounded-xl bg-surface-container-low border border-white/10 font-mono text-xs"
-              />
-            </div>
+            <OpenAppConfigFields
+              compact
+              command={cfg.command ?? ''}
+              payload={(cfg.payload as Record<string, unknown>) ?? {}}
+              onChange={({ command, payload }) =>
+                patchConfig({ command, payload, taskType: 'OPEN_APP' })
+              }
+            />
           ) : null}
 
           {data.taskType === 'CHROME_EXTENSION' ? (

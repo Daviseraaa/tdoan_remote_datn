@@ -22,6 +22,17 @@ const NS: &str = "/ws/agent";
 const TASK_EXECUTE: &str = "task:execute";
 const TASK_RESULT: &str = "task:result";
 const AGENT_HEARTBEAT: &str = "agent:heartbeat";
+const AGENT_STATUS: &str = "agent:status";
+const AGENT_SUBSCRIPTION_EXPIRED: &str = "agent:subscription:expired";
+const AGENT_SESSION_REVOKED: &str = "agent:session:revoked";
+
+fn log_socket_auth_failure(reason: &str) {
+    error!("Server rejected agent connection: {}", reason);
+    eprintln!(
+        "[StationHub] Socket.IO: kết nối THẤT BẠI — {}",
+        reason
+    );
+}
 const CHROME_PROFILES_SYNC: &str = "agent:chrome-profiles:sync";
 const CHROME_PROFILES_RESULT: &str = "agent:chrome-profiles:result";
 const CHROME_SCRIPTS_SYNC: &str = "agent:chrome-scripts:sync";
@@ -147,10 +158,14 @@ pub async fn run_with_stop(stop: Arc<AtomicBool>) -> Result<(), Box<dyn std::err
     });
 
     let sem = Arc::new(Semaphore::new(cfg.task_max_concurrency.max(1)));
+    let server_authenticated = Arc::new(AtomicBool::new(false));
 
     let sem_t = sem.clone();
     let cfg_t = cfg.clone();
     let platform_t = platform.clone();
+    let auth_for_status = server_authenticated.clone();
+    let auth_for_sub = server_authenticated.clone();
+    let auth_for_revoked = server_authenticated.clone();
     let builder = ClientBuilder::new(base.clone())
         .namespace(NS)
         .transport_type(TransportType::Websocket)
@@ -264,6 +279,48 @@ pub async fn run_with_stop(stop: Arc<AtomicBool>) -> Result<(), Box<dyn std::err
             }
             .boxed()
         })
+        .on(AGENT_STATUS, move |payload: Payload, _: Client| {
+            let auth = auth_for_status.clone();
+            async move {
+                let Some(v) = first_json(payload) else {
+                    return;
+                };
+                let status = v
+                    .get("status")
+                    .and_then(|s| s.as_str())
+                    .unwrap_or_default();
+                if status.eq_ignore_ascii_case("ONLINE") {
+                    auth.store(true, Ordering::SeqCst);
+                    info!("Server authenticated agent (status=ONLINE)");
+                    eprintln!(
+                        "[StationHub] Socket.IO: kết nối THÀNH CÔNG — server đã xác thực Agent Key"
+                    );
+                }
+            }
+            .boxed()
+        })
+        .on(AGENT_SUBSCRIPTION_EXPIRED, move |payload: Payload, _: Client| {
+            let auth = auth_for_sub.clone();
+            async move {
+                auth.store(false, Ordering::SeqCst);
+                let msg = first_json(payload)
+                    .and_then(|v| v.get("message").and_then(|m| m.as_str()).map(String::from))
+                    .unwrap_or_else(|| "Gói đăng ký đã hết hạn".into());
+                log_socket_auth_failure(&msg);
+            }
+            .boxed()
+        })
+        .on(AGENT_SESSION_REVOKED, move |payload: Payload, _: Client| {
+            let auth = auth_for_revoked.clone();
+            async move {
+                auth.store(false, Ordering::SeqCst);
+                let msg = first_json(payload)
+                    .and_then(|v| v.get("message").and_then(|m| m.as_str()).map(String::from))
+                    .unwrap_or_else(|| "Phiên agent bị thu hồi — kiểm tra Agent Key".into());
+                log_socket_auth_failure(&msg);
+            }
+            .boxed()
+        })
         .on("error", |err, _: Client| {
             async move {
                 warn!("socket error: {:?}", err);
@@ -276,8 +333,19 @@ pub async fn run_with_stop(stop: Arc<AtomicBool>) -> Result<(), Box<dyn std::err
 
     let client = match builder.connect().await {
         Ok(c) => {
-            info!("Socket connected — {} {}", base, NS);
-            eprintln!("[StationHub] Socket.IO: kết nối THÀNH CÔNG — {}{}", base, NS);
+            info!("Socket transport up — {} {} (awaiting server auth)", base, NS);
+            eprintln!(
+                "[StationHub] Socket.IO: transport OK — chờ xác thực Agent Key…"
+            );
+            let auth_timeout = server_authenticated.clone();
+            tokio::spawn(async move {
+                tokio::time::sleep(Duration::from_secs(6)).await;
+                if !auth_timeout.load(Ordering::SeqCst) {
+                    log_socket_auth_failure(
+                        "Agent Key không hợp lệ hoặc server từ chối kết nối — kiểm tra Cài đặt",
+                    );
+                }
+            });
             c
         }
         Err(e) => {

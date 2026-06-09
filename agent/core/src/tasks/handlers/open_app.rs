@@ -1,6 +1,7 @@
 use async_trait::async_trait;
 use serde_json::{json, Value};
 
+use crate::platform::OpenAppOptions;
 use crate::tasks::registry::{TaskContext, TaskExecute, TaskHandler};
 use crate::tasks::types::TaskOutcome;
 
@@ -27,6 +28,16 @@ fn extract_open_target(t: &TaskExecute) -> String {
     t.command.trim().to_string()
 }
 
+fn extract_open_options(t: &TaskExecute) -> OpenAppOptions {
+    let mut fullscreen = true;
+    if let Some(Value::Object(p)) = &t.payload {
+        if let Some(b) = p.get("fullscreen").and_then(|x| x.as_bool()) {
+            fullscreen = b;
+        }
+    }
+    OpenAppOptions { fullscreen }
+}
+
 #[async_trait]
 impl TaskHandler for Handler {
     fn task_type(&self) -> &'static str {
@@ -43,7 +54,13 @@ impl TaskHandler for Handler {
                 None,
             );
         }
-        match ctx.platform.open_app().resolve_and_launch(&target).await {
+        let options = extract_open_options(task);
+        match ctx
+            .platform
+            .open_app()
+            .resolve_and_launch(&target, options)
+            .await
+        {
             Ok(s) => (
                 true,
                 0,
@@ -52,6 +69,9 @@ impl TaskHandler for Handler {
                     "method": s.method,
                     "launched": s.launched,
                     "windowDetected": cfg!(windows),
+                    "pid": s.pid,
+                    "processName": s.process_name,
+                    "fullscreen": s.fullscreen,
                 })),
             ),
             Err(e) => (false, -1, Some(e), None),

@@ -11,7 +11,6 @@ import {
   Clock,
   CheckCircle2, 
   AlertCircle, 
-  Copy, 
   ArrowRight, 
   RotateCcw, 
   Trash2,
@@ -40,6 +39,10 @@ import {
 } from '@/src/lib/agentFilters';
 import { apiErrorMessage } from '@/src/lib/api';
 import { t } from '@/src/i18n/t';
+import { CopyButton } from '@/src/components/CopyButton';
+
+const QUICK_INSTALL_CURL =
+  'curl -sSL https://get.stationhub.io/install.sh | bash -s -- --token=eyJhbGciOiJIUzI1NiI...';
 
 const AGENT_OS_OPTIONS = ['Windows 11', 'Windows 10', 'Linux', 'macOS', 'Other'] as const;
 
@@ -190,15 +193,6 @@ export default function Agents() {
     }
   };
 
-  const copyRegAgentKey = async () => {
-    if (!regAgentKey) return;
-    try {
-      await navigator.clipboard.writeText(regAgentKey);
-    } catch {
-      setApiError(t('common.couldNotCopy'));
-    }
-  };
-
   const handleDeleteAgent = async () => {
     if (!selectedAgent?._raw?.id) return;
     try {
@@ -221,15 +215,6 @@ export default function Agents() {
       setSelectedAgent(mapAgentToCard(updated));
     } catch (err) {
       setApiError(apiErrorMessage(err));
-    }
-  };
-
-  const copyAgentKey = async () => {
-    if (!activeAgentKey) return;
-    try {
-      await navigator.clipboard.writeText(activeAgentKey);
-    } catch {
-      setApiError(t('common.couldNotCopy'));
     }
   };
 
@@ -304,10 +289,14 @@ export default function Agents() {
             </div>
             <p className="text-on-surface-variant text-body-md leading-relaxed mb-6 break-words">{t('agents.quickRegistrationDesc')}</p>
             <div className="bg-surface-container-lowest/80 rounded-xl border border-white/5 p-3 sm:p-4 flex items-center gap-3 min-w-0 overflow-hidden group/box ring-1 ring-transparent hover:ring-primary/20 transition-all">
-              <code className="font-mono text-[10px] sm:text-xs text-primary flex-1 min-w-0 truncate">curl -sSL https://get.stationhub.io/install.sh | bash -s -- --token=eyJhbGciOiJIUzI1NiI...</code>
-              <button type="button" className="shrink-0 p-2.5 bg-white/5 hover:bg-white/10 rounded-lg text-on-surface-variant transition-all hover:text-primary">
-                <Copy size={16} />
-              </button>
+              <code className="font-mono text-[10px] sm:text-xs text-primary flex-1 min-w-0 truncate">{QUICK_INSTALL_CURL}</code>
+              <CopyButton
+                text={QUICK_INSTALL_CURL}
+                iconOnly
+                iconSize={16}
+                className="shrink-0 p-2.5 bg-white/5 hover:bg-white/10 rounded-lg text-on-surface-variant hover:text-primary"
+                onError={() => setApiError(t('common.couldNotCopy'))}
+              />
             </div>
           </div>
           <div className="shrink-0 w-full lg:w-auto lg:self-center">
@@ -494,15 +483,13 @@ export default function Agents() {
                       {activeAgentKey ?? t('agents.regenerateHint')}
                     </p>
                     <div className="flex gap-2">
-                      <button
-                        type="button"
+                      <CopyButton
+                        text={activeAgentKey ?? ''}
                         disabled={!activeAgentKey}
-                        onClick={() => void copyAgentKey()}
-                        className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-white/5 hover:bg-white/10 rounded-xl text-xs font-bold font-mono disabled:opacity-30"
-                      >
-                        <Copy size={16} />
-                        {t('common.copy')}
-                      </button>
+                        iconSize={16}
+                        className="flex-1 py-2.5 bg-white/5 hover:bg-white/10 rounded-xl text-xs font-bold font-mono"
+                        onError={() => setApiError(t('common.couldNotCopy'))}
+                      />
                       <button
                         type="button"
                         onClick={() => void handleRegenerateKey()}
@@ -691,15 +678,13 @@ export default function Agents() {
                             <code className="font-mono text-xs text-primary truncate mr-4 tracking-widest">
                               {regAgentKey ?? t('common.emDash')}
                             </code>
-                            <button
-                              type="button"
-                              onClick={() => void copyRegAgentKey()}
+                            <CopyButton
+                              text={regAgentKey ?? ''}
                               disabled={!regAgentKey}
-                              className="flex items-center gap-2 text-primary font-bold font-mono text-xs hover:brightness-125 shrink-0 disabled:opacity-40"
-                            >
-                               <Copy size={16} />
-                               {t('common.copy')}
-                            </button>
+                              iconSize={16}
+                              className="text-primary font-bold font-mono text-xs hover:brightness-125 shrink-0"
+                              onError={() => setApiError(t('common.couldNotCopy'))}
+                            />
                          </div>
                        </div>
                      </motion.div>

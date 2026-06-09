@@ -1,6 +1,6 @@
 //! Khớp `desktop/src/shared/build-config.ts` — sửa tay cả hai file khi đổi giá trị.
 
-pub const SERVER_WS_URL: &str = "ws://100.108.185.69:3000";
+pub const SERVER_WS_URL: &str = "ws://localhost:3000";
 pub const AGENT_VERSION: &str = "1.1.0";
 pub const PUBLIC_IP_LOOKUP_URL: &str = "https://api.ipify.org";
 pub const LOG_LEVEL: &str = "info";

@@ -16,6 +16,7 @@ import {
   GitBranch,
   MessageCircle,
   Camera,
+  X,
 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import type { WfNodeData } from '@/src/lib/workflowGraph';
@@ -45,6 +46,8 @@ function kindIcon(kind: WfNodeData['kind'], taskType?: TaskType) {
       return AppWindow;
     case 'OPEN_BROWSER':
       return Globe;
+    case 'CLOSE_APP':
+      return X;
     case 'CHROME_EXTENSION':
       return MousePointer2;
     case 'DESKTOP_AUTOMATION':

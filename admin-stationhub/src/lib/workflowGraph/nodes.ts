@@ -28,9 +28,13 @@ export function newTaskNodeData(
                 ? '0'
                 : taskType === 'HTTP_REQUEST'
                   ? 'https://example.com/api'
-                  : '',
+                  : taskType === 'CLOSE_APP'
+                    ? 'close'
+                    : '',
       payload:
-        taskType === 'OPEN_BROWSER'
+        taskType === 'CLOSE_APP'
+          ? { mode: 'openedInRun' }
+          : taskType === 'OPEN_BROWSER'
           ? { useChromeProfile: false }
           : taskType === 'CHROME_EXTENSION'
             ? { action: 'snapshotDom', maxNodes: 200 }
@@ -43,7 +47,9 @@ export function newTaskNodeData(
                 }
               : taskType === 'HTTP_REQUEST'
                 ? { method: 'GET' }
-                : undefined,
+                : taskType === 'OPEN_APP'
+                  ? { path: '', fullscreen: true }
+                  : undefined,
       timeout: 60000,
       stepKey,
       ui: position,

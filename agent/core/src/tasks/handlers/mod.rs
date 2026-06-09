@@ -1,4 +1,5 @@
 pub mod chrome_extension;
+pub mod close_app;
 pub mod command;
 pub mod desktop;
 pub mod file_operation;

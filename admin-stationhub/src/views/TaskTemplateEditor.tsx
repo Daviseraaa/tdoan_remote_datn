@@ -15,6 +15,7 @@ import { ScriptTemplateForm } from '@/src/components/taskTemplate/ScriptTemplate
 import { SystemInfoTemplateForm } from '@/src/components/taskTemplate/SystemInfoTemplateForm';
 import { OpenAppTemplateForm } from '@/src/components/taskTemplate/OpenAppTemplateForm';
 import { OpenBrowserTemplateForm } from '@/src/components/taskTemplate/OpenBrowserTemplateForm';
+import { CloseAppTemplateForm } from '@/src/components/taskTemplate/CloseAppTemplateForm';
 import { DesktopAutomationBuilder } from '@/src/components/taskTemplate/DesktopAutomationBuilder';
 import { ChromeExtensionBuilder } from '@/src/components/taskTemplate/ChromeExtensionBuilder';
 import { ScreenCaptureTemplateForm } from '@/src/components/taskTemplate/ScreenCaptureTemplateForm';
@@ -421,6 +422,8 @@ export default function TaskTemplateEditor() {
                   <OpenAppTemplateForm state={form} onChange={patch} />
                 ) : form.type === 'OPEN_BROWSER' ? (
                   <OpenBrowserTemplateForm state={form} onChange={patch} />
+                ) : form.type === 'CLOSE_APP' ? (
+                  <CloseAppTemplateForm state={form} onChange={patch} />
                 ) : form.type === 'SCREEN_CAPTURE' ? (
                   <ScreenCaptureTemplateForm form={form} patch={patch} />
                 ) : form.type === 'HTTP_REQUEST' ? (

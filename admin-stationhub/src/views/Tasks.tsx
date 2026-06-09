@@ -7,7 +7,6 @@ import {
   Trash2,
   AlertCircle,
   Loader2,
-  Copy,
   Filter,
   Layers,
   ListTodo,
@@ -16,6 +15,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@/src/lib/utils';
+import { CopyButton } from '@/src/components/CopyButton';
 import { useTasksList, useTaskDetail, useTaskMutations } from '@/src/hooks/useTasks';
 import { useTaskTemplatesList, useTaskTemplateMutations } from '@/src/hooks/useTaskTemplates';
 import { useAgentsList } from '@/src/hooks/useAgents';
@@ -47,6 +47,7 @@ const TASK_TYPES: TaskType[] = [
   'SYSTEM_INFO',
   'OPEN_APP',
   'OPEN_BROWSER',
+  'CLOSE_APP',
   'CHROME_EXTENSION',
   'DESKTOP_AUTOMATION',
   'SCREEN_CAPTURE',
@@ -261,17 +262,6 @@ export default function Tasks() {
   const selectedTaskLogs = selected ? dedupeTaskLogs(selected.logs) : [];
   const templates = templatesPage?.items ?? [];
   const historyTotal = data?.meta.total ?? 0;
-
-  const copyCommandToClipboard = async (text: string | null | undefined) => {
-    const s = (text ?? '').trim();
-    if (!s) return;
-    setError('');
-    try {
-      await navigator.clipboard.writeText(s);
-    } catch {
-      setError(t('common.couldNotCopy'));
-    }
-  };
 
   const activeAgentName = (agentId: string) =>
     agentsPage?.items.find((a) => a.id === agentId)?.name ?? agentId;
@@ -606,15 +596,13 @@ export default function Tasks() {
                       <TaskDetailRow label={t('tasks.command')}>
                         <div className="space-y-2">
                           <div className="flex justify-end">
-                            <button
-                              type="button"
+                            <CopyButton
+                              text={selected.command ?? ''}
                               disabled={!(selected.command ?? '').trim()}
-                              onClick={() => void copyCommandToClipboard(selected.command)}
-                              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-[10px] font-mono font-bold uppercase text-on-surface-variant disabled:opacity-30"
-                            >
-                              <Copy size={14} />
-                              {t('common.copy')}
-                            </button>
+                              iconSize={14}
+                              className="px-2.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-[10px] font-mono font-bold uppercase text-on-surface-variant"
+                              onError={() => setError(t('common.couldNotCopy'))}
+                            />
                           </div>
                           <pre className="text-xs font-mono bg-surface-container-low p-3 rounded-lg border border-white/5 whitespace-pre-wrap break-all max-h-40 overflow-auto">
                             {selected.command ?? '—'}

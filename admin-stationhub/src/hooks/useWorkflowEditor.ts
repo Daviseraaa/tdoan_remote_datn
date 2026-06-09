@@ -106,7 +106,7 @@ export function useWorkflowEditor(workflowId: string) {
       patch: Partial<
         Pick<
           Workflow,
-          'name' | 'description' | 'cronExpression' | 'isActive' | 'variables' | 'stepDelayMs'
+          'name' | 'description' | 'cronExpression' | 'isActive' | 'variables' | 'stepDelayMs' | 'closeOpenedOnFinish'
         >
       >,
     ) => {
@@ -129,6 +129,7 @@ export function useWorkflowEditor(workflowId: string) {
             cronExpression: draft.cronExpression,
             isActive: draft.isActive,
             stepDelayMs: draft.stepDelayMs ?? 0,
+            closeOpenedOnFinish: draft.closeOpenedOnFinish ?? false,
             variables: draft.variables,
             graph: payload.graph,
             steps: payload.steps,

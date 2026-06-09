@@ -25,6 +25,7 @@ enum TaskType {
   SYSTEM_INFO
   OPEN_APP
   OPEN_BROWSER
+  CLOSE_APP
   DESKTOP_AUTOMATION
   CHROME_EXTENSION
   SCREEN_CAPTURE
@@ -355,8 +356,9 @@ model Workflow {
   graphEdges     Json?
   isActive       Boolean  @default(true)
   cronExpression String?
-  stepDelayMs    Int      @default(0)
-  createdAt      DateTime @default(now())
+  stepDelayMs            Int      @default(0)
+  closeOpenedOnFinish    Boolean  @default(false)
+  createdAt              DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
   userId String

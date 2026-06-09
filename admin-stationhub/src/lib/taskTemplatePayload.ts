@@ -19,6 +19,11 @@ import {
   parseOpenBrowserForm,
   type OpenBrowserFormState,
 } from '@/src/lib/openBrowserPayload';
+import {
+  buildCloseAppTask,
+  parseCloseAppForm,
+} from '@/src/lib/closeAppPayload';
+import { buildOpenAppPayload, parseOpenAppForm } from '@/src/lib/openAppPayload';
 
 export type { ChromeScriptStep };
 
@@ -56,6 +61,7 @@ export interface TemplateEditorState {
   command: string;
   openAppMode: OpenAppMode;
   openAppValue: string;
+  openAppFullscreen: boolean;
   desktopSteps: DesktopStep[];
   chromeSteps: ChromeScriptStep[];
   chromeUrlPattern: string;
@@ -75,6 +81,7 @@ export interface TemplateEditorState {
   httpBody: string;
   openBrowserUrl: string;
   openBrowserPayload: Record<string, unknown>;
+  closeAppPayload: Record<string, unknown>;
   timeout: number;
   priority: number;
 }
@@ -90,6 +97,7 @@ export const SELECTABLE_TEMPLATE_TYPES: TaskType[] = [
   'SYSTEM_INFO',
   'OPEN_APP',
   'OPEN_BROWSER',
+  'CLOSE_APP',
   'CHROME_EXTENSION',
   'DESKTOP_AUTOMATION',
   'SCREEN_CAPTURE',
@@ -104,6 +112,7 @@ export const DEFAULT_TEMPLATE_STATE: TemplateEditorState = {
   command: '',
   openAppMode: 'path',
   openAppValue: '',
+  openAppFullscreen: true,
   desktopSteps: [],
   chromeSteps: [],
   chromeUrlPattern: '',
@@ -123,6 +132,7 @@ export const DEFAULT_TEMPLATE_STATE: TemplateEditorState = {
   httpBody: '',
   openBrowserUrl: 'https://',
   openBrowserPayload: {},
+  closeAppPayload: { mode: 'openedInRun' },
   timeout: 120000,
   priority: 5,
 };
@@ -317,19 +327,10 @@ export function parseTemplateToForm(tpl: TaskTemplate, agent: Agent | null): Tem
   };
 
   if (tpl.type === 'OPEN_APP') {
-    const p = tpl.payload as Record<string, unknown> | null;
-    if (p?.path) {
-      base.openAppMode = 'path';
-      base.openAppValue = String(p.path);
-    } else if (p?.app) {
-      base.openAppMode = 'app';
-      base.openAppValue = String(p.app);
-    } else if (p?.query) {
-      base.openAppMode = 'query';
-      base.openAppValue = String(p.query);
-    } else {
-      base.openAppValue = tpl.command ?? '';
-    }
+    const parsed = parseOpenAppForm(tpl.command ?? '', tpl.payload as Record<string, unknown>);
+    base.openAppMode = parsed.mode;
+    base.openAppValue = parsed.value;
+    base.openAppFullscreen = parsed.fullscreen;
     return base;
   }
 
@@ -355,6 +356,13 @@ export function parseTemplateToForm(tpl: TaskTemplate, agent: Agent | null): Tem
     base.command = form.url;
     base.openBrowserUrl = form.url;
     base.openBrowserPayload = buildOpenBrowserTask(form).payload;
+    return base;
+  }
+
+  if (tpl.type === 'CLOSE_APP') {
+    const built = buildCloseAppTask(parseCloseAppForm(tpl.payload as Record<string, unknown>));
+    base.command = built.command;
+    base.closeAppPayload = built.payload;
     return base;
   }
 
@@ -405,12 +413,11 @@ export function buildTemplateDto(state: TemplateEditorState): CreateTaskTemplate
       return { ...base, command: 'collect' };
     case 'OPEN_APP': {
       const v = state.openAppValue.trim();
-      const payload: Record<string, unknown> =
-        state.openAppMode === 'path'
-          ? { path: v }
-          : state.openAppMode === 'app'
-            ? { app: v }
-            : { query: v };
+      const payload = buildOpenAppPayload({
+        mode: state.openAppMode,
+        value: v,
+        fullscreen: state.openAppFullscreen,
+      });
       return { ...base, command: v, payload };
     }
     case 'OPEN_BROWSER': {
@@ -423,6 +430,15 @@ export function buildTemplateDto(state: TemplateEditorState): CreateTaskTemplate
         ...base,
         command: built.command,
         payload: Object.keys(built.payload).length ? built.payload : undefined,
+        timeout: state.timeout,
+      };
+    }
+    case 'CLOSE_APP': {
+      const built = buildCloseAppTask(parseCloseAppForm(state.closeAppPayload));
+      return {
+        ...base,
+        command: built.command,
+        payload: built.payload,
         timeout: state.timeout,
       };
     }

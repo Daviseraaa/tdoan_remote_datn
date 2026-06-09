@@ -103,7 +103,7 @@ type Props = {
     patch: Partial<
       Pick<
         Workflow,
-        'name' | 'description' | 'cronExpression' | 'isActive' | 'variables' | 'stepDelayMs'
+        'name' | 'description' | 'cronExpression' | 'isActive' | 'variables' | 'stepDelayMs' | 'closeOpenedOnFinish'
       >
     >,
   ) => void;
@@ -958,6 +958,19 @@ export function WorkflowEditor({
               onChange={(ms) => onMetaChange({ stepDelayMs: ms })}
               className="w-14 text-[10px] px-1.5 py-1 rounded-lg bg-black/20 border border-white/10 font-mono shrink-0"
             />
+          </label>
+
+          <label
+            className="hidden lg:flex items-center gap-2 text-xs font-bold text-on-surface-variant cursor-pointer shrink-0"
+            title={t('workflows.closeOpenedOnFinishHint')}
+          >
+            <input
+              type="checkbox"
+              checked={workflow.closeOpenedOnFinish ?? false}
+              onChange={(e) => onMetaChange({ closeOpenedOnFinish: e.target.checked })}
+              className="rounded"
+            />
+            {t('workflows.closeOpenedOnFinish')}
           </label>
 
           <label className="hidden sm:flex items-center gap-2 text-xs font-bold text-on-surface-variant cursor-pointer shrink-0">

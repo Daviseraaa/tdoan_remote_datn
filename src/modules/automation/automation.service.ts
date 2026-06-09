@@ -238,6 +238,8 @@ function resolveTaskType(stepType: StepType, config: WorkflowStepConfig): TaskTy
       return TaskType.DESKTOP_AUTOMATION;
     case 'OPEN_APP':
       return TaskType.OPEN_APP;
+    case 'CLOSE_APP':
+      return TaskType.CLOSE_APP;
     case 'SYSTEM_INFO':
       return TaskType.SYSTEM_INFO;
     case 'SCREEN_CAPTURE':
@@ -328,7 +330,90 @@ function resolveCommand(taskType: TaskType, config: WorkflowStepConfig): string 
   if (taskType === TaskType.DESKTOP_AUTOMATION) return cmd || '[]';
   if (taskType === CHROME_EXTENSION_TYPE) return cmd || '[]';
   if (taskType === TaskType.HTTP_REQUEST) return cmd || 'https://example.com/api';
+  if (taskType === TaskType.CLOSE_APP) return cmd || 'close';
   return cmd;
+}
+
+type OpenedTracker = { pids: number[]; agentId?: string };
+
+function parsePidValue(v: unknown): number | null {
+  if (typeof v === 'number' && Number.isFinite(v) && v > 0) {
+    return Math.floor(v);
+  }
+  if (typeof v === 'string' && v.trim()) {
+    const n = Number.parseInt(v.trim(), 10);
+    if (Number.isFinite(n) && n > 0) return n;
+  }
+  return null;
+}
+
+function extractOpenedPids(taskType: TaskType, result?: string): number[] {
+  if (!result) return [];
+  try {
+    const j = JSON.parse(result) as Record<string, unknown>;
+    const pids: number[] = [];
+    const add = (v: unknown) => {
+      const n = parsePidValue(v);
+      if (n != null) pids.push(n);
+    };
+    if (taskType === TaskType.OPEN_APP) {
+      add(j.pid);
+    }
+    if (taskType === TaskType.OPEN_BROWSER) {
+      add(j.runnerPid);
+      add(j.browserPid);
+    }
+    return [...new Set(pids)];
+  } catch {
+    return [];
+  }
+}
+
+function normalizeCloseAppPayload(
+  payload: Record<string, unknown> | undefined,
+  scope: ReturnType<typeof buildRunScope>,
+): Record<string, unknown> | undefined {
+  if (!payload) return payload;
+  const mode = String(payload.mode ?? 'pid').toLowerCase();
+  if (mode === 'openedinrun' || mode === 'opened_in_run') {
+    const tracked = scope.workflow._openedPids;
+    const pids = Array.isArray(tracked)
+      ? tracked
+          .map((x) => parsePidValue(x))
+          .filter((x): x is number => x != null)
+      : [];
+    return { mode: 'pids', pids };
+  }
+  if (payload.pid != null && typeof payload.pid === 'string') {
+    const resolved = resolveTemplateString(payload.pid, scope).trim();
+    const n = parsePidValue(resolved);
+    if (n != null) return { ...payload, pid: n };
+  }
+  if (typeof payload.processName === 'string') {
+    return {
+      ...payload,
+      processName: resolveTemplateString(payload.processName, scope),
+    };
+  }
+  if (typeof payload.windowTitle === 'string') {
+    return {
+      ...payload,
+      windowTitle: resolveTemplateString(payload.windowTitle, scope),
+    };
+  }
+  return payload;
+}
+
+function pickWorkflowAgentId(
+  workflow: { steps?: { config: unknown }[] },
+  fallback?: string,
+): string | undefined {
+  if (fallback) return fallback;
+  for (const step of workflow.steps ?? []) {
+    const cfg = parseConfig(step.config);
+    if (cfg.agentId) return cfg.agentId;
+  }
+  return undefined;
 }
 
 @Injectable()
@@ -352,6 +437,7 @@ export class AutomationService {
         cronExpression: dto.cronExpression,
         isActive: dto.isActive ?? true,
         stepDelayMs: Math.max(0, dto.stepDelayMs ?? 0),
+        closeOpenedOnFinish: dto.closeOpenedOnFinish ?? false,
         ...(dto.variables != null ? { variables: dto.variables as object } : {}),
         ...(dto.graph != null ? { graph: dto.graph as object } : {}),
         userId,
@@ -491,7 +577,12 @@ export class AutomationService {
       onFailure: OnFailure;
     },
     ctx: StepContext,
-    meta?: { workflowRunId?: string; flowPath?: string; depth?: number },
+    meta?: {
+      workflowRunId?: string;
+      flowPath?: string;
+      depth?: number;
+      openedTracker?: OpenedTracker;
+    },
   ): Promise<{ result: WorkflowStepResult; ctx: StepContext; stop: boolean }> {
     const config = parseConfig(step.config);
     const runId = meta?.workflowRunId;
@@ -612,6 +703,9 @@ export class AutomationService {
     let payload = resolvePayload(config.payload, scope) as
       | Record<string, unknown>
       | undefined;
+    if (taskType === TaskType.CLOSE_APP) {
+      payload = normalizeCloseAppPayload(payload, scope);
+    }
     const rawCommand = resolveCommand(taskType, config);
     let command = resolveTemplateString(rawCommand, scope);
 
@@ -670,6 +764,7 @@ export class AutomationService {
     if (
       taskType !== TaskType.SYSTEM_INFO &&
       taskType !== TaskType.SCREEN_CAPTURE &&
+      taskType !== TaskType.CLOSE_APP &&
       taskType !== CHROME_EXTENSION_TYPE &&
       !command
     ) {
@@ -734,7 +829,32 @@ export class AutomationService {
       failed,
       result: outcome.result,
     });
-    const nextScope = publishStepOutput(scope, key, output);
+    let nextScope = publishStepOutput(scope, key, output);
+
+    if (
+      !failed &&
+      (taskType === TaskType.OPEN_APP || taskType === TaskType.OPEN_BROWSER)
+    ) {
+      const newPids = extractOpenedPids(taskType, outcome.result);
+      if (newPids.length) {
+        const prev = Array.isArray(nextScope.workflow._openedPids)
+          ? (nextScope.workflow._openedPids as number[])
+          : [];
+        nextScope = {
+          ...nextScope,
+          workflow: {
+            ...nextScope.workflow,
+            _openedPids: [...new Set([...prev, ...newPids])],
+            _lastOpenAgentId: config.agentId,
+          },
+        };
+        const tracker = meta?.openedTracker;
+        if (tracker) {
+          tracker.pids = [...new Set([...tracker.pids, ...newPids])];
+          tracker.agentId = config.agentId;
+        }
+      }
+    }
 
     const newCtx: StepContext = {
       exitCode: outcome.exitCode,
@@ -825,6 +945,10 @@ export class AutomationService {
       0,
       (workflow as { stepDelayMs?: number }).stepDelayMs ?? 0,
     );
+    const closeOpenedOnFinish = Boolean(
+      (workflow as { closeOpenedOnFinish?: boolean }).closeOpenedOnFinish,
+    );
+    const openedTracker: OpenedTracker = { pids: [] };
 
     const raw = await executeGraphIndependent(
       id,
@@ -840,6 +964,7 @@ export class AutomationService {
             workflowRunId: runOpts?.workflowRunId,
             flowPath: meta.path,
             depth: meta.depth,
+            openedTracker,
           },
         );
         const gap = delayAfterStepMs(step, workflowStepDelayMs);
@@ -854,6 +979,37 @@ export class AutomationService {
         };
       },
     );
+
+    if (closeOpenedOnFinish && openedTracker.pids.length) {
+      const agentId = pickWorkflowAgentId(
+        workflow,
+        openedTracker.agentId,
+      );
+      if (agentId) {
+        try {
+          const cleanup = await this.tasksService.create(
+            userId,
+            {
+              type: TaskType.CLOSE_APP,
+              command: 'close',
+              agentId,
+              payload: { mode: 'pids', pids: openedTracker.pids },
+              timeout: DEFAULT_TASK_TIMEOUT_MS,
+            },
+            runOpts?.workflowRunId
+              ? { workflowRunId: runOpts.workflowRunId }
+              : undefined,
+          );
+          await this.waitForTask(cleanup.id, userId, DEFAULT_TASK_TIMEOUT_MS);
+        } catch (err) {
+          this.logger.warn(
+            `Workflow ${id}: closeOpenedOnFinish failed: ${
+              err instanceof Error ? err.message : String(err)
+            }`,
+          );
+        }
+      }
+    }
 
     return raw.map((r) => ({
       ...r,

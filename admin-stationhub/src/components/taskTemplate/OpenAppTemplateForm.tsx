@@ -2,6 +2,7 @@ import React from 'react';
 import { AppWindow } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import type { OpenAppMode, TemplateEditorState } from '@/src/lib/taskTemplatePayload';
+import { parseOpenAppForm } from '@/src/lib/openAppPayload';
 import { t } from '@/src/i18n/t';
 import { TemplateAdvancedFields } from './TemplateAdvancedFields';
 
@@ -18,6 +19,14 @@ const MODES: { id: OpenAppMode; labelKey: 'templateWizard.openAppPath' | 'templa
 
 export function OpenAppTemplateForm({ state, onChange }: Props) {
   const mode = MODES.find((m) => m.id === state.openAppMode) ?? MODES[0];
+  const form = parseOpenAppForm(state.openAppValue, {
+    ...(state.openAppMode === 'path'
+      ? { path: state.openAppValue }
+      : state.openAppMode === 'app'
+        ? { app: state.openAppValue }
+        : { query: state.openAppValue }),
+    fullscreen: state.openAppFullscreen,
+  });
 
   return (
     <div className="space-y-6">
@@ -49,6 +58,16 @@ export function OpenAppTemplateForm({ state, onChange }: Props) {
           placeholder={t(mode.phKey)}
           className="w-full px-4 py-3 rounded-xl bg-surface-container-low border border-white/10 font-mono text-sm"
         />
+        <label className="mt-4 flex items-center gap-2 cursor-pointer text-sm font-bold text-on-surface-variant">
+          <input
+            type="checkbox"
+            checked={form.fullscreen}
+            onChange={(e) => onChange({ openAppFullscreen: e.target.checked })}
+            className="rounded"
+          />
+          {t('openApp.fullscreen')}
+        </label>
+        <p className="text-[10px] text-on-surface-variant mt-1">{t('openApp.fullscreenHint')}</p>
       </div>
       <TemplateAdvancedFields
         timeout={state.timeout}

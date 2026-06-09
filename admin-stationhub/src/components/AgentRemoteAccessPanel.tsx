@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Copy, Power, Save } from 'lucide-react';
+import { Power, Save } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
+import { CopyButton } from '@/src/components/CopyButton';
 import { parseAgentRemoteAccess } from '@/src/lib/remoteAccess';
 import { t } from '@/src/i18n/t';
 import type { Agent } from '@/src/types/api';
@@ -41,10 +42,6 @@ export function AgentRemoteAccessPanel({
     setWolBroadcast(remote.wolBroadcast);
     setRdpHost(remote.rdpHost);
   }, [agent.id, remote.wolMacAddress, remote.wolBroadcast, remote.rdpHost]);
-
-  const copyRdp = () => {
-    void navigator.clipboard.writeText(remote.rdpConnectionHint);
-  };
 
   return (
     <div className="space-y-3">
@@ -132,15 +129,13 @@ export function AgentRemoteAccessPanel({
             <Save size={12} />
             {saving ? t('agents.remoteAccessSaving') : t('agents.remoteAccessSave')}
           </button>
-          <button
-            type="button"
-            onClick={copyRdp}
+          <CopyButton
+            text={remote.rdpConnectionHint}
             disabled={!remote.rdpConnectionHint}
-            className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-[10px] font-bold border border-white/10 text-on-surface-variant hover:bg-white/5 disabled:opacity-40"
-          >
-            <Copy size={12} />
-            {t('agents.copyRdpHint')}
-          </button>
+            iconSize={12}
+            copyLabel={t('agents.copyRdpHint')}
+            className="flex-1 sm:flex-none px-3 py-2 rounded-lg text-[10px] font-bold border border-white/10 text-on-surface-variant hover:bg-white/5"
+          />
         </div>
 
         {remote.networkInterfaces.length > 0 ? (

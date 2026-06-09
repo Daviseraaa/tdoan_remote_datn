@@ -2,6 +2,7 @@ pub mod chrome_profiles;
 pub mod chrome_scripts_store;
 pub mod desktop_recordings_store;
 pub mod cloak_runner;
+pub mod close_app;
 pub mod open_app;
 pub mod open_browser;
 pub mod shell;
@@ -19,7 +20,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use serde_json::Value;
 
-pub use open_app::OpenAppSuccess;
+pub use open_app::{OpenAppOptions, OpenAppSuccess};
 
 /// Facade cho hành vi phụ thuộc hệ điều hành.
 pub struct Platform {
@@ -46,7 +47,11 @@ impl Platform {
 
 #[async_trait]
 pub trait OpenApp: Send + Sync {
-    async fn resolve_and_launch(&self, query: &str) -> Result<OpenAppSuccess, String>;
+    async fn resolve_and_launch(
+        &self,
+        query: &str,
+        options: OpenAppOptions,
+    ) -> Result<OpenAppSuccess, String>;
 }
 
 #[async_trait]
@@ -59,8 +64,12 @@ struct DefaultOpenApp;
 
 #[async_trait]
 impl OpenApp for DefaultOpenApp {
-    async fn resolve_and_launch(&self, query: &str) -> Result<OpenAppSuccess, String> {
-        open_app::open_app_resolve(query).await
+    async fn resolve_and_launch(
+        &self,
+        query: &str,
+        options: OpenAppOptions,
+    ) -> Result<OpenAppSuccess, String> {
+        open_app::open_app_resolve(query, &options).await
     }
 }
 

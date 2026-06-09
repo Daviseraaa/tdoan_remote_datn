@@ -13,7 +13,7 @@ export const BUILD_ENV_KEYS = [
 export type BuildEnvKey = (typeof BUILD_ENV_KEYS)[number];
 
 export const BUILD_ENV: Record<BuildEnvKey, string> = {
-  SERVER_WS_URL: 'ws://100.108.185.69:3000',
+  SERVER_WS_URL: 'ws://localhost:3000',
   AGENT_VERSION: '1.1.0',
   PUBLIC_IP_LOOKUP_URL: 'https://api.ipify.org',
   LOG_LEVEL: 'info',

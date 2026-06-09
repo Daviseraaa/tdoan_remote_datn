@@ -55,6 +55,7 @@ static HANDLERS: &[&dyn TaskHandler] = &[
     &handlers::file_operation::Handler,
     &handlers::open_app::Handler,
     &handlers::open_browser::Handler,
+    &handlers::close_app::Handler,
     &handlers::desktop::Handler,
     &handlers::chrome_extension::Handler,
     &handlers::screen_capture::Handler,

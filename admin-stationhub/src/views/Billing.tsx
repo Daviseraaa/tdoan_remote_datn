@@ -6,7 +6,6 @@ import {
   Calendar,
   AlertCircle,
   Loader2,
-  Copy,
   Building2,
   Sparkles,
   Check,
@@ -30,6 +29,7 @@ import * as billingApi from '@/src/api/billing';
 import type { CheckoutResponse, PaymentRecord, SubscriptionPlan } from '@/src/types/api';
 import { apiErrorMessage } from '@/src/lib/api';
 import { t } from '@/src/i18n/t';
+import { CopyButton } from '@/src/components/CopyButton';
 
 function formatVnd(amount: number): string {
   return new Intl.NumberFormat('vi-VN', {
@@ -286,7 +286,6 @@ function buildPlanTierMap(plans: SubscriptionPlan[]): Map<string, PlanTierId> {
 }
 
 function CopyField({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
-  const [copied, setCopied] = useState(false);
   return (
     <div className="space-y-1.5">
       <p className="text-[10px] font-mono uppercase tracking-[0.15em] text-on-surface-variant">{label}</p>
@@ -299,21 +298,13 @@ function CopyField({ label, value, highlight }: { label: string; value: string; 
         )}
       >
         <code className="flex-1 text-sm font-mono break-all text-on-surface">{value}</code>
-        <button
-          type="button"
-          onClick={() => {
-            void navigator.clipboard.writeText(value);
-            setCopied(true);
-            setTimeout(() => setCopied(false), 2000);
-          }}
-          className={cn(
-            'shrink-0 p-2 rounded-lg transition-all',
-            copied ? 'bg-tertiary/20 text-tertiary' : 'hover:bg-white/8 text-primary',
-          )}
+        <CopyButton
+          text={value}
+          iconOnly
+          iconSize={16}
           title={t('billing.copy')}
-        >
-          {copied ? <Check size={16} /> : <Copy size={16} />}
-        </button>
+          className="shrink-0 p-2 rounded-lg hover:bg-white/8 text-primary"
+        />
       </div>
     </div>
   );

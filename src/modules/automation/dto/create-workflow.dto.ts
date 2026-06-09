@@ -200,6 +200,15 @@ export class CreateWorkflowDto {
   stepDelayMs?: number;
 
   @ApiPropertyOptional({
+    description:
+      'Khi workflow hoàn tất, tự đóng app/browser đã mở bởi OPEN_APP/OPEN_BROWSER trong lần chạy này',
+    default: false,
+  })
+  @IsOptional()
+  @IsBoolean()
+  closeOpenedOnFinish?: boolean;
+
+  @ApiPropertyOptional({
     description: 'Biến tĩnh workflow — dùng {{workflow.<key>}} trong command/payload',
     example: { API_URL: 'https://api.example.com' },
   })

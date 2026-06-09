@@ -185,6 +185,7 @@ impl TaskHandler for Handler {
                     "chromeProfile": s.chrome_profile,
                     "chromeUserDataDir": s.chrome_user_data_dir,
                     "runnerPid": s.runner_pid,
+                    "browserPid": s.browser_pid,
                 })),
             ),
             Err(e) => (false, -1, Some(e), None),

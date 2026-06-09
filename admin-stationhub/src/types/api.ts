@@ -26,6 +26,7 @@ export type TaskType =
   | 'SYSTEM_INFO'
   | 'OPEN_APP'
   | 'OPEN_BROWSER'
+  | 'CLOSE_APP'
   | 'CHROME_EXTENSION'
   | 'DESKTOP_AUTOMATION'
   | 'SCREEN_CAPTURE'
@@ -396,6 +397,7 @@ export interface Workflow {
   graphEdges?: WorkflowGraphEdgeStored[];
   cronExpression?: string;
   stepDelayMs?: number;
+  closeOpenedOnFinish?: boolean;
   isActive: boolean;
   steps?: WorkflowStep[];
   userId?: string;
