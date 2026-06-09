@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   UnauthorizedException,
@@ -6,11 +7,20 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
-import { SubscriptionStatus } from '@prisma/client';
+import { Role, SubscriptionStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { SubscriptionService } from '../billing/subscription.service';
 import { RegisterDto, LoginDto } from './dto/index';
+import { MailService } from '../mail/mail.service';
 import Redis from 'ioredis';
+import { OAuth2Client } from 'google-auth-library';
+import { randomBytes, randomInt } from 'crypto';
+
+const REGISTER_OTP_KEY = (email: string) => `register:otp:${email}`;
+const REGISTER_OTP_COOLDOWN_KEY = (email: string) =>
+  `register:otp:cooldown:${email}`;
+const REGISTER_OTP_ATTEMPTS_KEY = (email: string) =>
+  `register:otp:attempts:${email}`;
 
 const USER_AUTH_SELECT = {
   id: true,
@@ -42,6 +52,7 @@ export class AuthService {
     private jwtService: JwtService,
     private configService: ConfigService,
     private subscriptionService: SubscriptionService,
+    private mailService: MailService,
   ) {
     this.redis = new Redis({
       host: this.configService.get<string>('redis.host'),
@@ -82,29 +93,115 @@ export class AuthService {
       subscriptionStatus: status,
       subscriptionExpiresAt: expiresAt,
       daysLeft: this.subscriptionService.computeDaysLeft(expiresAt),
+      isSubscriptionActive: this.subscriptionService.isSubscriptionActive({
+        role: user.role as Role,
+        subscriptionStatus: status,
+        subscriptionExpiresAt: expiresAt,
+      }),
       plan,
     };
   }
 
-  async register(dto: RegisterDto) {
+  private normalizeEmail(email: string): string {
+    return email.trim().toLowerCase();
+  }
+
+  private generateRegisterOtp(): string {
+    return String(randomInt(0, 1_000_000)).padStart(6, '0');
+  }
+
+  async sendRegisterOtp(email: string) {
+    const normalized = this.normalizeEmail(email);
     const existing = await this.prisma.user.findUnique({
-      where: { email: dto.email },
+      where: { email: normalized },
     });
     if (existing) {
-      throw new ConflictException('Email already exists');
+      throw new ConflictException('Email đã được đăng ký');
+    }
+
+    const cooldownSeconds =
+      this.configService.get<number>('otp.registerCooldownSeconds') ?? 60;
+    const cooldown = await this.redis.get(REGISTER_OTP_COOLDOWN_KEY(normalized));
+    if (cooldown) {
+      throw new BadRequestException(
+        'Vui lòng đợi trước khi gửi lại mã OTP',
+      );
+    }
+
+    const ttlSeconds =
+      this.configService.get<number>('otp.registerTtlSeconds') ?? 600;
+    const otp = this.generateRegisterOtp();
+    await this.redis.set(REGISTER_OTP_KEY(normalized), otp, 'EX', ttlSeconds);
+    await this.redis.set(
+      REGISTER_OTP_COOLDOWN_KEY(normalized),
+      '1',
+      'EX',
+      cooldownSeconds,
+    );
+    await this.redis.del(REGISTER_OTP_ATTEMPTS_KEY(normalized));
+
+    await this.mailService.sendRegisterOtp(normalized, otp);
+
+    return {
+      message: 'Mã OTP đã được gửi đến email của bạn',
+      expiresInSeconds: ttlSeconds,
+      cooldownSeconds,
+    };
+  }
+
+  private async assertRegisterOtpValid(email: string, otp: string) {
+    const normalized = this.normalizeEmail(email);
+    const ttlSeconds =
+      this.configService.get<number>('otp.registerTtlSeconds') ?? 600;
+    const maxAttempts =
+      this.configService.get<number>('otp.registerMaxAttempts') ?? 5;
+
+    const stored = await this.redis.get(REGISTER_OTP_KEY(normalized));
+    if (!stored) {
+      throw new BadRequestException(
+        'Mã OTP đã hết hạn hoặc chưa được gửi. Vui lòng gửi lại mã.',
+      );
+    }
+
+    const attemptsKey = REGISTER_OTP_ATTEMPTS_KEY(normalized);
+    const attempts = parseInt((await this.redis.get(attemptsKey)) ?? '0', 10);
+    if (attempts >= maxAttempts) {
+      throw new BadRequestException(
+        'Đã nhập sai quá nhiều lần. Vui lòng gửi lại mã OTP.',
+      );
+    }
+
+    if (stored !== otp.trim()) {
+      await this.redis.set(attemptsKey, String(attempts + 1), 'EX', ttlSeconds);
+      throw new BadRequestException('Mã OTP không đúng');
+    }
+
+    await this.redis.del(REGISTER_OTP_KEY(normalized));
+    await this.redis.del(attemptsKey);
+  }
+
+  async register(dto: RegisterDto) {
+    const normalized = this.normalizeEmail(dto.email);
+    await this.assertRegisterOtpValid(normalized, dto.otp);
+
+    const existing = await this.prisma.user.findUnique({
+      where: { email: normalized },
+    });
+    if (existing) {
+      throw new ConflictException('Email đã được đăng ký');
     }
 
     const hashedPassword = await bcrypt.hash(dto.password, 10);
     const user = await this.prisma.user.create({
       data: {
-        email: dto.email,
-        name: dto.name,
+        email: normalized,
+        name: dto.name.trim(),
         password: hashedPassword,
       },
       select: USER_AUTH_SELECT,
     });
 
-    await this.subscriptionService.startTrial(user.id);
+    await this.subscriptionService.startTrial(user.id, user.email);
 
     const refreshed = await this.prisma.user.findUnique({
       where: { id: user.id },
@@ -118,6 +215,97 @@ export class AuthService {
     );
     return {
       user: await this.formatUser(refreshed ?? user),
+      ...tokens,
+    };
+  }
+
+  async loginWithGoogle(idToken: string) {
+    const clientId = this.configService.get<string>('google.clientId');
+    if (!clientId) {
+      throw new BadRequestException('Đăng nhập Google chưa được cấu hình');
+    }
+
+    const client = new OAuth2Client(clientId);
+    let payload: {
+      sub?: string;
+      email?: string;
+      email_verified?: boolean;
+      name?: string;
+    };
+    try {
+      const ticket = await client.verifyIdToken({
+        idToken,
+        audience: clientId,
+      });
+      payload = ticket.getPayload() ?? {};
+    } catch {
+      throw new UnauthorizedException('Token Google không hợp lệ');
+    }
+
+    const googleId = payload.sub;
+    const email = payload.email ? this.normalizeEmail(payload.email) : '';
+    if (!googleId || !email) {
+      throw new UnauthorizedException('Thiếu thông tin từ Google');
+    }
+    if (payload.email_verified === false) {
+      throw new UnauthorizedException('Email Google chưa được xác thực');
+    }
+
+    const displayName = payload.name?.trim() || email.split('@')[0] || 'User';
+
+    let user = await this.prisma.user.findUnique({
+      where: { googleId },
+      select: USER_AUTH_SELECT,
+    });
+
+    if (!user) {
+      const byEmail = await this.prisma.user.findUnique({
+        where: { email },
+        select: { ...USER_AUTH_SELECT, googleId: true },
+      });
+
+      if (byEmail) {
+        if (byEmail.googleId && byEmail.googleId !== googleId) {
+          throw new ConflictException('Email đã liên kết tài khoản Google khác');
+        }
+        user = await this.prisma.user.update({
+          where: { id: byEmail.id },
+          data: {
+            googleId,
+            name: byEmail.name?.trim() ? byEmail.name : displayName,
+          },
+          select: USER_AUTH_SELECT,
+        });
+      } else {
+        const hashedPassword = await bcrypt.hash(
+          randomBytes(32).toString('hex'),
+          10,
+        );
+        user = await this.prisma.user.create({
+          data: {
+            email,
+            name: displayName,
+            password: hashedPassword,
+            googleId,
+          },
+          select: USER_AUTH_SELECT,
+        });
+        await this.subscriptionService.startTrial(user.id, user.email);
+        user =
+          (await this.prisma.user.findUnique({
+            where: { id: user.id },
+            select: USER_AUTH_SELECT,
+          })) ?? user;
+      }
+    }
+
+    if (!user.isActive) {
+      throw new UnauthorizedException('Tài khoản đã bị vô hiệu hóa');
+    }
+
+    const tokens = await this.generateTokens(user.id, user.email, user.role);
+    return {
+      user: await this.formatUser(user),
       ...tokens,
     };
   }

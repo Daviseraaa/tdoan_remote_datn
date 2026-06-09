@@ -1,12 +1,13 @@
 import { ipcMain } from 'electron';
+import { getAgentStatus } from '../shared/agent-status';
 import { readEnvFile, validateEnv, writeConfigFile } from '../shared/env-file';
-import { ENV_FIELDS, ENV_GROUPS } from '../shared/env-schema';
+import { userVisibleEnvFields, userVisibleEnvGroups } from '../shared/env-schema';
 import { openConfigFolder, resolveConfigPath } from '../shared/paths';
 
 export function registerSettingsIpc(): void {
   ipcMain.handle('settings:get-schema', () => ({
-    fields: ENV_FIELDS,
-    groups: ENV_GROUPS,
+    fields: userVisibleEnvFields(),
+    groups: userVisibleEnvGroups(),
   }));
 
   ipcMain.handle('settings:load', () => {
@@ -27,4 +28,6 @@ export function registerSettingsIpc(): void {
     openConfigFolder();
     return { ok: true };
   });
+
+  ipcMain.handle('settings:get-status', () => getAgentStatus());
 }

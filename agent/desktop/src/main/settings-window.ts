@@ -1,5 +1,6 @@
 import { BrowserWindow, ipcMain } from 'electron';
 import * as path from 'path';
+import { resolveAppIconPath } from '../shared/app-icon';
 
 let settingsWindow: BrowserWindow | null = null;
 
@@ -10,10 +11,16 @@ export function showSettingsWindow(onSaved?: () => void): void {
     return;
   }
 
+  const iconPath = resolveAppIconPath();
   settingsWindow = new BrowserWindow({
-    width: 640,
-    height: 720,
-    title: 'DATN Agent — Cài đặt',
+    width: 920,
+    height: 680,
+    minWidth: 760,
+    minHeight: 560,
+    title: 'StationHub Agent',
+    backgroundColor: '#06080f',
+    autoHideMenuBar: true,
+    ...(iconPath ? { icon: iconPath } : {}),
     webPreferences: {
       preload: path.join(__dirname, '..', 'preload', 'settings-preload.js'),
       contextIsolation: true,

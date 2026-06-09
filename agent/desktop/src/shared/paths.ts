@@ -19,13 +19,13 @@ export function agentRoot(): string {
 
 export function programDataConfigPath(): string {
   const pd = process.env.ProgramData || path.join('C:', 'ProgramData');
-  return path.join(pd, 'DATN', 'agent.env');
+  return path.join(pd, 'StationHub', 'agent.env');
 }
 
 /** File config đang dùng / nơi ghi mặc định. */
 export function resolveConfigPath(): string {
-  if (process.env.DATN_AGENT_CONFIG?.trim()) {
-    return process.env.DATN_AGENT_CONFIG.trim();
+  if (process.env.STATIONHUB_AGENT_CONFIG?.trim()) {
+    return process.env.STATIONHUB_AGENT_CONFIG.trim();
   }
   const pd = programDataConfigPath();
   if (fs.existsSync(pd)) return pd;
@@ -41,7 +41,7 @@ export function resolveCloakRunnerScript(): string | null {
 
 export function resolveCloakRunnerDir(): string | null {
   const dir = path.join(agentRoot(), 'bin', 'cloak');
-  const exe = path.join(dir, 'datn-cloak-runner.exe');
+  const exe = path.join(dir, 'stationhub-cloak-runner.exe');
   return fs.existsSync(exe) ? dir : null;
 }
 
@@ -52,19 +52,19 @@ export function resolveCoreExe(): string {
       const packaged = path.join(
         process.resourcesPath,
         'core',
-        'datn-agent-native.exe',
+        'stationhub-agent-native.exe',
       );
       if (fs.existsSync(packaged)) return packaged;
     }
   } catch {
     /* cli */
   }
-  return path.join(agentRoot(), 'bin', 'datn-agent-native.exe');
+  return path.join(agentRoot(), 'bin', 'stationhub-agent-native.exe');
 }
 
 export function resolveChromeScriptsDir(): string {
   const pd = process.env.ProgramData || path.join('C:', 'ProgramData');
-  return path.join(pd, 'DATN', 'chrome-scripts');
+  return path.join(pd, 'StationHub', 'chrome-scripts');
 }
 
 export function ensureProgramDataDir(): void {

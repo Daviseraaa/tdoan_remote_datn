@@ -19,7 +19,7 @@ fn extract_steps_from_file(text: &str) -> Result<Vec<Value>, String> {
 
 #[cfg(windows)]
 pub async fn run_desktop_replay(path: PathBuf) -> Result<(), String> {
-    datn_windows_uia::enable_per_monitor_v2();
+    stationhub_windows_uia::enable_per_monitor_v2();
 
     let text = fs::read_to_string(&path).map_err(|e| format!("Đọc file: {}", e))?;
     let steps = extract_steps_from_file(&text)?;

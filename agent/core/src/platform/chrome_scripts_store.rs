@@ -1,4 +1,4 @@
-//! Đọc script ghi local từ extension (%ProgramData%\DATN\chrome-scripts).
+//! Đọc script ghi local từ extension (%ProgramData%\StationHub\chrome-scripts).
 
 use serde_json::{json, Value};
 use std::fs;
@@ -6,7 +6,7 @@ use std::path::PathBuf;
 
 fn scripts_dir() -> PathBuf {
     let pd = std::env::var("ProgramData").unwrap_or_else(|_| r"C:\ProgramData".into());
-    PathBuf::from(pd).join("DATN").join("chrome-scripts")
+    PathBuf::from(pd).join("StationHub").join("chrome-scripts")
 }
 
 /// Liệt kê toàn bộ script local (tối đa `max_count` bản ghi, mới nhất trước).

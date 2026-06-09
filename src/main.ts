@@ -42,7 +42,7 @@ async function bootstrap() {
   );
 
   const swaggerConfig = new DocumentBuilder()
-    .setTitle('DATN API')
+    .setTitle('StationHub API')
     .setDescription(
       'API for automation and agent task management system. ' +
       'Supports command execution, task management, workflow automation, ' +

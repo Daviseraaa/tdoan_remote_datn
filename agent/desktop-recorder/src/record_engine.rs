@@ -126,7 +126,7 @@ impl RecordEngine {
         show_highlight: bool,
     ) -> Result<(), String> {
         #[cfg(windows)]
-        datn_windows_uia::enable_per_monitor_v2();
+        stationhub_windows_uia::enable_per_monitor_v2();
 
         let mut guard = self.active.lock().map_err(|_| "lock poisoned")?;
         if guard.is_some() {
@@ -137,7 +137,7 @@ impl RecordEngine {
         self.step_count_cache.store(0, Ordering::Relaxed);
         #[cfg(windows)]
         if show_highlight {
-            datn_windows_uia::highlight_worker_start();
+            stationhub_windows_uia::highlight_worker_start();
         }
         *guard = Some(ActiveRecorder {
             state: RecorderState::new(capture_uia),
@@ -152,7 +152,7 @@ impl RecordEngine {
     fn stop_highlight(rec: &ActiveRecorder) {
         #[cfg(windows)]
         if rec.show_highlight {
-            datn_windows_uia::highlight_worker_stop();
+            stationhub_windows_uia::highlight_worker_stop();
         }
     }
 
@@ -191,7 +191,7 @@ impl RecordEngine {
 fn cursor_physical_point() -> Option<(i32, i32)> {
     #[cfg(windows)]
     {
-        datn_windows_uia::physical_cursor_point()
+        stationhub_windows_uia::physical_cursor_point()
     }
     #[cfg(not(windows))]
     {

@@ -1,6 +1,6 @@
 # Bản đồ file code
 
-Mô tả **thư mục / file quan trọng** theo từng package. Đường dẫn gốc: repo `server_datn/`.
+Mô tả **thư mục / file quan trọng** theo từng package. Đường dẫn gốc: repo `server_stationhub/`.
 
 ---
 
@@ -109,7 +109,7 @@ Mô tả **thư mục / file quan trọng** theo từng package. Đường dẫn
 
 ---
 
-## Admin UI (`admin-datn/src/`)
+## Admin UI (`admin-stationhub/src/`)
 
 | Đường dẫn | Vai trò |
 |-----------|---------|
@@ -142,7 +142,7 @@ Mô tả **thư mục / file quan trọng** theo từng package. Đường dẫn
 | `main.rs` | Subcommand: `agent`, `service`, `worker`, … |
 | `agent/runner.rs` | Socket.IO, heartbeat, tasks |
 | `agent/tools.rs` | Dispatch `TaskType` |
-| `agent/env_load.rs` | Load `%ProgramData%\DATN\agent.env` |
+| `agent/env_load.rs` | Load `%ProgramData%\StationHub\agent.env` |
 | `open_app.rs`, `desktop.rs`, `service.rs` | OPEN_APP, automation, SCM |
 
 ## Agent desktop — Electron (`agent/desktop/src/`)

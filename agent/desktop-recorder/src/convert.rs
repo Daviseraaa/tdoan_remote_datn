@@ -278,7 +278,7 @@ impl RecorderState {
                     _ => "left",
                 };
                 #[cfg(windows)]
-                let (x, y) = datn_windows_uia::physical_cursor_point().unwrap_or_else(|| {
+                let (x, y) = stationhub_windows_uia::physical_cursor_point().unwrap_or_else(|| {
                     (self.mouse_x.round() as i32, self.mouse_y.round() as i32)
                 });
                 #[cfg(not(windows))]
@@ -293,7 +293,7 @@ impl RecorderState {
                 #[cfg(windows)]
                 if self.capture_uia {
                     if let Some(uia) =
-                        datn_windows_uia::capture_element_at_point(x, y, true)
+                        stationhub_windows_uia::capture_element_at_point(x, y, true)
                     {
                         step["uia"] = uia;
                     }

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""DATN browser runner — CloakBrowser hoặc Chrome hệ thống + profile thật."""
+"""StationHub browser runner — CloakBrowser hoặc Chrome hệ thống + profile thật."""
 
 from __future__ import annotations
 
@@ -42,7 +42,7 @@ def _apply_cache_dir() -> None:
     if cache:
         return
     pd = os.environ.get("ProgramData", r"C:\ProgramData")
-    default = Path(pd) / "DATN" / "cloak-cache"
+    default = Path(pd) / "StationHub" / "cloak-cache"
     default.mkdir(parents=True, exist_ok=True)
     os.environ["CLOAKBROWSER_CACHE_DIR"] = str(default)
 
@@ -52,7 +52,7 @@ def _profile_dir(req: dict[str, Any]) -> str:
     if user_data_dir and str(user_data_dir).strip():
         return str(user_data_dir).strip()
     pd = os.environ.get("ProgramData", r"C:\ProgramData")
-    return str(Path(pd) / "DATN" / "browser-profiles" / "default")
+    return str(Path(pd) / "StationHub" / "browser-profiles" / "default")
 
 
 def _windows_detached_flags() -> int:
@@ -239,7 +239,8 @@ def _run_open_url(req: dict[str, Any]) -> dict[str, Any]:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="DATN Cloak browser runner")
+    global _HELD_CONTEXT, _HELD_PW
+    parser = argparse.ArgumentParser(description="StationHub Cloak browser runner")
     parser.add_argument("--request-file", required=True)
     parser.add_argument("--response-file", required=True)
     args = parser.parse_args()

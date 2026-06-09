@@ -59,7 +59,7 @@ sequenceDiagram
 sequenceDiagram
   participant N as node dist/main.js
   participant Dot as dotenv
-  participant X as datn-agent-native.exe
+  participant X as stationhub-agent-native.exe
 
   N->>Dot: load agent/.env hoặc ProgramData
   N->>X: spawn agent (env inherited)
@@ -71,7 +71,7 @@ sequenceDiagram
 
 ## 4. Windows Service
 
-`sc create DATNAgentNative binPath= "...\datn-agent-native.exe" service`
+`sc create StationHubAgentNative binPath= "...\stationhub-agent-native.exe" service`
 
 Service process = [`platform/windows/service.rs`](../core/src/platform/windows/service.rs) `run()` → [`connection/runner.rs`](../core/src/connection/runner.rs) `run_with_stop` cho đến khi SCM gửi **Stop**.
 

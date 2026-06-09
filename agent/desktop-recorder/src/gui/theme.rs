@@ -31,7 +31,7 @@ pub const DANGER_DIM: Color32 = Color32::from_rgb(127, 29, 29);
 pub const SUCCESS: Color32 = Color32::from_rgb(74, 222, 128);
 pub const RECORD_RED: Color32 = Color32::from_rgb(239, 68, 68);
 
-const FONT_ID: &str = "datn_ui";
+const FONT_ID: &str = "stationhub_ui";
 
 #[cfg(windows)]
 const FONT_CANDIDATES: &[&str] = &[

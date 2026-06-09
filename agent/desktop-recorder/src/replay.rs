@@ -7,8 +7,8 @@ pub struct ReplayOutcome {
 }
 
 pub fn resolve_core_exe() -> Option<PathBuf> {
-    if let Ok(root) = std::env::var("DATN_AGENT_ROOT") {
-        let p = PathBuf::from(root).join("bin").join("datn-agent-native.exe");
+    if let Ok(root) = std::env::var("STATIONHUB_AGENT_ROOT") {
+        let p = PathBuf::from(root).join("bin").join("stationhub-agent-native.exe");
         if p.is_file() {
             return Some(p);
         }
@@ -17,9 +17,9 @@ pub fn resolve_core_exe() -> Option<PathBuf> {
     if let Ok(exe) = std::env::current_exe() {
         if let Some(dir) = exe.parent() {
             for candidate in [
-                dir.join("datn-agent-native.exe"),
-                dir.join("..").join("bin").join("datn-agent-native.exe"),
-                dir.join("..").join("..").join("bin").join("datn-agent-native.exe"),
+                dir.join("stationhub-agent-native.exe"),
+                dir.join("..").join("bin").join("stationhub-agent-native.exe"),
+                dir.join("..").join("..").join("bin").join("stationhub-agent-native.exe"),
             ] {
                 if candidate.is_file() {
                     return Some(candidate);
@@ -35,9 +35,9 @@ pub fn run_replay(recording_path: &Path) -> ReplayOutcome {
     let Some(core) = resolve_core_exe() else {
         return ReplayOutcome {
             ok: false,
-            message: "Không tìm thấy datn-agent-native.exe.\n\
+            message: "Không tìm thấy stationhub-agent-native.exe.\n\
                       Chạy npm run build:core trong thư mục agent/ \
-                      hoặc đặt DATN_AGENT_ROOT."
+                      hoặc đặt STATIONHUB_AGENT_ROOT."
                 .into(),
         };
     };

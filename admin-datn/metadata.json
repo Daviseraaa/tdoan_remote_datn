@@ -1,6 +1,0 @@
-{
-  "name": "DATN Console",
-  "description": "A high-performance visual automation and agent orchestration dashboard with real-time monitoring and glassmorphism design.",
-  "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
-}

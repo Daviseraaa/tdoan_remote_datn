@@ -8,7 +8,7 @@ Gốc: **`agent/`**
 |----------------|---------|
 | `main.rs` | Subcommand: `agent`, `service`, `worker`, `desktop-exec`, `ping-console` |
 | `config/settings.rs` | `AgentConfig` từ env |
-| `config/env_load.rs` | Nạp `%ProgramData%\DATN\agent.env` + fallback dev |
+| `config/env_load.rs` | Nạp `%ProgramData%\StationHub\agent.env` + fallback dev |
 | `connection/runner.rs` | Socket.IO `/ws/agent`, `task:execute`, `agent:heartbeat` |
 | `connection/telemetry.rs` | Sample CPU/RAM/IP cho heartbeat |
 | `protocol/wire.rs` | `TaskWire` → `task:result` |

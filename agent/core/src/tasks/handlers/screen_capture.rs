@@ -125,9 +125,9 @@ fn parse_opts(task: &TaskExecute) -> CaptureOpts {
 
 fn default_capture_dir() -> PathBuf {
     if let Ok(pd) = std::env::var("ProgramData") {
-        return PathBuf::from(pd).join("DATN").join("captures");
+        return PathBuf::from(pd).join("StationHub").join("captures");
     }
-    PathBuf::from(r"C:\ProgramData\DATN\captures")
+    PathBuf::from(r"C:\ProgramData\StationHub\captures")
 }
 
 #[async_trait]

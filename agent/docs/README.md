@@ -9,5 +9,7 @@ Package **`agent/`**: **`core/`** (Rust runtime) + **`desktop/`** (Electron cont
 | [code-reference.md](./code-reference.md) | Bản đồ thư mục Rust + desktop |
 | [extending-tools-and-tasks.md](./extending-tools-and-tasks.md) | Thêm task type (handler + registry + server) |
 | [user-simulation.md](./user-simulation.md) | DESKTOP_AUTOMATION (handler + Win32) |
+| [remote-access.md](./remote-access.md) | WoL metadata, RDP, API server |
+| [huong-dan-cai-dat.md](./huong-dan-cai-dat.md) | **Hướng dẫn cài/gỡ agent cho người dùng cuối** |
 
-Mẫu env: [`../.env.example`](../.env.example). Production: **`%ProgramData%\DATN\agent.env`**.
+Mẫu env: [`../.env.example`](../.env.example). Production: **`%ProgramData%\StationHub\agent.env`**.

@@ -22,13 +22,13 @@ fn main() {
         }
         return;
     }
-    eprintln!("datn-agent-native: chế độ service/worker/desktop chỉ trên Windows.");
+    eprintln!("stationhub-agent-native: chế độ service/worker/desktop chỉ trên Windows.");
     std::process::exit(1);
 }
 
 #[cfg(windows)]
 fn main() {
-    datn_windows_uia::enable_per_monitor_v2();
+    stationhub_windows_uia::enable_per_monitor_v2();
 
     let mut args = std::env::args();
     let _exe = args.next();
@@ -101,7 +101,7 @@ fn main() {
             let path = match args.next() {
                 Some(p) => std::path::PathBuf::from(p),
                 None => {
-                    eprintln!("Usage: datn-agent-native chrome-replay <path.json>");
+                    eprintln!("Usage: stationhub-agent-native chrome-replay <path.json>");
                     std::process::exit(2);
                 }
             };
@@ -118,7 +118,7 @@ fn main() {
             let path = match args.next() {
                 Some(p) => std::path::PathBuf::from(p),
                 None => {
-                    eprintln!("Usage: datn-agent-native desktop-replay <path.json>");
+                    eprintln!("Usage: stationhub-agent-native desktop-replay <path.json>");
                     std::process::exit(2);
                 }
             };
@@ -133,7 +133,7 @@ fn main() {
         }
         _ => {
             eprintln!(
-                "Usage:\n  datn-agent-native [agent]   WebSocket agent (mặc định)\n  datn-agent-native service   Windows Service\n  datn-agent-native worker    Named pipe user + desktop\n  datn-agent-native desktop-exec\n  datn-agent-native config-print\n  datn-agent-native ping-console\n  datn-agent-native chrome-replay <file.json>\n  datn-agent-native desktop-replay <file.json>\n"
+                "Usage:\n  stationhub-agent-native [agent]   WebSocket agent (mặc định)\n  stationhub-agent-native service   Windows Service\n  stationhub-agent-native worker    Named pipe user + desktop\n  stationhub-agent-native desktop-exec\n  stationhub-agent-native config-print\n  stationhub-agent-native ping-console\n  stationhub-agent-native chrome-replay <file.json>\n  stationhub-agent-native desktop-replay <file.json>\n"
             );
             std::process::exit(2);
         }

@@ -20,6 +20,11 @@ import { Roles } from '../../common/decorators/roles.decorator';
 import { AdminService } from './admin.service';
 import { AuditService } from './audit.service';
 import { TasksService } from '../tasks/tasks.service';
+import { AgentsService } from '../agents/agents.service';
+import {
+  UpdateRemoteAccessDto,
+  WakeAgentDto,
+} from '../agents/dto/index';
 import { CreateUserDto, UpdateUserDto } from './dto/admin-user.dto';
 import { QueryTasksDto } from './dto/query-tasks.dto';
 import { QueryAgentsAdminDto } from './dto/query-agents.dto';
@@ -42,6 +47,7 @@ export class AdminController {
     private readonly admin: AdminService,
     private readonly audit: AuditService,
     private readonly tasks: TasksService,
+    private readonly agents: AgentsService,
   ) {}
 
   @Get('stats')
@@ -185,6 +191,50 @@ export class AdminController {
       action: 'agent.regenerate_key',
       resource: 'agent',
       resourceId: id,
+      ip,
+    });
+    return agent;
+  }
+
+  @Post('agents/:id/wake')
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @ApiOperation({ summary: 'Wake agent machine via Wake-on-LAN (Admin)' })
+  async wakeAgent(
+    @CurrentUser() actor: JwtPayload,
+    @Param('id') id: string,
+    @Body() dto: WakeAgentDto,
+    @Ip() ip: string,
+  ) {
+    const res = await this.agents.wakeAgent(id, null, dto);
+    await this.audit.record({
+      actorId: actor.sub,
+      actorEmail: actor.email,
+      action: 'agent.wake',
+      resource: 'agent',
+      resourceId: id,
+      metadata: { macAddress: res.macAddress, broadcast: res.broadcast },
+      ip,
+    });
+    return res;
+  }
+
+  @Patch('agents/:id/remote-access')
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
+  @ApiOperation({ summary: 'Cấu hình MAC WoL / RDP (Admin)' })
+  async updateAgentRemoteAccess(
+    @CurrentUser() actor: JwtPayload,
+    @Param('id') id: string,
+    @Body() dto: UpdateRemoteAccessDto,
+    @Ip() ip: string,
+  ) {
+    const agent = await this.agents.updateRemoteAccess(id, null, dto);
+    await this.audit.record({
+      actorId: actor.sub,
+      actorEmail: actor.email,
+      action: 'agent.remote_access.update',
+      resource: 'agent',
+      resourceId: id,
+      metadata: { fields: Object.keys(dto) },
       ip,
     });
     return agent;

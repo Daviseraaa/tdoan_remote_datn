@@ -2,7 +2,7 @@ import { execFileSync } from 'child_process';
 import { uninstallDatnNativeWindowsService } from './native-windows-service';
 
 if (process.platform === 'win32') {
-  for (const name of ['DATN Agent', 'DATNAgent']) {
+  for (const name of ['StationHub Agent', 'StationHubAgent']) {
     try {
       execFileSync('sc', ['stop', name], { stdio: 'inherit' });
     } catch {

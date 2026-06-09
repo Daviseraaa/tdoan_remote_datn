@@ -42,5 +42,5 @@ agent/desktop/release/
 agent/desktop/dist/
 
 # Frontend build
-admin-datn/dist/
-admin-datn/dist-ssr/
+admin-stationhub/dist/
+admin-stationhub/dist-ssr/

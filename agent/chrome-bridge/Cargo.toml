@@ -1,11 +1,11 @@
 [package]
-name = "datn-chrome-bridge"
+name = "stationhub-chrome-bridge"
 version = "0.1.0"
 edition = "2021"
-description = "Chrome Native Messaging host for DATN Agent"
+description = "Chrome Native Messaging host for StationHub Agent"
 
 [[bin]]
-name = "datn-chrome-bridge"
+name = "stationhub-chrome-bridge"
 path = "src/main.rs"
 
 [dependencies]

@@ -4,6 +4,7 @@ import {
   Delete,
   Get,
   Param,
+  Patch,
   Post,
   Query,
 } from '@nestjs/common';
@@ -11,7 +12,12 @@ import { ApiOperation, ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { CurrentUser, JwtPayload } from '../../common/decorators/current-user.decorator';
 import { AgentsGateway } from './agents.gateway';
 import { AgentsService } from './agents.service';
-import { CreateAgentDto, QueryAgentDto } from './dto/index';
+import {
+  CreateAgentDto,
+  QueryAgentDto,
+  UpdateRemoteAccessDto,
+  WakeAgentDto,
+} from './dto/index';
 
 @ApiTags('Agents')
 @ApiBearerAuth()
@@ -59,6 +65,30 @@ export class AgentsController {
     @Param('id') id: string,
   ) {
     return this.agentsGateway.syncChromeProfiles(id, user.sub);
+  }
+
+  @Post(':id/wake')
+  @ApiOperation({
+    summary: 'Wake agent machine via Wake-on-LAN (magic packet)',
+  })
+  wake(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+    @Body() dto: WakeAgentDto,
+  ) {
+    return this.agentsService.wakeAgent(id, user.sub, dto);
+  }
+
+  @Patch(':id/remote-access')
+  @ApiOperation({
+    summary: 'Cấu hình MAC WoL / RDP host (ghi đè metadata agent)',
+  })
+  updateRemoteAccess(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+    @Body() dto: UpdateRemoteAccessDto,
+  ) {
+    return this.agentsService.updateRemoteAccess(id, user.sub, dto);
   }
 
   @Delete(':id')

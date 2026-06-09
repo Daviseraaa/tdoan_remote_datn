@@ -1,4 +1,4 @@
-//! Native Messaging host: Chrome extension <-> DATN agent (`\\.\pipe\DATN_ChromeBridge_v1`).
+//! Native Messaging host: Chrome extension <-> StationHub agent (`\\.\pipe\StationHub_ChromeBridge_v1`).
 //! Ghi script local hoạt động cả khi agent chưa chạy (chỉ cần pipe cho automation).
 
 mod native_stdio;
@@ -19,7 +19,7 @@ use native_stdio::{read_message, write_message};
 #[tokio::main]
 async fn main() {
     if let Err(e) = run().await {
-        eprintln!("[datn-chrome-bridge] {}", e);
+        eprintln!("[stationhub-chrome-bridge] {}", e);
         std::process::exit(1);
     }
 }
@@ -107,7 +107,7 @@ async fn handle_extension_to_agent(
             "v": 1,
             "requestId": req_id,
             "ok": false,
-            "error": "Agent offline — chạy DATN agent (tray) để dùng automation. Ghi script vẫn lưu local khi dừng ghi."
+            "error": "Agent offline — chạy StationHub agent (tray) để dùng automation. Ghi script vẫn lưu local khi dừng ghi."
         });
         let _ = send_to_chrome(chrome_out, &err_body);
         return;

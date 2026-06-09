@@ -81,7 +81,7 @@ pub fn show(ctx: &egui::Context, toast: &Toast, parent_outer: egui::Rect) {
     let color = toast.color();
 
     ctx.show_viewport_immediate(
-        ViewportId::from_hash_of("datn_recorder_toast"),
+        ViewportId::from_hash_of("stationhub_recorder_toast"),
         builder,
         |ctx, class| {
             if matches!(class, ViewportClass::Embedded) {

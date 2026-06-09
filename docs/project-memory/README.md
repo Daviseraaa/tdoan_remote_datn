@@ -1,6 +1,6 @@
-# Project memory — DATN
+# Project memory — StationHub
 
-Tài liệu nội bộ cho monorepo **server_datn**. Đọc theo thứ tự gợi ý bên dưới.
+Tài liệu nội bộ cho monorepo **server_stationhub**. Đọc theo thứ tự gợi ý bên dưới.
 
 ## Chỉ mục
 
@@ -28,9 +28,9 @@ Hub tài liệu repo: [../README.md](../README.md).
 | File | Phạm vi |
 |------|---------|
 | `.env.example` (root) | Backend |
-| `admin-datn/.env` | `VITE_*` |
+| `admin-stationhub/.env` | `VITE_*` |
 | `agent/.env.example` | Dev agent |
-| `%ProgramData%\DATN\agent.env` | Agent production — [agent/README.md](../../agent/README.md) |
+| `%ProgramData%\StationHub\agent.env` | Agent production — [agent/README.md](../../agent/README.md) |
 
 ## Cập nhật tài liệu
 

@@ -78,7 +78,7 @@ function renderRecords() {
 async function refresh() {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (tab?.url) urlEl.textContent = tab.url;
-  const res = await chrome.runtime.sendMessage({ type: 'datn-popup', action: 'recordStatus' });
+  const res = await chrome.runtime.sendMessage({ type: 'stationhub-popup', action: 'recordStatus' });
   const recording = !!res?.data?.recording;
   const count = res?.data?.stepCount ?? 0;
   if (recording) {
@@ -91,7 +91,7 @@ async function refresh() {
     btnStop.style.display = 'none';
   }
 
-  const listRes = await chrome.runtime.sendMessage({ type: 'datn-popup', action: 'listRecords' });
+  const listRes = await chrome.runtime.sendMessage({ type: 'stationhub-popup', action: 'listRecords' });
   if (listRes?.ok && listRes?.data?.scripts) {
     records = listRes.data.scripts;
     renderRecords();
@@ -100,7 +100,7 @@ async function refresh() {
 
 btnStart.addEventListener('click', async () => {
   setMsg('');
-  const res = await chrome.runtime.sendMessage({ type: 'datn-popup', action: 'recordStart' });
+  const res = await chrome.runtime.sendMessage({ type: 'stationhub-popup', action: 'recordStart' });
   if (!res?.ok) {
     setMsg(res?.error || 'Không bắt đầu được', true);
     return;
@@ -111,7 +111,7 @@ btnStart.addEventListener('click', async () => {
 btnStop.addEventListener('click', async () => {
   setMsg('Đang lưu…');
   btnStop.disabled = true;
-  const res = await chrome.runtime.sendMessage({ type: 'datn-popup', action: 'recordStop' });
+  const res = await chrome.runtime.sendMessage({ type: 'stationhub-popup', action: 'recordStop' });
   btnStop.disabled = false;
   if (!res?.ok) {
     setMsg(res?.error || 'Lỗi khi dừng ghi', true);
@@ -126,7 +126,7 @@ async function runRecord(record) {
   try {
     setMsg('Chạy lại…');
     const res = await chrome.runtime.sendMessage({
-      type: 'datn-popup',
+      type: 'stationhub-popup',
       action: 'runRecord',
       record,
     });
@@ -143,7 +143,7 @@ async function deleteRecord(record) {
   try {
     setMsg('Đang xóa…');
     const res = await chrome.runtime.sendMessage({
-      type: 'datn-popup',
+      type: 'stationhub-popup',
       action: 'deleteRecord',
       record,
     });

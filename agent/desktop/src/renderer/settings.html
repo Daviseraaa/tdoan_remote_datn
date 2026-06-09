@@ -2,206 +2,62 @@
 <html lang="vi">
   <head>
     <meta charset="utf-8" />
-    <title>DATN Agent — Cài đặt</title>
-    <style>
-      * { box-sizing: border-box; }
-      body {
-        font-family: 'Segoe UI', system-ui, sans-serif;
-        margin: 0;
-        padding: 16px 20px 24px;
-        background: #f5f5f5;
-        color: #1a1a1a;
-      }
-      h1 { font-size: 1.25rem; margin: 0 0 4px; }
-      .meta { font-size: 12px; color: #555; margin-bottom: 16px; word-break: break-all; }
-      fieldset {
-        border: 1px solid #ddd;
-        border-radius: 8px;
-        margin: 0 0 12px;
-        padding: 12px 14px;
-        background: #fff;
-      }
-      legend { font-weight: 600; padding: 0 6px; }
-      label {
-        display: block;
-        font-size: 13px;
-        margin: 10px 0 4px;
-      }
-      input[type='text'],
-      input[type='number'],
-      select {
-        width: 100%;
-        padding: 8px 10px;
-        border: 1px solid #ccc;
-        border-radius: 6px;
-        font-size: 14px;
-      }
-      .hint { font-size: 11px; color: #666; margin-top: 2px; }
-      .row-check { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
-      .row-check input { width: auto; }
-      .warn {
-        background: #fff3cd;
-        border: 1px solid #ffc107;
-        padding: 10px 12px;
-        border-radius: 6px;
-        font-size: 13px;
-        margin-bottom: 12px;
-      }
-      .err {
-        background: #f8d7da;
-        color: #842029;
-        padding: 10px 12px;
-        border-radius: 6px;
-        font-size: 13px;
-        margin-bottom: 12px;
-        display: none;
-      }
-      .actions {
-        display: flex;
-        gap: 10px;
-        margin-top: 16px;
-        flex-wrap: wrap;
-      }
-      button {
-        padding: 10px 18px;
-        border-radius: 6px;
-        border: none;
-        font-size: 14px;
-        cursor: pointer;
-      }
-      button.primary { background: #2563eb; color: #fff; }
-      button.secondary { background: #e5e7eb; color: #111; }
-      #status { font-size: 12px; color: #166534; margin-top: 8px; min-height: 18px; }
-    </style>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>StationHub Agent</title>
+    <link rel="stylesheet" href="settings.css" />
   </head>
   <body>
-    <h1>Cài đặt Agent</h1>
-    <p class="meta" id="configPath">Đang tải…</p>
-    <div class="warn">
-      Config lưu tại <strong>%ProgramData%\DATN\agent.env</strong>.
-      Rust core đọc file này khi khởi động. Sau khi Lưu, agent sẽ được khởi động lại.
+    <div class="bg-grid" aria-hidden="true"></div>
+    <div class="bg-glow" aria-hidden="true"></div>
+
+    <div id="loading" class="loading">
+      <div class="loader-ring"></div>
+      <span>Đang khởi tạo…</span>
     </div>
-    <div class="err" id="errors"></div>
-    <form id="form"></form>
-    <div class="actions">
-      <button type="button" class="primary" id="saveBtn">Lưu &amp; khởi động lại agent</button>
-      <button type="button" class="secondary" id="folderBtn">Mở thư mục config</button>
+
+    <div id="app" class="shell hidden">
+      <header class="topbar">
+        <div class="brand">
+          <div class="brand-logo-wrap">
+            <img class="brand-logo" src="logo.ico" width="40" height="40" alt="" onerror="this.onerror=null;this.src='logo.png'" />
+          </div>
+          <div class="brand-copy">
+            <div class="brand-title-row">
+              <h1 class="brand-title">StationHub Agent</h1>
+              <span class="version-chip" id="versionChip">v—</span>
+            </div>
+            <p class="brand-sub">Quản lý kết nối agent</p>
+          </div>
+        </div>
+        <div class="topbar-deco" aria-hidden="true">
+          <svg class="deco-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <rect x="5" y="8" width="14" height="10" rx="2"/>
+            <circle cx="9" cy="12" r="1" fill="currentColor"/>
+            <circle cx="15" cy="12" r="1" fill="currentColor"/>
+            <path d="M9 5h6v3H9z"/>
+          </svg>
+          <svg class="deco-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M12 3l2 6h5l-4 4 1 7-4-3-4 3 1-7-4-4h5z"/>
+          </svg>
+        </div>
+      </header>
+
+      <nav class="tabs" id="tabs" aria-label="Cài đặt"></nav>
+
+      <div id="errorBanner" class="alert alert-error hidden"></div>
+
+      <main class="content" id="panels"></main>
+
+      <footer class="dock">
+        <div class="dock-status" id="footerStatus">Sẵn sàng</div>
+        <div class="dock-actions">
+          <button type="button" class="btn btn-ghost" id="folderBtn">Thư mục config</button>
+          <button type="button" class="btn btn-ghost" id="restartBtn">Khởi động lại</button>
+          <button type="button" class="btn btn-primary" id="saveBtn">Lưu &amp; áp dụng</button>
+        </div>
+      </footer>
     </div>
-    <p id="status"></p>
-    <script>
-      const api = window.datnSettings;
-      const form = document.getElementById('form');
-      const errEl = document.getElementById('errors');
-      const statusEl = document.getElementById('status');
-      const pathEl = document.getElementById('configPath');
 
-      function showErrors(list) {
-        if (!list || !list.length) {
-          errEl.style.display = 'none';
-          errEl.textContent = '';
-          return;
-        }
-        errEl.style.display = 'block';
-        errEl.innerHTML = list.map((e) => '<div>' + e + '</div>').join('');
-      }
-
-      function renderField(f, values) {
-        const wrap = document.createElement('div');
-        if (f.type === 'boolean') {
-          wrap.className = 'row-check';
-          const cb = document.createElement('input');
-          cb.type = 'checkbox';
-          cb.id = 'f_' + f.key;
-          cb.name = f.key;
-          cb.checked = ['1', 'true', 'yes', 'on'].includes(
-            String(values[f.key] || f.default || '').toLowerCase(),
-          );
-          const lab = document.createElement('label');
-          lab.htmlFor = cb.id;
-          lab.textContent = f.label;
-          wrap.append(cb, lab);
-        } else {
-          const lab = document.createElement('label');
-          lab.htmlFor = 'f_' + f.key;
-          lab.textContent = f.label + (f.required ? ' *' : '');
-          wrap.append(lab);
-          let input;
-          if (f.type === 'select') {
-            input = document.createElement('select');
-            (f.options || []).forEach((opt) => {
-              const o = document.createElement('option');
-              o.value = opt;
-              o.textContent = opt;
-              input.append(o);
-            });
-          } else {
-            input = document.createElement('input');
-            input.type = f.type === 'number' ? 'number' : 'text';
-          }
-          input.id = 'f_' + f.key;
-          input.name = f.key;
-          input.value = values[f.key] ?? f.default ?? '';
-          wrap.append(input);
-        }
-        if (f.hint) {
-          const h = document.createElement('div');
-          h.className = 'hint';
-          h.textContent = f.hint;
-          wrap.append(h);
-        }
-        return wrap;
-      }
-
-      async function init() {
-        const [{ fields, groups }, loaded] = await Promise.all([
-          api.getSchema(),
-          api.load(),
-        ]);
-        pathEl.textContent = 'File: ' + loaded.path;
-        const byGroup = {};
-        fields.forEach((f) => {
-          if (!byGroup[f.group]) byGroup[f.group] = [];
-          byGroup[f.group].push(f);
-        });
-        groups.forEach((g) => {
-          if (!byGroup[g]) return;
-          const fs = document.createElement('fieldset');
-          const leg = document.createElement('legend');
-          leg.textContent = g;
-          fs.append(leg);
-          byGroup[g].forEach((f) => fs.append(renderField(f, loaded.values)));
-          form.append(fs);
-        });
-      }
-
-      function collect() {
-        const values = {};
-        form.querySelectorAll('input, select').forEach((el) => {
-          const name = el.name;
-          if (!name) return;
-          if (el.type === 'checkbox') values[name] = el.checked ? 'true' : 'false';
-          else values[name] = el.value;
-        });
-        return values;
-      }
-
-      document.getElementById('saveBtn').addEventListener('click', async () => {
-        statusEl.textContent = '';
-        showErrors([]);
-        const res = await api.save(collect());
-        if (!res.ok) {
-          showErrors(res.errors);
-          return;
-        }
-        statusEl.textContent = 'Đã lưu: ' + res.path;
-        api.notifySaved();
-      });
-
-      document.getElementById('folderBtn').addEventListener('click', () => {
-        api.openConfigFolder();
-      });
-
-      init().catch((e) => showErrors([String(e)]));
-    </script>
+    <script src="settings.js"></script>
   </body>
 </html>

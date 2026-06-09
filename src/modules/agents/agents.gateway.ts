@@ -82,10 +82,16 @@ export class AgentsGateway
 
   async handleConnection(client: AgentSocket) {
     try {
-      const rawKey =
-        client.handshake?.auth?.agentKey || client.handshake?.query?.agentKey;
+      const authKey = client.handshake?.auth?.agentKey;
+      const queryKey = client.handshake?.query?.agentKey;
+      if (queryKey && !authKey) {
+        this.logger.warn('Connection rejected: agentKey in query string is not allowed');
+        client.disconnect();
+        return;
+      }
+
       const agentKey =
-        typeof rawKey === 'string' ? rawKey.trim() : '';
+        typeof authKey === 'string' ? authKey.trim() : '';
 
       if (!agentKey) {
         this.logger.warn(`Connection rejected: missing agentKey`);
@@ -124,6 +130,27 @@ export class AgentsGateway
         client.disconnect();
         return;
       }
+
+      try {
+        await this.subscriptionService.assertAgentConnectAllowed(
+          agent.userId,
+          agent.id,
+        );
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : 'Agent không được phép kết nối';
+        client.emit(WS_EVENTS.AGENT_SESSION_REVOKED, {
+          reason: 'PLAN_AGENT_LIMIT',
+          message,
+        });
+        this.logger.warn(
+          `Connection rejected: plan agent limit for user ${agent.userId}`,
+        );
+        client.disconnect();
+        return;
+      }
+
+      await this.disconnectAgentById(agent.id, 'SUPERSEDED');
 
       client.data = { agent: { id: agent.id, agentKey: agent.agentKey, userId: agent.userId, name: agent.name } };
       client.join(`agent:${agent.id}`);
@@ -183,6 +210,32 @@ export class AgentsGateway
     if (!owner || !this.subscriptionService.isSubscriptionActive(owner)) {
       client.emit(WS_EVENTS.AGENT_SUBSCRIPTION_EXPIRED, {
         reason: 'SUBSCRIPTION_EXPIRED',
+      });
+      client.disconnect();
+      return { event: WS_EVENTS.AGENT_HEARTBEAT, data: { ok: false } };
+    }
+
+    const agentRow = await this.prisma.agent.findUnique({
+      where: { id: agent.id },
+      select: { agentKey: true },
+    });
+    if (!agentRow || agentRow.agentKey !== agent.agentKey) {
+      client.emit(WS_EVENTS.AGENT_SESSION_REVOKED, {
+        reason: 'KEY_REVOKED',
+        message: 'Agent Key đã được thay đổi. Cập nhật cấu hình và kết nối lại.',
+      });
+      client.disconnect();
+      return { event: WS_EVENTS.AGENT_HEARTBEAT, data: { ok: false } };
+    }
+
+    try {
+      await this.subscriptionService.assertAgentConnectAllowed(
+        agent.userId,
+        agent.id,
+      );
+    } catch {
+      client.emit(WS_EVENTS.AGENT_SESSION_REVOKED, {
+        reason: 'PLAN_AGENT_LIMIT',
       });
       client.disconnect();
       return { event: WS_EVENTS.AGENT_HEARTBEAT, data: { ok: false } };
@@ -608,5 +661,19 @@ export class AgentsGateway
 
   emitToAgent(agentId: string, event: string, data: unknown) {
     this.server.to(`agent:${agentId}`).emit(event, data);
+  }
+
+  /** Ngắt mọi socket trong room agent (regenerate key, vượt gói, thay phiên mới). */
+  async disconnectAgentById(
+    agentId: string,
+    reason: string,
+    exceptSocketId?: string,
+  ): Promise<void> {
+    const sockets = await this.server.in(`agent:${agentId}`).fetchSockets();
+    for (const socket of sockets) {
+      if (exceptSocketId && socket.id === exceptSocketId) continue;
+      socket.emit(WS_EVENTS.AGENT_SESSION_REVOKED, { reason });
+      socket.disconnect(true);
+    }
   }
 }

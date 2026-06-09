@@ -7,6 +7,7 @@ import {
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { Role, SubscriptionStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { normalizeTrialEmail } from './trial-email';
 
 const PLAN_SELECT = {
   id: true,
@@ -56,7 +57,21 @@ export class SubscriptionService {
     return plan;
   }
 
-  async startTrial(userId: string): Promise<void> {
+  async startTrial(userId: string, email?: string): Promise<void> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true, trialUsedAt: true },
+    });
+    if (!user) {
+      throw paymentRequired('Không tìm thấy tài khoản');
+    }
+    if (user.trialUsedAt) {
+      throw paymentRequired('Tài khoản đã dùng gói dùng thử.');
+    }
+
+    const trialEmail = email?.trim() || user.email;
+    await this.assertTrialEmailAvailable(trialEmail, userId);
+
     const plan = await this.getTrialPlan();
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + plan.durationDays);
@@ -70,6 +85,25 @@ export class SubscriptionService {
         planId: plan.id,
       },
     });
+  }
+
+  /** Một email (sau chuẩn hóa) chỉ được trial một lần trên toàn hệ thống. */
+  async assertTrialEmailAvailable(email: string, excludeUserId: string): Promise<void> {
+    const fingerprint = normalizeTrialEmail(email);
+    const prior = await this.prisma.user.findMany({
+      where: {
+        trialUsedAt: { not: null },
+        NOT: { id: excludeUserId },
+      },
+      select: { email: true },
+    });
+    for (const row of prior) {
+      if (normalizeTrialEmail(row.email) === fingerprint) {
+        throw paymentRequired(
+          'Email này đã được dùng cho gói dùng thử. Vui lòng gia hạn hoặc dùng email khác.',
+        );
+      }
+    }
   }
 
   isSubscriptionActive(
@@ -183,6 +217,48 @@ export class SubscriptionService {
     throw paymentRequired(
       'Gói đăng ký đã hết hạn. Vui lòng gia hạn để tiếp tục sử dụng.',
     );
+  }
+
+  /**
+   * Agent được phép connect nếu nằm trong `maxAgents` slot đầu tiên (theo createdAt).
+   * `null` = admin — không giới hạn.
+   */
+  async getAllowedAgentIds(userId: string): Promise<Set<string> | null> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        role: true,
+        subscriptionStatus: true,
+        plan: { select: PLAN_SELECT },
+      },
+    });
+    if (!user) return new Set();
+    if (user.role === Role.ADMIN) return null;
+
+    const plan = await this.resolveEffectivePlan(
+      userId,
+      user.subscriptionStatus,
+      user.plan,
+    );
+    const maxAgents = plan?.maxAgents ?? 1;
+    const agents = await this.prisma.agent.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'asc' },
+      take: maxAgents,
+      select: { id: true },
+    });
+    return new Set(agents.map((a) => a.id));
+  }
+
+  async assertAgentConnectAllowed(userId: string, agentId: string): Promise<void> {
+    await this.assertActive(userId);
+    const allowed = await this.getAllowedAgentIds(userId);
+    if (allowed === null) return;
+    if (!allowed.has(agentId)) {
+      throw paymentRequired(
+        'Agent này vượt giới hạn gói hiện tại. Nâng cấp gói hoặc xóa agent khác.',
+      );
+    }
   }
 
   async assertCanAddAgent(userId: string): Promise<void> {

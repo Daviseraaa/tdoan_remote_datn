@@ -1,4 +1,5 @@
 import * as os from 'os';
+import { BUILD_ENV } from './build-config';
 import { readEnvFile } from './env-file';
 import { resolveConfigPath } from './paths';
 
@@ -14,10 +15,10 @@ export interface DesktopConfigView {
 export function loadDesktopConfig(): DesktopConfigView {
   const values = readEnvFile();
   return {
-    serverUrl: values.SERVER_WS_URL?.trim() || 'ws://localhost:3000',
+    serverUrl: BUILD_ENV.SERVER_WS_URL,
     agentKey: values.AGENT_KEY?.trim() || '',
-    logLevel: values.LOG_LEVEL?.trim() || 'info',
-    agentVersion: values.AGENT_VERSION?.trim() || '1.1.0',
+    logLevel: BUILD_ENV.LOG_LEVEL,
+    agentVersion: BUILD_ENV.AGENT_VERSION,
     hostname: os.hostname(),
     configPath: resolveConfigPath(),
   };

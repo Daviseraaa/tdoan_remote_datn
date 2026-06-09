@@ -1,4 +1,4 @@
-//! Gọi `datn-cloak-runner` (CloakBrowser / Playwright stealth) qua file JSON.
+//! Gọi `stationhub-cloak-runner` (CloakBrowser / Playwright stealth) qua file JSON.
 
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
@@ -47,7 +47,7 @@ pub struct CloakOpenSuccess {
 }
 
 fn resolve_agent_root() -> Option<PathBuf> {
-    if let Ok(p) = std::env::var("DATN_AGENT_ROOT") {
+    if let Ok(p) = std::env::var("STATIONHUB_AGENT_ROOT") {
         let p = p.trim();
         if !p.is_empty() {
             let pb = PathBuf::from(p);
@@ -121,9 +121,9 @@ pub fn resolve_cloak_runner_dir() -> Option<PathBuf> {
 
 fn runner_exe_in_dir(dir: &Path) -> Option<PathBuf> {
     let name = if cfg!(windows) {
-        "datn-cloak-runner.exe"
+        "stationhub-cloak-runner.exe"
     } else {
-        "datn-cloak-runner"
+        "stationhub-cloak-runner"
     };
     let p = dir.join(name);
     if p.is_file() {
@@ -172,7 +172,7 @@ pub fn cloak_runner_available() -> bool {
 }
 
 async fn write_temp_json(prefix: &str, value: &Value) -> Result<PathBuf, String> {
-    let dir = std::env::temp_dir().join("datn-agent");
+    let dir = std::env::temp_dir().join("stationhub-agent");
     fs::create_dir_all(&dir)
         .await
         .map_err(|e| format!("temp dir: {e}"))?;
@@ -382,7 +382,7 @@ pub async fn open_url(
         log::info!("Cloak runner: python script {:?}", script);
         run_runner(&py, &py_args, &res_path, wait_ms, keep_open).await?
     } else if let Some(dir) = resolve_cloak_runner_dir() {
-        let exe = runner_exe_in_dir(&dir).ok_or("Thiếu datn-cloak-runner.exe")?;
+        let exe = runner_exe_in_dir(&dir).ok_or("Thiếu stationhub-cloak-runner.exe")?;
         log::info!("Cloak runner: exe {:?}", exe);
         run_runner(
             exe.to_str().ok_or("exe path")?,
@@ -395,7 +395,7 @@ pub async fn open_url(
     } else {
         let _ = fs::remove_file(&req_path).await;
         return Err(
-            "Không tìm thấy datn-cloak-runner. Chạy npm run build:cloak-runner.".into(),
+            "Không tìm thấy stationhub-cloak-runner. Chạy npm run build:cloak-runner.".into(),
         );
     };
 

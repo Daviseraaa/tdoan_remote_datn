@@ -64,14 +64,14 @@ async function main() {
   const hashedPassword = await bcrypt.hash('admin123', 10);
 
   const admin = await prisma.user.upsert({
-    where: { email: 'admin@datn.com' },
+    where: { email: 'admin@stationhub.com' },
     update: {
       subscriptionStatus: SubscriptionStatus.ACTIVE,
       subscriptionExpiresAt: farFuture,
       planId: plan.id,
     },
     create: {
-      email: 'admin@datn.com',
+      email: 'admin@stationhub.com',
       name: 'Admin',
       password: hashedPassword,
       role: Role.ADMIN,
@@ -85,12 +85,12 @@ async function main() {
   trialExpires.setDate(trialExpires.getDate() + trialPlan.durationDays);
 
   const user = await prisma.user.upsert({
-    where: { email: 'user@datn.com' },
+    where: { email: 'user@stationhub.com' },
     update: {
       planId: trialPlan.id,
     },
     create: {
-      email: 'user@datn.com',
+      email: 'user@stationhub.com',
       name: 'Demo User',
       password: await bcrypt.hash('user123', 10),
       role: Role.USER,

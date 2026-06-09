@@ -62,7 +62,7 @@ fn build_metadata(
 ) -> serde_json::Value {
     let snap = sampler.sample();
     let capabilities: Vec<&str> = supported_task_types(platform, cfg);
-    json!({
+    let mut meta = json!({
         "os": format!("{} {}", std::env::consts::OS, std::env::consts::ARCH),
         "hostname": hostname::get()
             .map(|h| h.to_string_lossy().into_owned())
@@ -74,7 +74,41 @@ fn build_metadata(
         "totalMemory": snap.ram_total,
         "agentVersion": cfg.agent_version,
         "capabilities": capabilities,
-    })
+    });
+    if let Some(obj) = meta.as_object_mut() {
+        if let Some(ra) = platform_remote_access_metadata().as_object() {
+            for (k, v) in ra {
+                obj.insert(k.clone(), v.clone());
+            }
+        }
+    }
+    if let Some(wol) = meta.get("wolMacAddress").and_then(|v| v.as_str()) {
+        let bcast = meta.get("wolBroadcast").and_then(|v| v.as_str()).unwrap_or("—");
+        info!(
+            "Remote access: wolMac={} wolBroadcast={} rdpEnabled={}",
+            wol,
+            bcast,
+            meta.get("rdpEnabled").and_then(|v| v.as_bool()).unwrap_or(false)
+        );
+    } else {
+        let nics = meta
+            .get("networkInterfaces")
+            .and_then(|v| v.as_array())
+            .map(|a| a.len())
+            .unwrap_or(0);
+        warn!("Remote access: chưa có wolMacAddress ({} NIC báo cáo)", nics);
+    }
+    meta
+}
+
+#[cfg(windows)]
+fn platform_remote_access_metadata() -> serde_json::Value {
+    crate::platform::windows::host_info::remote_access_metadata()
+}
+
+#[cfg(not(windows))]
+fn platform_remote_access_metadata() -> serde_json::Value {
+    serde_json::json!({})
 }
 
 /// Agent foreground / service: kết nối Socket.IO, heartbeat, xử lý `task:execute` cho đến khi `stop` = true.
@@ -238,18 +272,18 @@ pub async fn run_with_stop(stop: Arc<AtomicBool>) -> Result<(), Box<dyn std::err
         });
 
     info!("Connecting to {} namespace {} …", base, NS);
-    eprintln!("[DATN] Socket.IO: đang kết nối {}{} …", base, NS);
+    eprintln!("[StationHub] Socket.IO: đang kết nối {}{} …", base, NS);
 
     let client = match builder.connect().await {
         Ok(c) => {
             info!("Socket connected — {} {}", base, NS);
-            eprintln!("[DATN] Socket.IO: kết nối THÀNH CÔNG — {}{}", base, NS);
+            eprintln!("[StationHub] Socket.IO: kết nối THÀNH CÔNG — {}{}", base, NS);
             c
         }
         Err(e) => {
             error!("Socket connect failed — {} {}: {}", base, NS, e);
             eprintln!(
-                "[DATN] Socket.IO: kết nối THẤT BẠI — {}{} — {}",
+                "[StationHub] Socket.IO: kết nối THẤT BẠI — {}{} — {}",
                 base, NS, e
             );
             return Err(e.into());

@@ -22,4 +22,5 @@ export const WS_EVENTS = {
   DESKTOP_RECORDINGS_SYNC: 'agent:desktop-recordings:sync',
   DESKTOP_RECORDINGS_RESULT: 'agent:desktop-recordings:result',
   AGENT_SUBSCRIPTION_EXPIRED: 'agent:subscription:expired',
+  AGENT_SESSION_REVOKED: 'agent:session:revoked',
 } as const;

@@ -103,7 +103,7 @@ impl TaskHandler for Handler {
                 false,
                 -1,
                 Some(
-                    "Thiếu datn-cloak-runner. Chạy: npm run build:cloak-runner (hoặc python cloak-runner/main.py)."
+                    "Thiếu stationhub-cloak-runner. Chạy: npm run build:cloak-runner (hoặc python cloak-runner/main.py)."
                         .into(),
                 ),
                 None,

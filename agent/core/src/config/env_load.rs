@@ -1,5 +1,6 @@
 //! Nạp file cấu hình trước khi đọc `std::env` (ưu tiên ProgramData trên Windows).
 
+use super::dev_defaults;
 use std::env;
 use std::path::{Path, PathBuf};
 
@@ -7,7 +8,7 @@ fn program_data_config() -> Option<PathBuf> {
     #[cfg(windows)]
     {
         let pd = env::var("ProgramData").ok()?;
-        let p = Path::new(&pd).join("DATN").join("agent.env");
+        let p = Path::new(&pd).join("StationHub").join("agent.env");
         return Some(p);
     }
     #[cfg(not(windows))]
@@ -51,7 +52,7 @@ pub fn read_key_from_active_config(key: &str) -> Option<String> {
 
 /// Gọi một lần lúc khởi động process (trước `AgentConfig::load`).
 pub fn load_env_files() {
-    let loaded = if let Ok(path) = env::var("DATN_AGENT_CONFIG") {
+    let loaded = if let Ok(path) = env::var("STATIONHUB_AGENT_CONFIG") {
         let p = Path::new(&path);
         if p.exists() {
             dotenvy::from_filename_override(&path).ok();
@@ -79,6 +80,9 @@ pub fn load_env_files() {
     if let Some(p) = loaded {
         pin_critical_keys_from_file(&p);
     }
+
+    // Tab Nâng cao: cố định lúc build — ghi đè mọi giá trị trong agent.env.
+    dev_defaults::pin_build_env();
 }
 
 /// Ghi đè trực tiếp các key quan trọng từ file (tránh dotenv/env cũ che mất).
@@ -119,7 +123,7 @@ fn read_key_from_file(path: &Path, key: &str) -> Option<String> {
 
 /// Đường dẫn config mặc định (để log / tool).
 pub fn default_config_path() -> PathBuf {
-    if let Ok(path) = env::var("DATN_AGENT_CONFIG") {
+    if let Ok(path) = env::var("STATIONHUB_AGENT_CONFIG") {
         return PathBuf::from(path);
     }
     if let Some(p) = program_data_config() {

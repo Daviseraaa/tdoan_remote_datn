@@ -25,6 +25,7 @@ import { QueryTasksDto } from './dto/query-tasks.dto';
 import { QueryWorkflowRunsDto } from './dto/query-workflow-runs.dto';
 import { QueryPaymentsDto } from './dto/query-payments.dto';
 import { AgentTelemetryStore } from '../agents/agent-telemetry.store';
+import { AgentsGateway } from '../agents/agents.gateway';
 import { SubscriptionService } from '../billing/subscription.service';
 
 const USER_SELECT = {
@@ -55,6 +56,7 @@ export class AdminService {
     private prisma: PrismaService,
     private telemetry: AgentTelemetryStore,
     private subscription: SubscriptionService,
+    private agentsGateway: AgentsGateway,
   ) {}
 
   async getStats() {
@@ -427,13 +429,15 @@ export class AdminService {
     const agent = await this.prisma.agent.findUnique({ where: { id } });
     if (!agent) throw new NotFoundException('Agent not found');
 
-    return this.prisma.agent.update({
+    const updated = await this.prisma.agent.update({
       where: { id },
       data: {
         agentKey: cryptoRandom(),
         status: AgentStatus.OFFLINE,
       },
     });
+    await this.agentsGateway.disconnectAgentById(id, 'KEY_REGENERATED');
+    return updated;
   }
 
   async listTasks(query: QueryTasksDto) {

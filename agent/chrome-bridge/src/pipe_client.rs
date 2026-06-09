@@ -1,4 +1,4 @@
-//! NDJSON client tới agent pipe `\\.\pipe\DATN_ChromeBridge_v1`.
+//! NDJSON client tới agent pipe `\\.\pipe\StationHub_ChromeBridge_v1`.
 
 use std::io::{BufRead, ErrorKind, Write};
 
@@ -7,7 +7,7 @@ use serde_json::Value;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader as AsyncBufReader};
 use tokio::net::windows::named_pipe::ClientOptions;
 
-pub const PIPE_CHROME_BRIDGE: &str = r"\\.\pipe\DATN_ChromeBridge_v1";
+pub const PIPE_CHROME_BRIDGE: &str = r"\\.\pipe\StationHub_ChromeBridge_v1";
 pub const IPC_PROTOCOL_VERSION: u32 = 1;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

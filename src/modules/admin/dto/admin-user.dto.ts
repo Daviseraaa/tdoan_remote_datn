@@ -10,7 +10,7 @@ import {
 import { Role } from '@prisma/client';
 
 export class CreateUserDto {
-  @ApiProperty({ example: 'user@datn.com' })
+  @ApiProperty({ example: 'user@stationhub.com' })
   @IsEmail()
   email: string = '';
 

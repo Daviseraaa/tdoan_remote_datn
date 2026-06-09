@@ -15,9 +15,9 @@ use windows_service::service_control_handler::{self, ServiceControlHandlerResult
 #[cfg(windows)]
 use windows_service::{define_windows_service, service_dispatcher};
 
-/// Khớp `agent/desktop/src/service/native-windows-service.ts` — `sc create DATNAgentNative ...`
+/// Khớp `agent/desktop/src/service/native-windows-service.ts` — `sc create StationHubAgentNative ...`
 #[cfg(windows)]
-const SERVICE_NAME: &str = "DATNAgentNative";
+const SERVICE_NAME: &str = "StationHubAgentNative";
 
 #[cfg(windows)]
 define_windows_service!(ffi_service_main, service_main);

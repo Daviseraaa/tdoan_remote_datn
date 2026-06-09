@@ -44,13 +44,13 @@ describe('AdminController', () => {
   it('records audit log after creating user', async () => {
     adminService.createUser.mockResolvedValue({
       id: 'u2',
-      email: 'new@datn.com',
+      email: 'new@stationhub.com',
       role: 'USER',
     });
 
     await controller.createUser(
-      { sub: 'admin-id', email: 'admin@datn.com', role: 'ADMIN' },
-      { email: 'new@datn.com', name: 'New User', password: 'secret123' },
+      { sub: 'admin-id', email: 'admin@stationhub.com', role: 'ADMIN' },
+      { email: 'new@stationhub.com', name: 'New User', password: 'secret123' },
       '127.0.0.1',
     );
 
@@ -58,7 +58,7 @@ describe('AdminController', () => {
       expect.objectContaining({
         action: 'user.create',
         resource: 'user',
-        actorEmail: 'admin@datn.com',
+        actorEmail: 'admin@stationhub.com',
       }),
     );
   });
@@ -67,7 +67,7 @@ describe('AdminController', () => {
     adminService.cancelTask.mockResolvedValue({ message: 'Task cancelled' });
 
     await controller.cancelTask(
-      { sub: 'admin-id', email: 'admin@datn.com', role: 'ADMIN' },
+      { sub: 'admin-id', email: 'admin@stationhub.com', role: 'ADMIN' },
       'task-1',
       '127.0.0.1',
     );

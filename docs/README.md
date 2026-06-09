@@ -1,4 +1,4 @@
-# Tài liệu dự án DATN (server_datn)
+# Tài liệu dự án StationHub (server_stationhub)
 
 Tài liệu kỹ thuật cho monorepo **quản lý Agent · Task · Workflow · Tự động hóa**.
 
@@ -24,8 +24,8 @@ flowchart TB
   end
 
   subgraph Clients
-    SPA[admin-datn React SPA]
-    AGENT[datn-agent-native + Electron]
+    SPA[admin-stationhub React SPA]
+    AGENT[stationhub-agent-native + Electron]
     EXT[Chrome Extension]
   end
 
@@ -76,16 +76,16 @@ sequenceDiagram
 
 - **GitHub / GitLab**: render trực tiếp trong file `.md`.
 - **VS Code / Cursor**: extension *Markdown Preview Mermaid Support*.
-- **Trang Docs trong admin**: route `/docs` (nội dung `admin-datn`).
+- **Trang Docs trong admin**: route `/docs` (nội dung `admin-stationhub`).
 
 ## Cấu hình môi trường
 
 | File | Phạm vi |
 |------|---------|
 | `.env.example` (root) | Backend, DB, Redis, JWT |
-| `admin-datn/.env` | `VITE_API_URL`, … |
+| `admin-stationhub/.env` | `VITE_API_URL`, … |
 | `agent/.env.example` | Dev agent |
-| `%ProgramData%\DATN\agent.env` | Agent production (Windows) |
+| `%ProgramData%\StationHub\agent.env` | Agent production (Windows) |
 
 ## Khởi động nhanh
 
@@ -101,6 +101,6 @@ Tài liệu `project-memory/` được **đối chiếu với** `src/app.module.
 | API sync script/recording | `POST /api/chrome-scripts/sync`, `POST /api/desktop-recordings/sync` |
 | Workflow steps | `StepType`: COMMAND, SCRIPT, DELAY, CONDITION, TELEGRAM |
 | Triggers HTTP | `/api/triggers` (không gộp vào `/api/workflows`) |
-| Desktop “bắt control” | DATN: tọa độ (`desktop-recorder`); PAD tham chiếu: **UIA + MSAA + OCR/ảnh** — xem [architecture §9](./project-memory/architecture.md#9-bắt-windows--control--power-automate-desktop-pad-vs-datn) |
+| Desktop “bắt control” | StationHub: tọa độ (`desktop-recorder`); PAD tham chiếu: **UIA + MSAA + OCR/ảnh** — xem [architecture §9](./project-memory/architecture.md#9-bắt-windows--control--power-automate-desktop-pad-vs-stationhub) |
 
 Nếu đổi route/event trong code, cập nhật `flows.md` + `architecture.md` cùng lúc.

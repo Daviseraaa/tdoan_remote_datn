@@ -1,4 +1,4 @@
-//! Chrome extension bridge — named pipe `\\.\pipe\DATN_ChromeBridge_v1`.
+//! Chrome extension bridge — named pipe `\\.\pipe\StationHub_ChromeBridge_v1`.
 
 use std::collections::HashMap;
 use std::sync::OnceLock;
@@ -11,7 +11,7 @@ use tokio::time::timeout;
 
 use super::ipc::{IpcRequestV1, IPC_PROTOCOL_VERSION};
 
-pub const PIPE_CHROME_BRIDGE: &str = r"\\.\pipe\DATN_ChromeBridge_v1";
+pub const PIPE_CHROME_BRIDGE: &str = r"\\.\pipe\StationHub_ChromeBridge_v1";
 
 enum BridgeCmd {
     Forward {
@@ -51,7 +51,7 @@ pub async fn wait_for_bridge_connected(timeout_ms: u64) -> Result<(), String> {
     }
     let secs = timeout_ms / 1000;
     Err(format!(
-        "Chrome bridge offline sau {secs}s — mở Chrome, bật extension DATN (chrome://extensions), reload extension. \
+        "Chrome bridge offline sau {secs}s — mở Chrome, bật extension StationHub (chrome://extensions), reload extension. \
          Kiểm tra native host: npm run chrome-bridge:install. Agent chạy qua tray (không chỉ Windows Service). \
          Trên extension: F12 service worker — log phải có bridgeConnected agentPipe:true."
     ))

@@ -1,8 +1,8 @@
 {
-  "name": "datn-agent",
+  "name": "stationhub-agent",
   "version": "1.0.0",
   "private": true,
-  "description": "DATN workstation agent — Rust core + desktop control panel",
+  "description": "StationHub workstation agent — Rust core + desktop control panel",
   "scripts": {
     "build:core": "cargo build --release --manifest-path core/Cargo.toml && node scripts/copy-core-bin.js",
     "build:cloak-runner": "node scripts/build-cloak-runner.js",

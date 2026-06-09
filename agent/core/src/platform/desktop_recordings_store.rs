@@ -1,4 +1,4 @@
-//! Đọc desktop recording ghi local từ recorder (%ProgramData%\DATN\desktop-recordings).
+//! Đọc desktop recording ghi local từ recorder (%ProgramData%\StationHub\desktop-recordings).
 
 use serde_json::{json, Value};
 use std::fs;
@@ -6,7 +6,7 @@ use std::path::PathBuf;
 
 fn recordings_dir() -> PathBuf {
     let pd = std::env::var("ProgramData").unwrap_or_else(|_| r"C:\ProgramData".into());
-    PathBuf::from(pd).join("DATN").join("desktop-recordings")
+    PathBuf::from(pd).join("StationHub").join("desktop-recordings")
 }
 
 /// Liệt kê toàn bộ recording local (tối đa `max_count` bản ghi, mới nhất trước).

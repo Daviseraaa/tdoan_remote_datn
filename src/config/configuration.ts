@@ -49,11 +49,34 @@ export default () => ({
     trialDays: parseInt(process.env.SUBSCRIPTION_TRIAL_DAYS || '7', 10),
   },
 
+  smtp: {
+    host: process.env.SMTP_HOST || 'smtp.gmail.com',
+    port: parseInt(process.env.SMTP_PORT || '587', 10),
+    secure: process.env.SMTP_SECURE === 'true',
+    user: process.env.SMTP_USER || '',
+    pass: process.env.SMTP_PASS || '',
+    from: process.env.SMTP_FROM || process.env.SMTP_USER || '',
+    appName: process.env.SMTP_APP_NAME || 'StationHub',
+  },
+
+  google: {
+    clientId: process.env.GOOGLE_CLIENT_ID || '',
+  },
+
+  otp: {
+    registerTtlSeconds: parseInt(process.env.REGISTER_OTP_TTL_SECONDS || '600', 10),
+    registerCooldownSeconds: parseInt(
+      process.env.REGISTER_OTP_COOLDOWN_SECONDS || '60',
+      10,
+    ),
+    registerMaxAttempts: parseInt(process.env.REGISTER_OTP_MAX_ATTEMPTS || '5', 10),
+  },
+
   sepay: {
     bankName: process.env.SEPAY_BANK_NAME || '',
     accountNumber: process.env.SEPAY_ACCOUNT_NUMBER || '',
     accountHolder: process.env.SEPAY_ACCOUNT_HOLDER || '',
-    paymentPrefix: process.env.SEPAY_PAYMENT_PREFIX || 'DATN',
+    paymentPrefix: process.env.SEPAY_PAYMENT_PREFIX || 'STNH',
     qrTemplate: process.env.SEPAY_QR_TEMPLATE || 'qronly',
     webhookApiKey: process.env.SEPAY_WEBHOOK_API_KEY || '',
     webhookSecret: process.env.SEPAY_WEBHOOK_SECRET || '',

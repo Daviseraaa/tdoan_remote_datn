@@ -6,6 +6,7 @@ import { AgentsController } from './agents.controller';
 import { AgentsService } from './agents.service';
 import { AgentsGateway } from './agents.gateway';
 import { AgentTelemetryStore } from './agent-telemetry.store';
+import { WolService } from './wol.service';
 
 @Module({
   imports: [
@@ -14,7 +15,7 @@ import { AgentTelemetryStore } from './agent-telemetry.store';
     forwardRef(() => DesktopRecordingsModule),
   ],
   controllers: [AgentsController],
-  providers: [AgentsService, AgentsGateway, AgentTelemetryStore],
-  exports: [AgentsService, AgentsGateway, AgentTelemetryStore],
+  providers: [AgentsService, AgentsGateway, AgentTelemetryStore, WolService],
+  exports: [AgentsService, AgentsGateway, AgentTelemetryStore, WolService],
 })
 export class AgentsModule {}

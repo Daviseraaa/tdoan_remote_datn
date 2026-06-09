@@ -91,7 +91,7 @@ impl AgentConfig {
             open_browser_keep_open: env_bool("OPEN_BROWSER_KEEP_OPEN", true),
             open_browser_profile_dir: env_str(
                 "OPEN_BROWSER_PROFILE_DIR",
-                r"C:\ProgramData\DATN\browser-profiles\default",
+                r"C:\ProgramData\StationHub\browser-profiles\default",
             ),
             chrome_extension_enabled: env_bool("CHROME_EXTENSION_ENABLED", false),
             chrome_extension_max_steps: env_usize("CHROME_EXTENSION_MAX_STEPS", 50).clamp(1, 200),

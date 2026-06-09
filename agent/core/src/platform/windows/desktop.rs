@@ -13,13 +13,13 @@ const WHEEL_DELTA: i32 = 120;
 const CURSOR_SETTLE_MS: u64 = 40;
 
 fn set_cursor_physical(x: i32, y: i32) -> Result<(), String> {
-    datn_windows_uia::set_physical_cursor(x, y).or_else(|_| unsafe {
+    stationhub_windows_uia::set_physical_cursor(x, y).or_else(|_| unsafe {
         SetCursorPos(x, y).map_err(|e| e.message().to_string())
     })
 }
 
 pub async fn run_steps_json(payload: Option<Value>) -> Result<Value, String> {
-    datn_windows_uia::enable_per_monitor_v2();
+    stationhub_windows_uia::enable_per_monitor_v2();
 
     let steps = payload
         .as_ref()
@@ -63,17 +63,17 @@ pub async fn run_steps_json(payload: Option<Value>) -> Result<Value, String> {
             }
             "click" => {
                 let step_val = Value::Object(obj.clone());
-                let focused = datn_windows_uia::focus_host_for_step(&step_val);
+                let focused = stationhub_windows_uia::focus_host_for_step(&step_val);
                 if focused {
-                    tokio::time::sleep(Duration::from_millis(datn_windows_uia::focus_settle_ms())).await;
+                    tokio::time::sleep(Duration::from_millis(stationhub_windows_uia::focus_settle_ms())).await;
                 }
 
-                let (x, y) = datn_windows_uia::resolve_click_point_for_step(&step_val)
+                let (x, y) = stationhub_windows_uia::resolve_click_point_for_step(&step_val)
                     .ok_or("click: thiếu tọa độ x/y")?;
 
                 let mut via = "coords";
                 if let Some(uia) = obj.get("uia") {
-                    if let Some(mode) = datn_windows_uia::try_invoke_click(uia, x, y) {
+                    if let Some(mode) = stationhub_windows_uia::try_invoke_click(uia, x, y) {
                         via = mode;
                     }
                 }
@@ -103,9 +103,9 @@ pub async fn run_steps_json(payload: Option<Value>) -> Result<Value, String> {
             }
             "typeText" => {
                 let step_val = Value::Object(obj.clone());
-                let focused = datn_windows_uia::focus_host_for_step(&step_val);
+                let focused = stationhub_windows_uia::focus_host_for_step(&step_val);
                 if focused {
-                    tokio::time::sleep(Duration::from_millis(datn_windows_uia::focus_settle_ms())).await;
+                    tokio::time::sleep(Duration::from_millis(stationhub_windows_uia::focus_settle_ms())).await;
                 }
                 let text = obj
                     .get("text")

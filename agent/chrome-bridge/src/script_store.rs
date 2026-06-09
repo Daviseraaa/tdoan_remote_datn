@@ -11,7 +11,7 @@ pub struct SavedScript {
 
 fn scripts_dir() -> PathBuf {
     let pd = std::env::var("ProgramData").unwrap_or_else(|_| r"C:\ProgramData".into());
-    PathBuf::from(pd).join("DATN").join("chrome-scripts")
+    PathBuf::from(pd).join("StationHub").join("chrome-scripts")
 }
 
 pub fn save_recording_script(script: &Value) -> Result<SavedScript, Box<dyn std::error::Error + Send + Sync>> {

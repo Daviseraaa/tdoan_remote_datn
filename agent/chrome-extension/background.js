@@ -1,6 +1,6 @@
 import { buildResponse, parseRequest } from './lib/protocol.js';
 
-const HOST_NAME = 'com.datn.chrome_bridge';
+const HOST_NAME = 'com.stationhub.chrome_bridge';
 const RECONNECT_MS = 2000;
 
 /** @type {chrome.runtime.Port | null} */
@@ -18,14 +18,14 @@ function connectNative() {
   try {
     nativePort = chrome.runtime.connectNative(HOST_NAME);
   } catch (e) {
-    console.warn('[DATN] connectNative failed', e);
+    console.warn('[StationHub] connectNative failed', e);
     setTimeout(connectNative, RECONNECT_MS);
     return;
   }
 
   nativePort.onMessage.addListener((msg) => {
     if (msg?.type === 'bridgeConnected') {
-      console.log('[DATN] bridge connected to agent');
+      console.log('[StationHub] bridge connected to agent');
       return;
     }
     if (msg?.type === 'recordingSaved') {
@@ -81,7 +81,7 @@ function connectNative() {
 
   nativePort.onDisconnect.addListener(() => {
     nativePort = null;
-    console.warn('[DATN] native port disconnected', chrome.runtime.lastError);
+    console.warn('[StationHub] native port disconnected', chrome.runtime.lastError);
     setTimeout(connectNative, RECONNECT_MS);
   });
 }
@@ -117,18 +117,18 @@ function matchUrlPattern(url, pattern) {
 
 async function ensureContentScript(tabId) {
   try {
-    await chrome.tabs.sendMessage(tabId, { type: 'datn-record', action: 'recordStatus' });
+    await chrome.tabs.sendMessage(tabId, { type: 'stationhub-record', action: 'recordStatus' });
   } catch {
     await chrome.scripting.executeScript({
       target: { tabId },
-      files: ['content/datn-content.js'],
+      files: ['content/stationhub-content.js'],
     });
   }
 }
 
 async function sendRecordToTab(tabId, action) {
   await ensureContentScript(tabId);
-  const response = await chrome.tabs.sendMessage(tabId, { type: 'datn-record', action });
+  const response = await chrome.tabs.sendMessage(tabId, { type: 'stationhub-record', action });
   if (!response?.ok) {
     throw new Error(response?.error || 'content script failed');
   }
@@ -139,17 +139,17 @@ async function sendRunToTab(tabId, action, payload) {
   let response;
   try {
     response = await chrome.tabs.sendMessage(tabId, {
-      type: 'datn-run',
+      type: 'stationhub-run',
       action,
       payload,
     });
   } catch {
     await chrome.scripting.executeScript({
       target: { tabId },
-      files: ['content/datn-content.js'],
+      files: ['content/stationhub-content.js'],
     });
     response = await chrome.tabs.sendMessage(tabId, {
-      type: 'datn-run',
+      type: 'stationhub-run',
       action,
       payload,
     });
@@ -279,7 +279,7 @@ async function deleteRecordFromDisk(record) {
 
 async function sendReplayControl(tabId, action) {
   await ensureContentScript(tabId);
-  const response = await chrome.tabs.sendMessage(tabId, { type: 'datn-replay', action });
+  const response = await chrome.tabs.sendMessage(tabId, { type: 'stationhub-replay', action });
   if (!response?.ok) {
     throw new Error(response?.error || 'replay control failed');
   }
@@ -356,7 +356,7 @@ async function handleAgentRequest(requestId, action, payload) {
 }
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
-  if (msg?.type !== 'datn-popup') return false;
+  if (msg?.type !== 'stationhub-popup') return false;
 
   (async () => {
     try {

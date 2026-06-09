@@ -1,7 +1,7 @@
 {
-  "name": "datn-agent-desktop",
+  "name": "stationhub-agent-desktop",
   "version": "1.0.0",
-  "description": "DATN Agent — desktop control panel (config, tray, service)",
+  "description": "StationHub Agent — desktop control panel (config, tray, service)",
   "main": "dist/main/index.js",
   "scripts": {
     "build": "tsc && node scripts/copy-static.js",
@@ -11,33 +11,44 @@
     "service:uninstall": "node dist/service/uninstall.js"
   },
   "build": {
-    "appId": "com.datn.agent.desktop",
-    "productName": "DATN Agent",
+    "appId": "com.stationhub.agent.desktop",
+    "productName": "StationHub Agent",
     "directories": {
       "output": "release"
     },
+    "icon": "build/icon.ico",
+    "afterPack": "scripts/after-pack-icon.js",
     "files": [
       "dist/**/*",
       "package.json"
     ],
     "extraResources": [
       {
-        "from": "../bin/datn-agent-native.exe",
-        "to": "core/datn-agent-native.exe"
+        "from": "../bin/stationhub-agent-native.exe",
+        "to": "core/stationhub-agent-native.exe"
       },
       {
         "from": "../bin/cloak",
         "to": "cloak",
-        "filter": ["**/*"]
+        "filter": [
+          "**/*"
+        ]
       }
     ],
     "win": {
-      "target": ["nsis"],
+      "target": [
+        "nsis"
+      ],
+      "icon": "build/icon.ico",
       "signAndEditExecutable": false
     },
     "nsis": {
       "oneClick": false,
-      "allowToChangeInstallationDirectory": true
+      "allowToChangeInstallationDirectory": true,
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "createDesktopShortcut": true,
+      "shortcutName": "StationHub Agent"
     }
   },
   "dependencies": {
@@ -49,6 +60,7 @@
     "@types/node": "^24.0.0",
     "electron": "^32.0.0",
     "electron-builder": "^25.1.8",
+    "rcedit": "^5.0.2",
     "typescript": "^5.7.3"
   }
 }

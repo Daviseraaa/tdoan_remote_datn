@@ -6,7 +6,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { ensureProgramDataDir, programDataConfigPath } from '../shared/paths';
 
-const HOST_NAME = 'com.datn.chrome_bridge';
+const HOST_NAME = 'com.stationhub.chrome_bridge';
 
 /** Thư mục gốc `agent/` (từ `desktop/dist/service` → lên 3 cấp). */
 function agentRoot(): string {
@@ -16,15 +16,15 @@ function agentRoot(): string {
 function resolveBridgeExe(): string {
   const root = agentRoot();
   const candidates = [
-    path.join(root, 'bin', 'datn-chrome-bridge.exe'),
-    path.join(process.resourcesPath || '', 'bin', 'datn-chrome-bridge.exe'),
-    path.join('C:', 'Program Files', 'DATN', 'bin', 'datn-chrome-bridge.exe'),
+    path.join(root, 'bin', 'stationhub-chrome-bridge.exe'),
+    path.join(process.resourcesPath || '', 'bin', 'stationhub-chrome-bridge.exe'),
+    path.join('C:', 'Program Files', 'StationHub', 'bin', 'stationhub-chrome-bridge.exe'),
   ];
   for (const p of candidates) {
     if (fs.existsSync(p)) return path.resolve(p);
   }
   throw new Error(
-    'Không tìm thấy datn-chrome-bridge.exe — chạy npm run build:chrome-bridge trong agent/',
+    'Không tìm thấy stationhub-chrome-bridge.exe — chạy npm run build:chrome-bridge trong agent/',
   );
 }
 
@@ -57,7 +57,7 @@ function main(): void {
   const templatePath = path.join(
     agentRoot(),
     'chrome-bridge',
-    'com.datn.chrome_bridge.json.template',
+    'com.stationhub.chrome_bridge.json.template',
   );
   if (!fs.existsSync(templatePath)) {
     throw new Error(`Thiếu template: ${templatePath}`);

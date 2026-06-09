@@ -1,4 +1,4 @@
-# Kiến trúc tổng thể — server_datn
+# Kiến trúc tổng thể — server_stationhub
 
 ## Mục tiêu hệ thống
 
@@ -13,15 +13,15 @@ Nền tảng **server + agent + admin**: quản trị user/agent, giao việc (t
 ```mermaid
 flowchart TB
   ADMIN[Quản trị viên]
-  DATN[DATN Platform<br/>Nest API · BullMQ · Workflow runtime]
+  StationHub[StationHub Platform<br/>Nest API · BullMQ · Workflow runtime]
   PG[(PostgreSQL)]
   RD[(Redis)]
   TG[Telegram API]
 
-  ADMIN -->|HTTPS JWT| DATN
-  DATN --> PG
-  DATN --> RD
-  TG -->|webhook| DATN
+  ADMIN -->|HTTPS JWT| StationHub
+  StationHub --> PG
+  StationHub --> RD
+  TG -->|webhook| StationHub
 ```
 
 ---
@@ -31,12 +31,12 @@ flowchart TB
 ```mermaid
 flowchart TB
   subgraph Browser["Trình duyệt"]
-    ADMIN_SPA["admin-datn<br/>React 19 · Vite · TanStack Query"]
+    ADMIN_SPA["admin-stationhub<br/>React 19 · Vite · TanStack Query"]
   end
 
   subgraph AgentHost["Máy Agent (Windows)"]
     ELECTRON["agent/desktop<br/>Electron tray · cấu hình"]
-    NATIVE["datn-agent-native<br/>Rust · Socket.IO client"]
+    NATIVE["stationhub-agent-native<br/>Rust · Socket.IO client"]
     CHROME_EXT["Chrome Extension"]
     CHROME_BRIDGE["chrome-bridge<br/>Native Messaging"]
     ELECTRON --> NATIVE
@@ -76,7 +76,7 @@ flowchart LR
 
   subgraph Host
     API["npm run start:dev<br/>:3000/api"]
-    UI["admin-datn :5173"]
+    UI["admin-stationhub :5173"]
     AG["agent npm run dev"]
   end
 
@@ -100,29 +100,29 @@ flowchart LR
 
 ```mermaid
 flowchart TB
-  ROOT[server_datn]
+  ROOT[server_stationhub]
 
   ROOT --> SRC[src/ NestJS backend]
   ROOT --> PRISMA[prisma/ schema · migrations]
-  ROOT --> ADMIN[admin-datn/ React admin]
+  ROOT --> ADMIN[admin-stationhub/ React admin]
   ROOT --> AGENT[agent/]
 
   AGENT --> CORE[core/ Rust runner]
   AGENT --> DESKTOP[desktop/ Electron]
   AGENT --> EXT[chrome-extension/]
   AGENT --> BRIDGE[chrome-bridge/]
-  AGENT --> BIN[bin/ datn-agent-native.exe]
+  AGENT --> BIN[bin/ stationhub-agent-native.exe]
 ```
 
 | Thư mục | Vai trò |
 |--------|---------|
 | **Root** (`src/`, `prisma/`) | API **NestJS 11**, WebSocket, queue, Prisma |
-| **admin-datn/** | SPA **React 19 + Vite + Tailwind**: đăng nhập, quản lý, task, workflow |
+| **admin-stationhub/** | SPA **React 19 + Vite + Tailwind**: đăng nhập, quản lý, task, workflow |
 | **agent/core/** | Crate **Rust**: Socket.IO `/ws/agent`, heartbeat, task dispatch |
 | **agent/desktop/** | Electron: config ProgramData, tray, service |
 | **agent/chrome-extension/** | Ghi script, thao tác DOM |
 | **agent/chrome-bridge/** | Native Messaging host (Rust) |
-| **agent/bin/** | Binary `datn-agent-native.exe` (artifact) |
+| **agent/bin/** | Binary `stationhub-agent-native.exe` (artifact) |
 
 ---
 
@@ -228,7 +228,7 @@ flowchart LR
   end
 
   subgraph Runtime
-    RUNNER[datn-agent-native]
+    RUNNER[stationhub-agent-native]
     TOOLS[tools::dispatch]
     WIRE[Socket.IO wire]
   end
@@ -313,10 +313,10 @@ npm run prisma:seed
 npm run start:dev
 ```
 
-**Admin UI** (`admin-datn/`):
+**Admin UI** (`admin-stationhub/`):
 
 ```bash
-cd admin-datn
+cd admin-stationhub
 npm install
 npm run dev
 ```
@@ -335,11 +335,11 @@ npm run dev
 ## Logging
 
 - **Server**: `nestjs-pino` (`src/app.module.ts`).
-- **Agent**: stdout/stderr `datn-agent-native`, Electron Pino.
+- **Agent**: stdout/stderr `stationhub-agent-native`, Electron Pino.
 
 ---
 
-## 9. Bắt Windows & control — Power Automate Desktop (PAD) vs DATN
+## 9. Bắt Windows & control — Power Automate Desktop (PAD) vs StationHub
 
 **Power Automate Desktop** (Microsoft) không “đọc pixel” làm mặc định khi ghi/thao tác UI desktop. Nó dựa trên **accessibility tree** của Windows và (tùy chọn) **nhận dạng ảnh/OCR**.
 
@@ -381,19 +381,19 @@ flowchart LR
   IMG --> PIX[Pixel màn hình]
 ```
 
-### DATN — hiện trạng
+### StationHub — hiện trạng
 
 | Kênh | Cách “bắt” UI | Ghi chú |
 |------|----------------|---------|
 | **Chrome script** | Chrome Extension + Native Messaging → DOM (`click`, `fill`, `snapshotDom`) | Gần PAD phần web, không dùng UIA |
-| **Desktop recording** | `rdev` + **UIA** (`datn-windows-uia`): click kèm `uia.target`; replay ưu tiên `InvokePattern`, fallback tọa độ | Tùy chọn GUI/CLI `--no-uia`; chưa MSAA/OCR |
+| **Desktop recording** | `rdev` + **UIA** (`stationhub-windows-uia`): click kèm `uia.target`; replay ưu tiên `InvokePattern`, fallback tọa độ | Tùy chọn GUI/CLI `--no-uia`; chưa MSAA/OCR |
 | **SCREEN_CAPTURE** | Chụp PNG màn hình | Không sinh selector/control |
 
-### DATN đã có (desktop-recorder)
+### StationHub đã có (desktop-recorder)
 
-- Crate **`agent/datn-windows-uia`**: `ElementFromPoint` + snapshot (`controlType`, `name`, `automationId`, `ancestors`).
+- Crate **`agent/stationhub-windows-uia`**: `ElementFromPoint` + snapshot (`controlType`, `name`, `automationId`, `ancestors`).
 - Ghi: mỗi **click** có thể có field `uia` trong JSON (`captureUia` / checkbox GUI).
-- Chạy lại: `datn-agent-native` / task `DESKTOP_AUTOMATION` — `try_invoke_click` rồi fallback `SetCursorPos` + `SendInput`.
+- Chạy lại: `stationhub-agent-native` / task `DESKTOP_AUTOMATION` — `try_invoke_click` rồi fallback `SetCursorPos` + `SendInput`.
 
 ### Hướng tiếp (gần PAD đầy đủ)
 

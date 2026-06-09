@@ -29,7 +29,7 @@ Các luồng chính giữa **admin**, **API/Nest**, **agent**, **DB/Redis**. Tê
 ```mermaid
 sequenceDiagram
   autonumber
-  participant B as Browser (admin-datn)
+  participant B as Browser (admin-stationhub)
   participant API as Nest /api/auth
   participant DB as PostgreSQL
 
@@ -55,7 +55,7 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
   autonumber
-  participant A as datn-agent-native
+  participant A as stationhub-agent-native
   participant GW as AgentsGateway
   participant DB as PostgreSQL
 
@@ -297,7 +297,7 @@ Payload template hỗ trợ: `DESKTOP_AUTOMATION`, `CHROME_EXTENSION`, `SCREEN_C
 flowchart TB
   subgraph Clients
     AD[Admin SPA]
-    AG[datn-agent-native]
+    AG[stationhub-agent-native]
     TG[Telegram]
   end
 

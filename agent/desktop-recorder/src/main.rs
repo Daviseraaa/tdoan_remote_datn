@@ -9,7 +9,7 @@ mod store;
 
 fn main() {
     #[cfg(windows)]
-    datn_windows_uia::enable_per_monitor_v2();
+    stationhub_windows_uia::enable_per_monitor_v2();
 
     let args: Vec<String> = std::env::args().collect();
     let code = if args.len() < 2 {

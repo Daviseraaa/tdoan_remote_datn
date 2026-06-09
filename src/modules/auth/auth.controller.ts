@@ -4,7 +4,13 @@ import { Throttle } from '@nestjs/throttler';
 import { Public, SkipSubscription } from '../../common/decorators/index';
 import { CurrentUser, JwtPayload } from '../../common/decorators/current-user.decorator';
 import { AuthService } from './auth.service';
-import { RegisterDto, LoginDto, RefreshTokenDto } from './dto/index';
+import {
+  RegisterDto,
+  SendRegisterOtpDto,
+  GoogleAuthDto,
+  LoginDto,
+  RefreshTokenDto,
+} from './dto/index';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -12,11 +18,29 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Public()
+  @Post('register/send-otp')
+  @Throttle({ default: { limit: 3, ttl: 60_000 } })
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Send OTP email for new user registration' })
+  sendRegisterOtp(@Body() dto: SendRegisterOtpDto) {
+    return this.authService.sendRegisterOtp(dto.email);
+  }
+
+  @Public()
   @Post('register')
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
-  @ApiOperation({ summary: 'Register a new user' })
+  @ApiOperation({ summary: 'Register a new user (requires email OTP)' })
   register(@Body() dto: RegisterDto) {
     return this.authService.register(dto);
+  }
+
+  @Public()
+  @Post('google')
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Login or register with Google ID token' })
+  loginWithGoogle(@Body() dto: GoogleAuthDto) {
+    return this.authService.loginWithGoogle(dto.idToken);
   }
 
   @Public()

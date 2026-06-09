@@ -1,8 +1,8 @@
 /**
- * Build datn-cloak-runner (PyInstaller) → agent/bin/cloak/
+ * Build stationhub-cloak-runner (PyInstaller) → agent/bin/cloak/
  * Cần: Python 3.9+, pip install -e agent/CloakBrowser, pip install pyinstaller
  *
- * Nếu EPERM: dừng DATN Agent (tray) — file trong bin/cloak đang bị khóa.
+ * Nếu EPERM: dừng StationHub Agent (tray) — file trong bin/cloak đang bị khóa.
  */
 const { spawnSync } = require('child_process');
 const fs = require('fs');
@@ -13,7 +13,7 @@ const runnerDir = path.join(agentRoot, 'cloak-runner');
 const cloakRepo = path.join(agentRoot, 'CloakBrowser');
 const outDir = path.join(agentRoot, 'bin', 'cloak');
 const stagingDir = path.join(agentRoot, 'bin', 'cloak-staging');
-const distDir = path.join(runnerDir, 'dist', 'datn-cloak-runner');
+const distDir = path.join(runnerDir, 'dist', 'stationhub-cloak-runner');
 
 function run(cmd, args, opts = {}) {
   const r = spawnSync(cmd, args, { stdio: 'inherit', shell: true, ...opts });
@@ -48,7 +48,7 @@ function publishDist() {
     } catch (e) {
       console.error('');
       console.error('[build-cloak-runner] Không ghi được bin/cloak (file đang bị khóa).');
-      console.error('  → Dừng DATN Agent tray / tắt datn-cloak-runner.exe trong Task Manager.');
+      console.error('  → Dừng StationHub Agent tray / tắt stationhub-cloak-runner.exe trong Task Manager.');
       console.error('  → Chạy lại: npm run build:cloak-runner');
       console.error('');
       console.error('Bản build mới đã có tại:', stagingDir);
@@ -72,7 +72,7 @@ console.log('[build-cloak-runner] pip install CloakBrowser + pyinstaller...');
 run(py, ['-m', 'pip', 'install', '-e', cloakRepo, 'pyinstaller']);
 
 console.log('[build-cloak-runner] pyinstaller...');
-run(py, ['-m', 'PyInstaller', '--noconfirm', 'datn-cloak-runner.spec'], {
+run(py, ['-m', 'PyInstaller', '--noconfirm', 'stationhub-cloak-runner.spec'], {
   cwd: runnerDir,
 });
 

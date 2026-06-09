@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Xuất báo cáo tiến độ DATN ra file Word."""
+"""Xuất báo cáo tiến độ StationHub ra file Word."""
 from pathlib import Path
 
 from docx import Document
@@ -65,7 +65,7 @@ def build():
     sub = doc.add_paragraph()
     sub.alignment = WD_ALIGN_PARAGRAPH.CENTER
     r2 = sub.add_run(
-        "Nền tảng quản lý Agent, Task, Workflow & Tự động hóa (DATN Server)\n"
+        "Nền tảng quản lý Agent, Task, Workflow & Tự động hóa (StationHub Server)\n"
         "Giai đoạn: 21/04/2026 – 30/05/2026"
     )
     r2.font.size = Pt(13)
@@ -95,7 +95,7 @@ def build():
             "goal": "Khởi tạo dự án end-to-end: backend, admin cơ bản, agent, schema dữ liệu.",
             "work": [
                 "29/04 — init project: monorepo (~206 file). Backend (Auth, Users, Agents, Tasks, Workflow, Health, Admin); Prisma schema; docker-compose, seed; BullMQ, Pino.",
-                "Admin-datn: SPA đăng nhập, layout, trang quản lý ban đầu.",
+                "Admin-stationhub: SPA đăng nhập, layout, trang quản lý ban đầu.",
                 "Agent: core Rust Socket.IO, desktop Electron, chrome-extension, chrome-bridge.",
                 "30/04 — telegram log: logging / tích hợp Telegram (trigger, bot).",
                 "30/04 — remote fix: sửa kết nối agent từ xa, ổn định WebSocket.",

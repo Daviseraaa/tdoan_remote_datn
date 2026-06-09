@@ -2,7 +2,7 @@ import { execFileSync } from 'child_process';
 import * as fs from 'fs';
 import { resolveCoreExe } from '../shared/paths';
 
-const NATIVE_SVC_NAME = 'DATNAgentNative';
+const NATIVE_SVC_NAME = 'StationHubAgentNative';
 
 export { NATIVE_SVC_NAME };
 
@@ -43,7 +43,7 @@ export function installDatnNativeWindowsService(): void {
       [
         'description',
         NATIVE_SVC_NAME,
-        'DATN agent (Rust): WebSocket /ws/agent + tasks',
+        'StationHub agent (Rust): WebSocket /ws/agent + tasks',
       ],
       { stdio: 'inherit' },
     );

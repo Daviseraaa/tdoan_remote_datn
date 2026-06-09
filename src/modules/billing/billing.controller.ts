@@ -42,7 +42,7 @@ export class BillingController {
   @SkipSubscription()
   @Post('checkout')
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Tạo đơn chuyển khoản SePay (mã DATN...)' })
+  @ApiOperation({ summary: 'Tạo đơn chuyển khoản SePay (mã StationHub...)' })
   checkout(@CurrentUser() user: JwtPayload, @Body() dto: CheckoutDto) {
     return this.billing.createCheckout(user.sub, dto.planId);
   }

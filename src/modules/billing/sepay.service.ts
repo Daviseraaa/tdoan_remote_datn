@@ -43,7 +43,7 @@ export class SepayService {
   }
 
   paymentPrefix(): string {
-    return this.config.get<string>('sepay.paymentPrefix', 'DATN');
+    return this.config.get<string>('sepay.paymentPrefix', 'StationHub');
   }
 
   generateOrderCode(): number {

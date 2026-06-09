@@ -15,15 +15,15 @@ fn attach_parent_console() {
 }
 
 pub fn print_usage() {
-    eprintln!("DATN Desktop Recorder (Windows)");
+    eprintln!("StationHub Desktop Recorder (Windows)");
     eprintln!();
     eprintln!("Usage:");
-    eprintln!("  datn-desktop-recorder              Mo giao dien (GUI)");
-    eprintln!("  datn-desktop-recorder gui          Mo giao dien");
-    eprintln!("  datn-desktop-recorder record [--name \"Ten\"]  Ghi CLI (F12 dung)");
-    eprintln!("  datn-desktop-recorder replay <file.json>       Chay lai ban ghi");
+    eprintln!("  stationhub-desktop-recorder              Mo giao dien (GUI)");
+    eprintln!("  stationhub-desktop-recorder gui          Mo giao dien");
+    eprintln!("  stationhub-desktop-recorder record [--name \"Ten\"]  Ghi CLI (F12 dung)");
+    eprintln!("  stationhub-desktop-recorder replay <file.json>       Chay lai ban ghi");
     eprintln!();
-    eprintln!("  Luu tai: %ProgramData%\\DATN\\desktop-recordings\\");
+    eprintln!("  Luu tai: %ProgramData%\\StationHub\\desktop-recordings\\");
 }
 
 fn run_record(name: &str, capture_uia: bool, show_highlight: bool) -> Result<(), Box<dyn std::error::Error>> {
@@ -104,7 +104,7 @@ pub fn dispatch(args: &[String]) -> i32 {
             let path = match args.get(2) {
                 Some(p) => PathBuf::from(p),
                 None => {
-                    eprintln!("Usage: datn-desktop-recorder replay <path.json>");
+                    eprintln!("Usage: stationhub-desktop-recorder replay <path.json>");
                     return 2;
                 }
             };

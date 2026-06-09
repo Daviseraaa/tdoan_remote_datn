@@ -17,7 +17,7 @@ Task type **`DESKTOP_AUTOMATION`**: một chuỗi **bước** (delay, mở app, 
 
 ## Phiên làm việc (Windows)
 
-- **Windows Service (`DATNAgentNative`)** thường chạy **không** trong session desktop người dùng → gửi input tới màn hình người dùng **không đáng tin**.
+- **Windows Service (`StationHubAgentNative`)** thường chạy **không** trong session desktop người dùng → gửi input tới màn hình người dùng **không đáng tin**.
 - **Khuyến nghị:** chạy agent trong session đăng nhập: `npm start`, hoặc **Electron tray** (`npm run dev` / bản đóng gói) — process Rust là con của user session.
 
 ## macOS / Linux

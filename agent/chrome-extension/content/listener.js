@@ -1,7 +1,7 @@
 import { runAction } from './dom-bridge.js';
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
-  if (msg?.type !== 'datn-run') return false;
+  if (msg?.type !== 'stationhub-run') return false;
   const action = msg.action;
   const payload = msg.payload || {};
   runAction(action, payload)

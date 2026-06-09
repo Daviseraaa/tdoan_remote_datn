@@ -8,7 +8,7 @@ import {
 
 function removeLegacyNodeService() {
   if (process.platform !== 'win32') return;
-  for (const name of ['DATN Agent', 'DATNAgent']) {
+  for (const name of ['StationHub Agent', 'StationHubAgent']) {
     try {
       execFileSync('sc', ['stop', name], { stdio: 'pipe' });
     } catch {

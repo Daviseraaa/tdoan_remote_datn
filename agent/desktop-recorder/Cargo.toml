@@ -1,11 +1,11 @@
 [package]
-name = "datn-desktop-recorder"
+name = "stationhub-desktop-recorder"
 version = "0.1.0"
 edition = "2021"
-description = "DATN desktop automation recorder (Windows)"
+description = "StationHub desktop automation recorder (Windows)"
 
 [[bin]]
-name = "datn-desktop-recorder"
+name = "stationhub-desktop-recorder"
 path = "src/main.rs"
 
 [dependencies]
@@ -18,7 +18,7 @@ eframe = { version = "0.29", default-features = true }
 egui-phosphor = { version = "0.7.3", features = ["regular", "fill"] }
 
 [target.'cfg(windows)'.dependencies]
-datn-windows-uia = { path = "../datn-windows-uia" }
+stationhub-windows-uia = { path = "../stationhub-windows-uia" }
 windows-sys = { version = "0.59", features = [
   "Win32_System_Console",
   "Win32_UI_WindowsAndMessaging",

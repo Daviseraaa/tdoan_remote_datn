@@ -1,4 +1,4 @@
-# DATN — Nền tảng Agent, Task & Workflow Automation
+# StationHub — Nền tảng Agent, Task & Workflow Automation
 
 Monorepo triển khai hệ thống **điều phối agent máy trạm**, **hàng đợi task**, **workflow đồ thị**, **trigger lịch/Telegram** và **console quản trị web**. Agent chạy trên Windows (Rust native + Electron tray), server điều phối qua HTTP REST và WebSocket.
 
@@ -23,8 +23,8 @@ Monorepo triển khai hệ thống **điều phối agent máy trạm**, **hàng
 | Thành phần | Vai trò |
 |------------|---------|
 | **Server** (`src/`) | NestJS API, BullMQ worker, Socket.IO gateway, trigger Telegram/lịch, billing |
-| **Admin UI** (`admin-datn/`) | React SPA — dashboard, agent fleet, task template, workflow editor, bot Telegram |
-| **Agent** (`agent/`) | `datn-agent-native` (Rust) kết nối WS, thực thi task; Electron tray cấu hình & service Windows |
+| **Admin UI** (`admin-stationhub/`) | React SPA — dashboard, agent fleet, task template, workflow editor, bot Telegram |
+| **Agent** (`agent/`) | `stationhub-agent-native` (Rust) kết nối WS, thực thi task; Electron tray cấu hình & service Windows |
 | **Chrome Extension** | Ghi/chạy lại thao tác DOM qua Native Messaging |
 | **Desktop Recorder** | Ghi chuột/phím/UIA, xuất JSON `DESKTOP_AUTOMATION` |
 
@@ -49,7 +49,7 @@ Monorepo triển khai hệ thống **điều phối agent máy trạm**, **hàng
 | API docs | Swagger (`/api/docs`) |
 | Log | Pino (`nestjs-pino`) |
 
-### Frontend (admin-datn)
+### Frontend (admin-stationhub)
 
 | Lớp | Công nghệ |
 |-----|-----------|
@@ -66,9 +66,9 @@ Monorepo triển khai hệ thống **điều phối agent máy trạm**, **hàng
 |-----|-----------|
 | Core runtime | Rust (`agent/core`) — WebSocket, task registry, Win32 |
 | Desktop shell | Electron (`agent/desktop`) — tray, cài đặt, installer NSIS |
-| UIA | `datn-windows-uia` crate |
-| Recorder | `datn-desktop-recorder` (egui) |
-| Chrome bridge | `datn-chrome-bridge` + MV3 extension |
+| UIA | `stationhub-windows-uia` crate |
+| Recorder | `stationhub-desktop-recorder` (egui) |
+| Chrome bridge | `stationhub-chrome-bridge` + MV3 extension |
 
 ### Task types hỗ trợ trên agent
 
@@ -79,7 +79,7 @@ Monorepo triển khai hệ thống **điều phối agent máy trạm**, **hàng
 ## Cấu trúc thư mục
 
 ```
-server_datn/
+server_stationhub/
 ├── src/                          # NestJS backend
 │   ├── main.ts                   # Bootstrap, Swagger, global prefix /api
 │   ├── app.module.ts             # Root module
@@ -99,7 +99,7 @@ server_datn/
 │       ├── admin/                # API admin + audit
 │       └── health/               # Health check
 │
-├── admin-datn/                   # React admin SPA
+├── admin-stationhub/                   # React admin SPA
 │   ├── src/
 │   │   ├── views/                # Trang: Dashboard, Agents, Tasks, Workflows…
 │   │   ├── components/           # UI, workflow editor, forms task
@@ -109,12 +109,12 @@ server_datn/
 │   └── .env.example              # VITE_API_BASE_URL, VITE_WS_URL
 │
 ├── agent/                        # Máy trạm Windows
-│   ├── core/                     # datn-agent-native (Rust)
+│   ├── core/                     # stationhub-agent-native (Rust)
 │   ├── desktop/                  # Electron tray + installer
 │   ├── desktop-recorder/         # GUI/CLI ghi desktop
 │   ├── chrome-bridge/            # Native messaging host
 │   ├── chrome-extension/         # Extension Chrome
-│   ├── datn-windows-uia/         # UI Automation helpers
+│   ├── stationhub-windows-uia/         # UI Automation helpers
 │   ├── bin/                      # Binary sau build (gitignore)
 │   └── docs/                     # Luồng agent, mở rộng task
 │
@@ -142,9 +142,9 @@ Ghi lại click, nhập text, delay trên **một tab Chrome** qua extension MV3
 
 | Hạng mục | Chi tiết |
 |----------|----------|
-| Thành phần | `agent/chrome-extension/` (UI popup), `agent/chrome-bridge/` (`datn-chrome-bridge.exe`) |
+| Thành phần | `agent/chrome-extension/` (UI popup), `agent/chrome-bridge/` (`stationhub-chrome-bridge.exe`) |
 | Task type | `CHROME_EXTENSION` — replay `steps[]`: `snapshotDom`, `click`, `fill`, `waitFor`, `delay` |
-| Lưu local | `%ProgramData%\DATN\chrome-scripts\{uuid}.json` |
+| Lưu local | `%ProgramData%\StationHub\chrome-scripts\{uuid}.json` |
 | Admin | **Chrome scripts** → chọn agent online → **Đồng bộ từ agent** → sửa / import workflow |
 | Tray agent | **Chrome scripts** → **Chạy lại** (replay local, không cần server) |
 
@@ -157,7 +157,7 @@ npm run chrome-bridge:install    # registry Native Messaging
 ```
 
 1. Chrome → `chrome://extensions` → Developer mode → **Load unpacked** → `agent/chrome-extension/`
-2. Trong `%ProgramData%\DATN\agent.env`: `CHROME_EXTENSION_ENABLED=true`
+2. Trong `%ProgramData%\StationHub\agent.env`: `CHROME_EXTENSION_ENABLED=true`
 3. Popup extension → **Bắt đầu ghi** → thao tác trang → **Dừng & lưu**
 
 **Luồng ghi → chạy → đồng bộ:**
@@ -165,8 +165,8 @@ npm run chrome-bridge:install    # registry Native Messaging
 ```mermaid
 sequenceDiagram
   participant EXT as Chrome Extension
-  participant BR as datn-chrome-bridge
-  participant AG as datn-agent-native
+  participant BR as stationhub-chrome-bridge
+  participant AG as stationhub-agent-native
   participant API as Server
   participant UI as Admin
 
@@ -188,9 +188,9 @@ Ghi chuột, phím, delay trên desktop; tùy chọn **UI Automation (UIA)** cho
 
 | Hạng mục | Chi tiết |
 |----------|----------|
-| Thành phần | `agent/desktop-recorder/` → `datn-desktop-recorder.exe` (GUI egui + CLI) |
+| Thành phần | `agent/desktop-recorder/` → `stationhub-desktop-recorder.exe` (GUI egui + CLI) |
 | Task type | `DESKTOP_AUTOMATION` — payload `steps[]`: `click`, `typeText`, `delay`, `openApp`, … |
-| Lưu local | `%ProgramData%\DATN\desktop-recordings\{uuid}.json` |
+| Lưu local | `%ProgramData%\StationHub\desktop-recordings\{uuid}.json` |
 | Admin | **Desktop recordings** → **Đồng bộ từ agent** → tạo template / workflow |
 | UIA | Mặc định bật — replay ưu tiên `InvokePattern`, fallback tọa độ vật lý (DPI-aware) |
 
@@ -199,17 +199,17 @@ Ghi chuột, phím, delay trên desktop; tùy chọn **UI Automation (UIA)** cho
 ```powershell
 cd agent
 npm run build:desktop-recorder
-# GUI: double-click datn-desktop-recorder.exe
-# CLI: datn-desktop-recorder.exe record --name "Mo ung dung"
+# GUI: double-click stationhub-desktop-recorder.exe
+# CLI: stationhub-desktop-recorder.exe record --name "Mo ung dung"
 # Dừng ghi: F12
 ```
 
 **Chạy lại local (không qua server):**
 
 ```powershell
-datn-desktop-recorder.exe replay C:\ProgramData\DATN\desktop-recordings\<id>.json
+stationhub-desktop-recorder.exe replay C:\ProgramData\StationHub\desktop-recordings\<id>.json
 # hoặc
-datn-agent-native.exe desktop-replay <path.json>
+stationhub-agent-native.exe desktop-replay <path.json>
 ```
 
 Chạy qua task trên server cần `DESKTOP_AUTOMATION_ENABLED=true` trong `agent.env`.
@@ -219,8 +219,8 @@ Chạy qua task trên server cần `DESKTOP_AUTOMATION_ENABLED=true` trong `agen
 ```mermaid
 sequenceDiagram
   participant REC as desktop-recorder
-  participant FS as ProgramData DATN
-  participant AG as datn-agent-native
+  participant FS as ProgramData StationHub
+  participant AG as stationhub-agent-native
   participant API as Server
   participant UI as Admin
 
@@ -247,8 +247,8 @@ sequenceDiagram
 ### 1. Clone & cài dependency server
 
 ```bash
-git clone <repo-url> server_datn
-cd server_datn
+git clone <repo-url> server_stationhub
+cd server_stationhub
 npm install
 ```
 
@@ -262,9 +262,9 @@ cp .env.example .env
 | File | Phạm vi |
 |------|---------|
 | `.env` (root) | Backend, DB, Redis, JWT, SePay, `PUBLIC_API_BASE_URL` |
-| `admin-datn/.env` | `VITE_API_BASE_URL`, `VITE_WS_URL` |
+| `admin-stationhub/.env` | `VITE_API_BASE_URL`, `VITE_WS_URL` |
 | `agent/.env` | Dev agent (`SERVER_WS_URL`, `AGENT_KEY`) |
-| `%ProgramData%\DATN\agent.env` | Agent production (Windows) |
+| `%ProgramData%\StationHub\agent.env` | Agent production (Windows) |
 
 ### 3. Khởi động PostgreSQL + Redis
 
@@ -297,7 +297,7 @@ npm run start:dev
 ### 6. Chạy admin UI
 
 ```bash
-cd admin-datn
+cd admin-stationhub
 cp .env.example .env
 npm install
 npm run dev
@@ -309,7 +309,7 @@ npm run dev
 ```powershell
 cd agent
 npm install
-npm run build:core          # → agent/bin/datn-agent-native.exe
+npm run build:core          # → agent/bin/stationhub-agent-native.exe
 npm run dev                 # Electron tray + spawn core
 ```
 
@@ -319,8 +319,8 @@ Tạo agent trên admin → copy **Agent Key** → nhập trong tray **Cài đ�
 
 | Email | Mật khẩu | Role |
 |-------|----------|------|
-| admin@datn.com | admin123 | ADMIN |
-| user@datn.com | user123 | USER |
+| admin@stationhub.com | admin123 | ADMIN |
+| user@stationhub.com | user123 | USER |
 
 ---
 
@@ -338,7 +338,7 @@ docker compose up -d --build
 ### Admin SPA
 
 ```bash
-cd admin-datn
+cd admin-stationhub
 npm run build
 # Phục vụ thư mục dist/ qua nginx / CDN
 # VITE_API_BASE_URL trỏ tới domain API production
@@ -349,10 +349,10 @@ npm run build
 ```powershell
 cd agent
 npm run dist:desktop   # NSIS installer trong desktop/release/
-npm run service:install   # Windows Service DATNAgentNative (cần Admin)
+npm run service:install   # Windows Service StationHubAgentNative (cần Admin)
 ```
 
-Config production: `%ProgramData%\DATN\agent.env`
+Config production: `%ProgramData%\StationHub\agent.env`
 
 ### Telegram webhook
 
@@ -402,8 +402,8 @@ flowchart TB
   end
 
   subgraph Clients["Client"]
-    SPA["admin-datn<br/>React SPA"]
-    AG["datn-agent-native<br/>+ Electron tray"]
+    SPA["admin-stationhub<br/>React SPA"]
+    AG["stationhub-agent-native<br/>+ Electron tray"]
     EXT["Chrome Extension"]
     REC["desktop-recorder"]
   end
@@ -554,7 +554,7 @@ Xem chi tiết ghi hình và đồng bộ tại [Chrome & Desktop recording](#ch
 
 | Namespace | Client | Auth |
 |-----------|--------|------|
-| `/ws/agent` | `datn-agent-native` | `agentKey` trong handshake |
+| `/ws/agent` | `stationhub-agent-native` | `agentKey` trong handshake |
 | Client events (UI) | admin SPA | JWT qua socket auth |
 
 | Event | Hướng | Mô tả |
@@ -586,7 +586,7 @@ Chi tiết payload: `src/common/types/ws-protocol.ts`, `src/common/constants/ind
 | [docs/project-memory/flows.md](./docs/project-memory/flows.md) | Sequence diagram đầy đủ |
 | [agent/README.md](./agent/README.md) | Build agent, Chrome, desktop recorder |
 | [agent/docs/flows.md](./agent/docs/flows.md) | Luồng WS & task trên Rust |
-| [admin-datn/README.md](./admin-datn/README.md) | Frontend admin |
+| [admin-stationhub/README.md](./admin-stationhub/README.md) | Frontend admin |
 
 ### Scripts hữu ích
 
@@ -611,7 +611,7 @@ npm run clean
 - Agent cần **subscription active** mới giữ kết nối WS (heartbeat kiểm tra gói).
 - `HTTP_REQUEST` chạy trên agent — gọi API nội bộ/VPN/localhost của máy agent.
 - Build artifacts (`agent/**/target/`, `agent/bin/`) đã gitignore — rebuild sau khi clone.
-- Log server: `LOG_LEVEL` trong `.env`; agent: `%ProgramData%\DATN\agent.env` hoặc `RUST_LOG`.
+- Log server: `LOG_LEVEL` trong `.env`; agent: `%ProgramData%\StationHub\agent.env` hoặc `RUST_LOG`.
 
 ---
 

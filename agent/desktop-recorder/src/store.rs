@@ -23,7 +23,7 @@ pub struct RecordingMeta {
 
 pub fn recordings_dir() -> PathBuf {
     let pd = std::env::var("ProgramData").unwrap_or_else(|_| r"C:\ProgramData".into());
-    PathBuf::from(pd).join("DATN").join("desktop-recordings")
+    PathBuf::from(pd).join("StationHub").join("desktop-recordings")
 }
 
 pub fn save_recording(

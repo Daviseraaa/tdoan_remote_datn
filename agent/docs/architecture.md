@@ -6,7 +6,7 @@
 |------------|--------|------|
 | **Rust core** | [`core/`](../core/) | Socket.IO `/ws/agent`, heartbeat, task registry, platform OS |
 | **Desktop app** | [`desktop/`](../desktop/) | Electron: sửa config, tray, log, cài Windows Service |
-| **Config** | `%ProgramData%\DATN\agent.env` | Single source of truth (dev: `agent/.env`) |
+| **Config** | `%ProgramData%\StationHub\agent.env` | Single source of truth (dev: `agent/.env`) |
 
 ```mermaid
 flowchart TB
@@ -16,13 +16,13 @@ flowchart TB
   end
 
   subgraph core_pkg [agent/core]
-    EXE[datn-agent-native.exe]
+    EXE[stationhub-agent-native.exe]
     CONN[connection/runner]
     TASKS[tasks/registry]
     PLAT[platform]
   end
 
-  CFG["%ProgramData%/DATN/agent.env"]
+  CFG["%ProgramData%/StationHub/agent.env"]
   BIN[agent/bin/]
 
   UI -->|write| CFG
@@ -38,8 +38,8 @@ flowchart TB
 
 | Entry | Mô tả |
 |-------|--------|
-| `bin/datn-agent-native.exe` / `agent` | Foreground agent |
-| `datn-agent-native.exe service` | Windows Service |
+| `bin/stationhub-agent-native.exe` / `agent` | Foreground agent |
+| `stationhub-agent-native.exe service` | Windows Service |
 | `desktop` → `npm run dev` | Control panel + spawn core |
 | `desktop/dist/main/index.js` | Electron main (packaged) |
 

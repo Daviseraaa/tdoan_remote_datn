@@ -24,7 +24,7 @@ pub fn run() -> eframe::Result<()> {
         ..Default::default()
     };
     eframe::run_native(
-        "DATN Desktop Recorder",
+        "StationHub Desktop Recorder",
         options,
         Box::new(|cc| {
             theme::setup(&cc.egui_ctx);

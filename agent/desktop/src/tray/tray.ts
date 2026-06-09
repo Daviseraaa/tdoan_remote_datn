@@ -1,8 +1,9 @@
-import { app, Tray, Menu, nativeImage, dialog, BrowserWindow } from 'electron';
+import { app, Tray, Menu, nativeImage, dialog } from 'electron';
 import { spawn, type ChildProcess } from 'child_process';
 import { execFileSync } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
+import { agentSpawnEnv } from '../shared/build-config';
 import { loadDesktopConfig } from '../shared/config';
 import { getLogger } from '../shared/logger';
 import {
@@ -12,9 +13,14 @@ import {
   resolveChromeScriptsDir,
   resolveCloakRunnerDir,
   resolveCloakRunnerScript,
-  resolveConfigPath,
   resolveCoreExe,
 } from '../shared/paths';
+import {
+  ingestAgentLogLine,
+  resetAgentStatusOnStart,
+  setAgentProcessRunning,
+} from '../shared/agent-status';
+import { resolveAppIconPath } from '../shared/app-icon';
 import { showSettingsWindow } from '../main/settings-window';
 import { installDatnNativeWindowsService, NATIVE_SVC_NAME } from '../service/native-windows-service';
 import { uninstallDatnNativeWindowsService } from '../service/native-windows-service';
@@ -22,9 +28,6 @@ import { uninstallDatnNativeWindowsService } from '../service/native-windows-ser
 const logger = getLogger();
 
 let tray: Tray | null = null;
-let logWindow: BrowserWindow | null = null;
-const recentLogs: string[] = [];
-const MAX_LOG_LINES = 200;
 
 let rustAgent: ChildProcess | null = null;
 
@@ -38,15 +41,8 @@ export function restartRustAgent(): void {
 function pushLog(level: string, msg: string) {
   const time = new Date().toLocaleTimeString();
   const line = `[${time}] [${level}] ${msg}`.trim();
-  recentLogs.push(line);
-  if (recentLogs.length > MAX_LOG_LINES) recentLogs.shift();
-  if (logWindow && !logWindow.isDestroyed()) {
-    logWindow.webContents
-      .executeJavaScript(
-        `window.appendLog && window.appendLog(${JSON.stringify(line)})`,
-      )
-      .catch(() => undefined);
-  }
+  ingestAgentLogLine(line);
+  logger.debug({ line }, 'agent log');
 }
 
 export function startRustAgent() {
@@ -59,10 +55,12 @@ export function startRustAgent() {
     return;
   }
   const root = agentRoot();
+  const pinned = agentSpawnEnv();
   const childEnv: NodeJS.ProcessEnv = {
     ...process.env,
-    DATN_AGENT_ROOT: root,
-    RUST_LOG: process.env.RUST_LOG ?? 'info',
+    ...pinned,
+    STATIONHUB_AGENT_ROOT: root,
+    RUST_LOG: pinned.LOG_LEVEL,
   };
   const cloakScript = resolveCloakRunnerScript();
   if (cloakScript) childEnv.CLOAK_RUNNER_SCRIPT = cloakScript;
@@ -76,6 +74,7 @@ export function startRustAgent() {
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   rustAgent = child;
+  resetAgentStatusOnStart();
   const onChunk = (buf: Buffer, level: 'INFO' | 'ERROR' = 'INFO') => {
     const s = buf.toString('utf8').trim();
     if (!s) return;
@@ -92,6 +91,7 @@ export function startRustAgent() {
   child.stderr?.on('data', (buf) => onChunk(buf, 'ERROR'));
   child.on('exit', (code, signal) => {
     rustAgent = null;
+    setAgentProcessRunning(false);
     pushLog('WARN', `Rust agent thoát code=${code} signal=${signal ?? ''}`);
     updateTrayStatus();
   });
@@ -187,10 +187,8 @@ function buildMenu(): Menu {
     : 'Agent: Rust (đã dừng / lỗi)';
 
   const template: Electron.MenuItemConstructorOptions[] = [
-    { label: `DATN Agent v${cfg.agentVersion}`, enabled: false },
+    { label: `StationHub Agent v${cfg.agentVersion}`, enabled: false },
     { label: statusLabel, enabled: false },
-    { label: `Server: ${cfg.serverUrl}`, enabled: false },
-    { label: `Host: ${cfg.hostname}`, enabled: false },
     { type: 'separator' },
     {
       label: 'Cài đặt…',
@@ -200,7 +198,6 @@ function buildMenu(): Menu {
       label: 'Khởi động lại agent',
       click: () => restartRustAgent(),
     },
-    { label: 'Show Logs', click: () => showLogWindow() },
     {
       label: 'Mở thư mục config',
       click: () => openConfigFolder(),
@@ -251,9 +248,8 @@ function buildMenu(): Menu {
       click: () => {
         dialog.showMessageBox({
           type: 'info',
-          title: 'DATN Agent',
-          message: `DATN Agent v${cfg.agentVersion}`,
-          detail: `Host: ${cfg.hostname}\nServer: ${cfg.serverUrl}\nConfig: ${resolveConfigPath()}\nCore: ${resolveCoreExe()}`,
+          title: 'StationHub Agent',
+          message: `StationHub Agent v${cfg.agentVersion}`,
         });
       },
     },
@@ -271,60 +267,32 @@ function buildMenu(): Menu {
 
 function updateTrayStatus() {
   if (!tray) return;
-  const cfg = loadDesktopConfig();
   const running = rustAgent && rustAgent.exitCode === null && !rustAgent.killed;
   tray.setToolTip(
-    running
-      ? `DATN Agent (Rust) — ${cfg.serverUrl}`
-      : `DATN Agent — đã dừng`,
+    running ? 'StationHub Agent — đang chạy' : 'StationHub Agent — đã dừng',
   );
   tray.setContextMenu(buildMenu());
 }
 
 function createTrayIcon(): Tray {
-  const iconPath = path.join(__dirname, 'icon.png');
+  const iconPath = resolveAppIconPath() ?? path.join(__dirname, 'icon.png');
   let image = nativeImage.createFromPath(iconPath);
-  if (image.isEmpty()) image = nativeImage.createEmpty();
-  return new Tray(image);
-}
-
-function showLogWindow() {
-  if (logWindow && !logWindow.isDestroyed()) {
-    logWindow.show();
-    logWindow.focus();
-    return;
+  if (!image.isEmpty()) {
+    image = image.resize({ width: 32, height: 32 });
+  } else {
+    image = nativeImage.createEmpty();
   }
-  logWindow = new BrowserWindow({
-    width: 800,
-    height: 500,
-    title: 'DATN Agent - Logs',
-    webPreferences: { contextIsolation: true, nodeIntegration: false },
-  });
-  const html = `<!doctype html><html><head><meta charset="utf-8"><title>DATN Agent Logs</title>
-<style>body{font-family:Consolas,monospace;background:#1e1e1e;color:#d4d4d4;margin:0;padding:8px;font-size:12px;}
-#log{white-space:pre-wrap;}</style></head><body><div id="log"></div>
-<script>
-const el = document.getElementById('log');
-window.appendLog = (line) => {
-  el.textContent += line + '\\n';
-  window.scrollTo(0, document.body.scrollHeight);
-};
-window.appendLog(${JSON.stringify(recentLogs.join('\n'))});
-</script></body></html>`;
-  logWindow.loadURL(
-    'data:text/html;charset=utf-8,' + encodeURIComponent(html),
-  );
-  logWindow.on('closed', () => {
-    logWindow = null;
-  });
+  return new Tray(image);
 }
 
 export function startTrayApp(): void {
   app.whenReady().then(() => {
     tray = createTrayIcon();
-    tray.setToolTip('DATN Agent');
+    tray.setToolTip('StationHub Agent');
     tray.setContextMenu(buildMenu());
-    tray.on('double-click', () => showLogWindow());
+    tray.on('double-click', () =>
+      showSettingsWindow(() => restartRustAgent()),
+    );
     startRustAgent();
   });
 

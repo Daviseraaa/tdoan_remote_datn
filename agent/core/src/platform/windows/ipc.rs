@@ -4,8 +4,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 pub const IPC_PROTOCOL_VERSION: u32 = 1;
-pub const PIPE_SVC: &str = r"\\.\pipe\DATN_Agent_IPC_v1";
-pub const PIPE_USER: &str = r"\\.\pipe\DATN_Agent_IPC_user_v1";
+pub const PIPE_SVC: &str = r"\\.\pipe\StationHub_Agent_IPC_v1";
+pub const PIPE_USER: &str = r"\\.\pipe\StationHub_Agent_IPC_user_v1";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
