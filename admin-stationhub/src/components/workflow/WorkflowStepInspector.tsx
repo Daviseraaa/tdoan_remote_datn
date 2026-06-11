@@ -21,15 +21,18 @@ import {
 } from './ScreenCaptureOptionsFields';
 import { OpenBrowserConfigFields } from './OpenBrowserConfigFields';
 import { CloseAppConfigFields } from './CloseAppConfigFields';
-import { OpenAppConfigFields } from './OpenAppConfigFields';
+import { TelegramSendConfigFields } from './TelegramSendConfigFields';
 import { HttpRequestConfigFields } from './HttpRequestConfigFields';
 import { isChromeReplayCommand } from '@/src/lib/workflowGraph';
 import { WfImportMenu } from './WfImportMenu';
 import { MsNumberInput } from './MsNumberInput';
 import {
   formatStepVar,
+  formatWorkflowVar,
   nodeExportsStepVariables,
+  nodePublishesWorkflowVar,
   resolveNodeOutputKey,
+  resolveWorkflowVarName,
 } from '@/src/lib/workflowGraph';
 
 const ON_FAILURE: WorkflowStepOnFailure[] = ['STOP', 'SKIP', 'RETRY'];
@@ -217,6 +220,159 @@ export function WorkflowStepInspector({
             </div>
           ) : null}
         </>
+      ) : data.kind === 'loop' ? (
+        <>
+          <p className="text-xs text-on-surface-variant">{t('workflows.loopHint')}</p>
+          <div>
+            <label className="text-[10px] font-mono font-bold uppercase text-on-surface-variant">
+              {t('workflows.loopCount')}
+            </label>
+            <input
+              type="number"
+              min={1}
+              max={1000}
+              value={cfg.loopCount ?? 3}
+              onChange={(e) => {
+                const count = Math.max(1, Math.min(1000, Number(e.target.value) || 3));
+                patchConfig({ loopCount: count });
+                onUpdate({ label: t('workflows.nodeLoop', { count }) });
+              }}
+              className="w-full mt-1 px-4 py-3 rounded-xl bg-surface-container-low border border-white/10"
+            />
+          </div>
+        </>
+      ) : data.kind === 'variable' ? (
+        <>
+          <p className="text-xs text-on-surface-variant">
+            {(cfg.variableMode ?? 'set') === 'create'
+              ? t('workflows.varCreateHint')
+              : (cfg.variableMode ?? 'set') === 'read'
+                ? t('workflows.varReadHint')
+                : t('workflows.varSetHint')}
+          </p>
+          <div>
+            <label className="text-[10px] font-mono font-bold uppercase text-on-surface-variant">
+              {t('workflows.variableName')}
+            </label>
+            <input
+              value={cfg.variableName ?? 'my_var'}
+              onChange={(e) => patchConfig({ variableName: e.target.value })}
+              className="w-full mt-1 px-4 py-3 rounded-xl bg-surface-container-low border border-white/10 font-mono text-sm"
+              placeholder="my_var"
+            />
+            <p className="text-[10px] text-on-surface-variant mt-1">{t('workflows.variableNameHint')}</p>
+          </div>
+          {(cfg.variableMode ?? 'set') !== 'read' ? (
+            <div>
+              <label className="text-[10px] font-mono font-bold uppercase text-on-surface-variant">
+                {t('workflows.variableValue')}
+              </label>
+              <textarea
+                value={cfg.variableValue ?? ''}
+                onChange={(e) => patchConfig({ variableValue: e.target.value })}
+                rows={3}
+                className="w-full mt-1 px-4 py-3 rounded-xl bg-surface-container-low border border-white/10 font-mono text-sm"
+                placeholder="{{steps.prev.stdout}}"
+              />
+              <p className="text-[10px] text-on-surface-variant mt-1">{t('workflows.variableValueHint')}</p>
+            </div>
+          ) : (
+            <p className="text-[10px] font-mono text-primary">
+              {formatWorkflowVar((cfg.variableName ?? 'my_var').trim() || 'my_var')}
+            </p>
+          )}
+          {nodePublishesWorkflowVar(data.kind, cfg) ? (
+            <div className="rounded-xl border border-emerald-400/25 bg-emerald-400/5 p-3">
+              <p className="text-[10px] font-mono font-bold uppercase text-emerald-400">
+                {t('workflows.publishedWorkflowVar')}
+              </p>
+              <p className="text-sm font-mono font-bold text-emerald-300 mt-1">
+                {resolveWorkflowVarName(cfg)}
+              </p>
+              <p className="text-[10px] font-mono text-on-surface-variant mt-1 truncate">
+                {formatWorkflowVar(resolveWorkflowVarName(cfg))}
+              </p>
+            </div>
+          ) : null}
+        </>
+      ) : data.kind === 'excel' ? (
+        <>
+          <p className="text-xs text-on-surface-variant">
+            {(cfg.excelMode ?? 'read') === 'read'
+              ? t('workflows.excelReadHint')
+              : t('workflows.excelWriteHint')}
+          </p>
+          <WfAgentSelect
+            agents={agents}
+            value={cfg.agentId ?? ''}
+            onChange={(agentId) => {
+              patchConfig({ agentId });
+              onAgentChange?.(agentId);
+            }}
+          />
+          <div>
+            <label className="text-[10px] font-mono font-bold uppercase text-on-surface-variant">
+              {t('workflows.variableName')}
+            </label>
+            <input
+              value={cfg.variableName ?? 'excel_data'}
+              onChange={(e) => patchConfig({ variableName: e.target.value })}
+              className="w-full mt-1 px-4 py-3 rounded-xl bg-surface-container-low border border-white/10 font-mono text-sm"
+            />
+            <p className="text-[10px] text-on-surface-variant mt-1">{t('workflows.variableNameHint')}</p>
+          </div>
+          <div>
+            <label className="text-[10px] font-mono font-bold uppercase text-on-surface-variant">
+              {t('workflows.excelFilePath')}
+            </label>
+            <input
+              value={cfg.filePath ?? ''}
+              onChange={(e) => patchConfig({ filePath: e.target.value })}
+              className="w-full mt-1 px-4 py-3 rounded-xl bg-surface-container-low border border-white/10 font-mono text-sm"
+              placeholder="C:\\data\\report.xlsx"
+            />
+          </div>
+          <div>
+            <label className="text-[10px] font-mono font-bold uppercase text-on-surface-variant">
+              {t('workflows.excelSheet')}
+            </label>
+            <input
+              value={cfg.sheetName ?? 'Sheet1'}
+              onChange={(e) => patchConfig({ sheetName: e.target.value })}
+              className="w-full mt-1 px-4 py-3 rounded-xl bg-surface-container-low border border-white/10 font-mono text-sm"
+            />
+          </div>
+          {(cfg.excelMode ?? 'read') === 'read' ? (
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={cfg.hasHeader !== false}
+                onChange={(e) => patchConfig({ hasHeader: e.target.checked })}
+                className="rounded border-white/20"
+              />
+              {t('workflows.excelHasHeader')}
+            </label>
+          ) : (
+            <p className="text-[10px] font-mono text-primary">
+              {t('workflows.excelWriteVarHint', {
+                var: formatWorkflowVar((cfg.variableName ?? 'excel_data').trim() || 'excel_data'),
+              })}
+            </p>
+          )}
+          {nodePublishesWorkflowVar(data.kind, cfg) ? (
+            <div className="rounded-xl border border-emerald-400/25 bg-emerald-400/5 p-3">
+              <p className="text-[10px] font-mono font-bold uppercase text-emerald-400">
+                {t('workflows.publishedWorkflowVar')}
+              </p>
+              <p className="text-sm font-mono font-bold text-emerald-300 mt-1">
+                {resolveWorkflowVarName(cfg)}
+              </p>
+              <p className="text-[10px] font-mono text-on-surface-variant mt-1 truncate">
+                {formatWorkflowVar(resolveWorkflowVarName(cfg))}
+              </p>
+            </div>
+          ) : null}
+        </>
       ) : data.kind === 'delay' ? (
         <div>
           <label className="text-[10px] font-mono font-bold uppercase text-on-surface-variant">
@@ -233,7 +389,7 @@ export function WorkflowStepInspector({
         <>
           <WfVarRefPanel upstream={upstreamOutputKeys} workflowVarKeys={workflowVarKeys} />
 
-          {inspectorNodeId && nodeExportsStepVariables(data.kind) ? (
+          {inspectorNodeId && nodeExportsStepVariables(data.kind, cfg) ? (
             <div className="rounded-xl border border-primary/25 bg-primary/5 p-3 space-y-2">
               <label className="text-[10px] font-mono font-bold uppercase text-primary">
                 {t('workflows.outputKey')}
@@ -310,13 +466,23 @@ export function WorkflowStepInspector({
             />
           ) : null}
 
+          {data.taskType === 'TELEGRAM_SEND' ? (
+            <TelegramSendConfigFields
+              compact
+              payload={(cfg.payload as Record<string, unknown>) ?? {}}
+              onChange={({ command, payload }) =>
+                patchConfig({ command, payload, taskType: 'TELEGRAM_SEND' })
+              }
+            />
+          ) : null}
+
           {data.taskType !== 'SYSTEM_INFO' &&
           data.taskType !== 'CHROME_EXTENSION' &&
           data.taskType !== 'SCREEN_CAPTURE' &&
           data.taskType !== 'HTTP_REQUEST' &&
           data.taskType !== 'OPEN_BROWSER' &&
-          data.taskType !== 'OPEN_APP' &&
-          data.taskType !== 'CLOSE_APP' ? (
+          data.taskType !== 'CLOSE_APP' &&
+          data.taskType !== 'TELEGRAM_SEND' ? (
             <div>
               <label className="text-[10px] font-mono font-bold uppercase text-on-surface-variant">
                 {t('workflows.command')}
@@ -352,14 +518,23 @@ export function WorkflowStepInspector({
           ) : null}
 
           {data.taskType === 'OPEN_APP' ? (
-            <OpenAppConfigFields
-              compact
-              command={cfg.command ?? ''}
-              payload={(cfg.payload as Record<string, unknown>) ?? {}}
-              onChange={({ command, payload }) =>
-                patchConfig({ command, payload, taskType: 'OPEN_APP' })
-              }
-            />
+            <div>
+              <label className="text-[10px] font-mono font-bold uppercase text-on-surface-variant">
+                {t('workflows.payloadJson')}
+              </label>
+              <textarea
+                value={JSON.stringify(cfg.payload ?? {}, null, 2)}
+                onChange={(e) => {
+                  try {
+                    patchConfig({ payload: JSON.parse(e.target.value) as Record<string, unknown> });
+                  } catch {
+                    /* ignore invalid json while typing */
+                  }
+                }}
+                rows={4}
+                className="w-full mt-1 px-4 py-3 rounded-xl bg-surface-container-low border border-white/10 font-mono text-xs"
+              />
+            </div>
           ) : null}
 
           {data.taskType === 'CHROME_EXTENSION' ? (

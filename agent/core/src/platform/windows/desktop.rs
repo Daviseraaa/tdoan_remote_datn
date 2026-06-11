@@ -1,7 +1,10 @@
 //! Thực thi desktop automation qua Win32 (session hiện tại).
 
 use serde_json::{json, Value};
+use std::sync::Arc;
 use std::time::Duration;
+
+use crate::tasks::cancel::TaskCancelHandle;
 use windows::Win32::UI::Input::KeyboardAndMouse::{
     SendInput, INPUT, INPUT_0, INPUT_KEYBOARD, INPUT_MOUSE, KEYBDINPUT, KEYBD_EVENT_FLAGS,
     KEYEVENTF_KEYUP, KEYEVENTF_UNICODE, MOUSEEVENTF_LEFTDOWN, MOUSEEVENTF_LEFTUP,
@@ -18,8 +21,31 @@ fn set_cursor_physical(x: i32, y: i32) -> Result<(), String> {
     })
 }
 
-pub async fn run_steps_json(payload: Option<Value>) -> Result<Value, String> {
+fn check_cancelled(cancel: &Option<Arc<TaskCancelHandle>>) -> Result<(), String> {
+    if cancel.as_ref().map(|c| c.is_cancelled()).unwrap_or(false) {
+        return Err("Task cancelled".into());
+    }
+    Ok(())
+}
+
+async fn sleep_cancellable(ms: u64, cancel: &Option<Arc<TaskCancelHandle>>) -> Result<(), String> {
+    let total = ms.min(120_000);
+    let mut elapsed = 0u64;
+    while elapsed < total {
+        check_cancelled(cancel)?;
+        let slice = (total - elapsed).min(200);
+        tokio::time::sleep(Duration::from_millis(slice)).await;
+        elapsed += slice;
+    }
+    Ok(())
+}
+
+pub async fn run_steps_json(
+    payload: Option<Value>,
+    cancel: Option<Arc<TaskCancelHandle>>,
+) -> Result<Value, String> {
     stationhub_windows_uia::enable_per_monitor_v2();
+    check_cancelled(&cancel)?;
 
     let steps = payload
         .as_ref()
@@ -29,6 +55,7 @@ pub async fn run_steps_json(payload: Option<Value>) -> Result<Value, String> {
     let mut outcomes: Vec<Value> = Vec::new();
 
     for (idx, step) in arr.iter().enumerate() {
+        check_cancelled(&cancel)?;
         let i = idx + 1;
         let obj = step.as_object().ok_or("step must be object")?;
         let action = obj
@@ -42,7 +69,7 @@ pub async fn run_steps_json(payload: Option<Value>) -> Result<Value, String> {
                     .and_then(|n| n.as_u64())
                     .or_else(|| obj.get("ms").and_then(|n| n.as_i64()).map(|n| n as u64))
                     .ok_or("delay.ms")?;
-                tokio::time::sleep(Duration::from_millis(ms.min(120_000))).await;
+                sleep_cancellable(ms, &cancel).await?;
                 outcomes.push(json!({"index": i, "action": action, "ok": true}));
             }
             "openApp" => {
@@ -50,14 +77,9 @@ pub async fn run_steps_json(payload: Option<Value>) -> Result<Value, String> {
                     .get("target")
                     .and_then(|t| t.as_str())
                     .ok_or("openApp.target")?;
-                crate::platform::open_app::open_app_resolve(
-                    target,
-                    &crate::platform::OpenAppOptions {
-                        fullscreen: false,
-                    },
-                )
-                .await
-                .map_err(|e| e)?;
+                crate::platform::open_app::open_app_resolve(target)
+                    .await
+                    .map_err(|e| e)?;
                 outcomes.push(json!({"index": i, "action": action, "ok": true, "detail": target}));
             }
             "move" => {
@@ -372,7 +394,7 @@ async fn run_steps_stdio_async() -> Result<(), String> {
     let mut buf = String::new();
     std::io::Read::read_to_string(&mut std::io::stdin(), &mut buf).map_err(|e| e.to_string())?;
     let v: Value = serde_json::from_str(buf.trim()).map_err(|e| e.to_string())?;
-    let out = run_steps_json(Some(v)).await?;
+    let out = run_steps_json(Some(v), None).await?;
     println!("{}", serde_json::to_string(&out).map_err(|e| e.to_string())?);
     Ok(())
 }

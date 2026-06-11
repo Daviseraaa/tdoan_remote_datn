@@ -1,6 +1,8 @@
 import type { Edge, Node } from '@xyflow/react';
 import type { WorkflowStep, WorkflowStepConfig } from '@/src/types/api';
 import {
+  WF_HANDLE_BODY,
+  WF_HANDLE_DONE,
   WF_HANDLE_FALSE,
   WF_HANDLE_TRUE,
   WF_TRIGGER_ID,
@@ -48,7 +50,10 @@ export function canvasToGraphV2(
     if (!stepIds.has(to)) continue;
 
     const handle =
-      e.sourceHandle === WF_HANDLE_TRUE || e.sourceHandle === WF_HANDLE_FALSE
+      e.sourceHandle === WF_HANDLE_TRUE ||
+      e.sourceHandle === WF_HANDLE_FALSE ||
+      e.sourceHandle === WF_HANDLE_BODY ||
+      e.sourceHandle === WF_HANDLE_DONE
         ? e.sourceHandle
         : undefined;
 
@@ -107,6 +112,54 @@ function buildStepFromNode(node: Node<WfNodeData>, order: number): WorkflowStep 
         ...baseConfig,
         conditionMode: baseConfig.conditionMode ?? 'last_exit_success',
         conditionExitCode: baseConfig.conditionExitCode ?? 0,
+      },
+      onFailure: d.onFailure,
+    };
+  }
+
+  if (d.kind === 'loop') {
+    return {
+      id: node.id,
+      order,
+      type: 'LOOP',
+      config: {
+        ...baseConfig,
+        loopCount: baseConfig.loopCount ?? 3,
+      },
+      onFailure: d.onFailure,
+    };
+  }
+
+  if (d.kind === 'variable') {
+    return {
+      id: node.id,
+      order,
+      type: 'VARIABLE',
+      config: {
+        ...baseConfig,
+        variableMode: baseConfig.variableMode ?? 'set',
+        variableName: baseConfig.variableName ?? 'my_var',
+        variableValue: baseConfig.variableValue,
+      },
+      onFailure: d.onFailure,
+    };
+  }
+
+  if (d.kind === 'excel') {
+    return {
+      id: node.id,
+      order,
+      type: 'EXCEL',
+      config: {
+        ...baseConfig,
+        excelMode: baseConfig.excelMode ?? 'read',
+        variableName: baseConfig.variableName ?? 'excel_data',
+        filePath: baseConfig.filePath,
+        sheetName: baseConfig.sheetName,
+        hasHeader: baseConfig.hasHeader ?? true,
+        agentId: baseConfig.agentId,
+        variableValue: baseConfig.variableValue,
+        timeout: baseConfig.timeout ?? 120000,
       },
       onFailure: d.onFailure,
     };

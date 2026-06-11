@@ -33,7 +33,7 @@ export interface TaskExecutePayload {
 
 export interface TaskResultPayload {
   taskId: string;
-  status: 'COMPLETED' | 'FAILED';
+  status: 'COMPLETED' | 'FAILED' | 'CANCELLED';
   result: string;
   exitCode: number;
   startedAt?: number;

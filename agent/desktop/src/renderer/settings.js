@@ -12,9 +12,14 @@ const TAB_META = {
   'Mở ứng dụng': { label: 'Mở app', icon: '▣', desc: 'Thời gian chờ cửa sổ OPEN_APP.' },
   'Trình duyệt': { label: 'Trình duyệt', icon: '◈', desc: 'Cloak runner và profile.' },
   'Chrome extension': { label: 'Chrome', icon: '⬢', desc: 'Bridge extension DOM.' },
+  'Remote (RustDesk)': {
+    label: 'Remote',
+    icon: '◉',
+    desc: 'RustDesk — ID/mật khẩu và đường dẫn trên máy agent.',
+  },
 };
 
-const SECRET_KEYS = new Set(['AGENT_KEY']);
+const SECRET_KEYS = new Set(['AGENT_KEY', 'RUSTDESK_PASSWORD']);
 const STATUS_BADGE = {
   connected: 'ĐÃ KẾT NỐI',
   connecting: 'ĐANG KẾT NỐI',

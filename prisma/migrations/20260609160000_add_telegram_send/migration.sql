@@ -1,0 +1,2 @@
+-- AlterEnum
+ALTER TYPE "TaskType" ADD VALUE 'TELEGRAM_SEND';

@@ -46,7 +46,10 @@ export function useWorkflowMutations() {
 
   const execute = useMutation({
     mutationFn: (id: string) => workflowsApi.executeWorkflowSync(id),
-    onSuccess: invalidate,
+    onSuccess: () => {
+      invalidate();
+      qc.invalidateQueries({ queryKey: ['workflow-runs'] });
+    },
   });
 
   return { create, update, remove, execute };

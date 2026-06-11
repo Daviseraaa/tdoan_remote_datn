@@ -30,6 +30,7 @@ enum TaskType {
   CHROME_EXTENSION
   SCREEN_CAPTURE
   HTTP_REQUEST
+  TELEGRAM_SEND
 }
 
 enum TaskStatus {
@@ -54,6 +55,9 @@ enum StepType {
   SCRIPT
   DELAY
   CONDITION
+  LOOP
+  VARIABLE
+  EXCEL
   TELEGRAM
 }
 
@@ -500,6 +504,7 @@ model WorkflowStepRun {
   taskId        String?
   exitCode      Int?
   error         String?       @db.Text
+  output        Json?
   depth         Int           @default(0)
   startedAt     DateTime?
   completedAt   DateTime?

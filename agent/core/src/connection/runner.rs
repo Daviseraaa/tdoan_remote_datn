@@ -13,13 +13,14 @@ use tokio::sync::Semaphore;
 use crate::config::{env_load, AgentConfig};
 use crate::connection::telemetry::TelemetrySampler;
 use crate::platform::{
-    list_local_chrome_scripts, list_local_desktop_recordings, list_system_chrome_profiles,
-    Platform,
+    list_agent_files, list_local_chrome_scripts, list_local_desktop_recordings,
+    list_system_chrome_profiles, read_agent_file, write_agent_file, Platform,
 };
-use crate::tasks::{run_task, supported_task_types, TaskContext, TaskExecute};
+use crate::tasks::{run_task, supported_task_types, TaskCancelRegistry, TaskContext, TaskExecute};
 
 const NS: &str = "/ws/agent";
 const TASK_EXECUTE: &str = "task:execute";
+const TASK_CANCEL: &str = "task:cancel";
 const TASK_RESULT: &str = "task:result";
 const AGENT_HEARTBEAT: &str = "agent:heartbeat";
 const AGENT_STATUS: &str = "agent:status";
@@ -41,6 +42,16 @@ const CHROME_SCRIPTS_LIST_MAX: usize = 500;
 const DESKTOP_RECORDINGS_SYNC: &str = "agent:desktop-recordings:sync";
 const DESKTOP_RECORDINGS_RESULT: &str = "agent:desktop-recordings:result";
 const DESKTOP_RECORDINGS_LIST_MAX: usize = 500;
+const FILES_LIST_SYNC: &str = "agent:files:list";
+const FILES_LIST_RESULT: &str = "agent:files:list:result";
+const FILES_READ_SYNC: &str = "agent:files:read";
+const FILES_READ_RESULT: &str = "agent:files:read:result";
+const FILES_WRITE_SYNC: &str = "agent:files:write";
+const FILES_WRITE_RESULT: &str = "agent:files:write:result";
+const REMOTE_START_SYNC: &str = "agent:remote:start";
+const REMOTE_START_RESULT: &str = "agent:remote:start:result";
+const REMOTE_STOP_SYNC: &str = "agent:remote:stop";
+const REMOTE_STOP_RESULT: &str = "agent:remote:stop:result";
 
 fn first_json(payload: Payload) -> Option<serde_json::Value> {
     match payload {
@@ -158,11 +169,14 @@ pub async fn run_with_stop(stop: Arc<AtomicBool>) -> Result<(), Box<dyn std::err
     });
 
     let sem = Arc::new(Semaphore::new(cfg.task_max_concurrency.max(1)));
+    let cancel_registry = Arc::new(TaskCancelRegistry::new());
     let server_authenticated = Arc::new(AtomicBool::new(false));
 
     let sem_t = sem.clone();
     let cfg_t = cfg.clone();
     let platform_t = platform.clone();
+    let cancel_reg_execute = cancel_registry.clone();
+    let cancel_reg_cancel = cancel_registry.clone();
     let auth_for_status = server_authenticated.clone();
     let auth_for_sub = server_authenticated.clone();
     let auth_for_revoked = server_authenticated.clone();
@@ -175,6 +189,7 @@ pub async fn run_with_stop(stop: Arc<AtomicBool>) -> Result<(), Box<dyn std::err
             let sem = sem_t.clone();
             let cfg = cfg_t.clone();
             let platform = platform_t.clone();
+            let cancel_registry = cancel_reg_execute.clone();
             async move {
                 let Some(v) = first_json(payload) else {
                     warn!("task:execute: empty payload");
@@ -189,6 +204,7 @@ pub async fn run_with_stop(stop: Arc<AtomicBool>) -> Result<(), Box<dyn std::err
                     Ok(p) => p,
                     Err(_) => return,
                 };
+                let cancel_handle = cancel_registry.register(&tid);
                 tokio::spawn(async move {
                     let _permit = permit;
                     let started_at = now_ms();
@@ -196,8 +212,10 @@ pub async fn run_with_stop(stop: Arc<AtomicBool>) -> Result<(), Box<dyn std::err
                     let ctx = TaskContext {
                         config: &cfg,
                         platform: &platform,
+                        cancel: Some(cancel_handle.clone()),
                     };
                     let wire = run_task(&ctx, task.clone()).await;
+                    cancel_registry.unregister(&tid);
                     let completed_at = now_ms();
                     let body = json!({
                         "taskId": tid,
@@ -214,24 +232,53 @@ pub async fn run_with_stop(stop: Arc<AtomicBool>) -> Result<(), Box<dyn std::err
             }
             .boxed()
         })
+        .on(TASK_CANCEL, move |payload: Payload, _client: Client| {
+            let cancel_registry = cancel_reg_cancel.clone();
+            async move {
+                let Some(v) = first_json(payload) else {
+                    warn!("task:cancel: empty payload");
+                    return;
+                };
+                let task_id = v
+                    .get("taskId")
+                    .and_then(|x| x.as_str())
+                    .unwrap_or_default();
+                if task_id.is_empty() {
+                    warn!("task:cancel: missing taskId");
+                    return;
+                }
+                if cancel_registry.cancel(task_id) {
+                    info!("Cancel requested for task {}", task_id);
+                } else {
+                    warn!("task:cancel: task {} not running on agent", task_id);
+                }
+            }
+            .boxed()
+        })
         .on(CHROME_PROFILES_SYNC, move |payload: Payload, client: Client| {
             async move {
                 let request_id = first_json(payload)
                     .and_then(|v| v.get("requestId").and_then(|r| r.as_str()).map(String::from))
                     .unwrap_or_default();
-                let (ok, profiles, error) = match list_system_chrome_profiles() {
-                    Ok(list) => (true, serde_json::to_value(&list).unwrap_or(json!([])), None),
-                    Err(e) => (false, json!([]), Some(e)),
-                };
-                let body = json!({
-                    "requestId": request_id,
-                    "ok": ok,
-                    "profiles": profiles,
-                    "error": error,
+                tokio::spawn(async move {
+                    let (ok, profiles, error) =
+                        match tokio::task::spawn_blocking(list_system_chrome_profiles).await {
+                            Ok(Ok(list)) => {
+                                (true, serde_json::to_value(&list).unwrap_or(json!([])), None)
+                            }
+                            Ok(Err(e)) => (false, json!([]), Some(e)),
+                            Err(e) => (false, json!([]), Some(format!("spawn_blocking: {e}"))),
+                        };
+                    let body = json!({
+                        "requestId": request_id,
+                        "ok": ok,
+                        "profiles": profiles,
+                        "error": error,
+                    });
+                    if let Err(e) = client.emit(CHROME_PROFILES_RESULT, body).await {
+                        error!("emit chrome-profiles result: {}", e);
+                    }
                 });
-                if let Err(e) = client.emit(CHROME_PROFILES_RESULT, body).await {
-                    error!("emit chrome-profiles result: {}", e);
-                }
             }
             .boxed()
         })
@@ -240,20 +287,28 @@ pub async fn run_with_stop(stop: Arc<AtomicBool>) -> Result<(), Box<dyn std::err
                 let request_id = first_json(payload)
                     .and_then(|v| v.get("requestId").and_then(|r| r.as_str()).map(String::from))
                     .unwrap_or_default();
-                let (ok, scripts, error) = match list_local_chrome_scripts(CHROME_SCRIPTS_LIST_MAX)
-                {
-                    Ok(list) => (true, serde_json::to_value(&list).unwrap_or(json!([])), None),
-                    Err(e) => (false, json!([]), Some(e)),
-                };
-                let body = json!({
-                    "requestId": request_id,
-                    "ok": ok,
-                    "scripts": scripts,
-                    "error": error,
+                tokio::spawn(async move {
+                    let (ok, scripts, error) = match tokio::task::spawn_blocking(move || {
+                        list_local_chrome_scripts(CHROME_SCRIPTS_LIST_MAX)
+                    })
+                    .await
+                    {
+                        Ok(Ok(list)) => {
+                            (true, serde_json::to_value(&list).unwrap_or(json!([])), None)
+                        }
+                        Ok(Err(e)) => (false, json!([]), Some(e)),
+                        Err(e) => (false, json!([]), Some(format!("spawn_blocking: {e}"))),
+                    };
+                    let body = json!({
+                        "requestId": request_id,
+                        "ok": ok,
+                        "scripts": scripts,
+                        "error": error,
+                    });
+                    if let Err(e) = client.emit(CHROME_SCRIPTS_RESULT, body).await {
+                        error!("emit chrome-scripts result: {}", e);
+                    }
                 });
-                if let Err(e) = client.emit(CHROME_SCRIPTS_RESULT, body).await {
-                    error!("emit chrome-scripts result: {}", e);
-                }
             }
             .boxed()
         })
@@ -262,20 +317,296 @@ pub async fn run_with_stop(stop: Arc<AtomicBool>) -> Result<(), Box<dyn std::err
                 let request_id = first_json(payload)
                     .and_then(|v| v.get("requestId").and_then(|r| r.as_str()).map(String::from))
                     .unwrap_or_default();
-                let (ok, recordings, error) =
-                    match list_local_desktop_recordings(DESKTOP_RECORDINGS_LIST_MAX) {
-                        Ok(list) => (true, serde_json::to_value(&list).unwrap_or(json!([])), None),
-                        Err(e) => (false, json!([]), Some(e)),
-                    };
-                let body = json!({
-                    "requestId": request_id,
-                    "ok": ok,
-                    "recordings": recordings,
-                    "error": error,
+                tokio::spawn(async move {
+                    let (ok, recordings, error) =
+                        match tokio::task::spawn_blocking(move || {
+                            list_local_desktop_recordings(DESKTOP_RECORDINGS_LIST_MAX)
+                        })
+                        .await
+                        {
+                            Ok(Ok(list)) => {
+                                (true, serde_json::to_value(&list).unwrap_or(json!([])), None)
+                            }
+                            Ok(Err(e)) => (false, json!([]), Some(e)),
+                            Err(e) => (false, json!([]), Some(format!("spawn_blocking: {e}"))),
+                        };
+                    let body = json!({
+                        "requestId": request_id,
+                        "ok": ok,
+                        "recordings": recordings,
+                        "error": error,
+                    });
+                    if let Err(e) = client.emit(DESKTOP_RECORDINGS_RESULT, body).await {
+                        error!("emit desktop-recordings result: {}", e);
+                    }
                 });
-                if let Err(e) = client.emit(DESKTOP_RECORDINGS_RESULT, body).await {
-                    error!("emit desktop-recordings result: {}", e);
-                }
+            }
+            .boxed()
+        })
+        .on(FILES_LIST_SYNC, move |payload: Payload, client: Client| {
+            async move {
+                let v = first_json(payload);
+                let request_id = v
+                    .as_ref()
+                    .and_then(|j| j.get("requestId").and_then(|r| r.as_str()))
+                    .unwrap_or_default()
+                    .to_string();
+                let path = v
+                    .as_ref()
+                    .and_then(|j| j.get("path").and_then(|r| r.as_str()))
+                    .unwrap_or_default()
+                    .to_string();
+                tokio::spawn(async move {
+                    let path_for_task = path.clone();
+                    let (ok, entries, error) =
+                        match tokio::task::spawn_blocking(move || list_agent_files(&path_for_task))
+                            .await
+                        {
+                            Ok(Ok(list)) => {
+                                (true, serde_json::to_value(&list).unwrap_or(json!([])), None)
+                            }
+                            Ok(Err(e)) => (false, json!([]), Some(e)),
+                            Err(e) => (false, json!([]), Some(format!("spawn_blocking: {e}"))),
+                        };
+                    let body = json!({
+                        "requestId": request_id,
+                        "ok": ok,
+                        "entries": entries,
+                        "path": path,
+                        "root": crate::platform::agent_files::filesystem_root_label(),
+                        "error": error,
+                    });
+                    if let Err(e) = client.emit(FILES_LIST_RESULT, body).await {
+                        error!("emit files:list result: {}", e);
+                    }
+                });
+            }
+            .boxed()
+        })
+        .on(FILES_READ_SYNC, move |payload: Payload, client: Client| {
+            async move {
+                let v = first_json(payload);
+                let request_id = v
+                    .as_ref()
+                    .and_then(|j| j.get("requestId").and_then(|r| r.as_str()))
+                    .unwrap_or_default()
+                    .to_string();
+                let path = v
+                    .as_ref()
+                    .and_then(|j| j.get("path").and_then(|r| r.as_str()))
+                    .unwrap_or_default()
+                    .to_string();
+                let max_bytes = v
+                    .as_ref()
+                    .and_then(|j| j.get("maxBytes").and_then(|r| r.as_u64()))
+                    .map(|n| n as usize);
+                tokio::spawn(async move {
+                    let path_for_task = path.clone();
+                    let (ok, file, error) = match tokio::task::spawn_blocking(move || {
+                        read_agent_file(&path_for_task, max_bytes)
+                    })
+                    .await
+                    {
+                        Ok(Ok(data)) => {
+                            (true, serde_json::to_value(&data).unwrap_or(json!(null)), None)
+                        }
+                        Ok(Err(e)) => (false, json!(null), Some(e)),
+                        Err(e) => (false, json!(null), Some(format!("spawn_blocking: {e}"))),
+                    };
+                    let body = json!({
+                        "requestId": request_id,
+                        "ok": ok,
+                        "file": file,
+                        "error": error,
+                    });
+                    if let Err(e) = client.emit(FILES_READ_RESULT, body).await {
+                        error!("emit files:read result: {}", e);
+                    }
+                });
+            }
+            .boxed()
+        })
+        .on(FILES_WRITE_SYNC, move |payload: Payload, client: Client| {
+            async move {
+                let v = first_json(payload);
+                let request_id = v
+                    .as_ref()
+                    .and_then(|j| j.get("requestId").and_then(|r| r.as_str()))
+                    .unwrap_or_default()
+                    .to_string();
+                let path = v
+                    .as_ref()
+                    .and_then(|j| j.get("path").and_then(|r| r.as_str()))
+                    .unwrap_or_default()
+                    .to_string();
+                let content = v
+                    .as_ref()
+                    .and_then(|j| j.get("content").and_then(|r| r.as_str()))
+                    .unwrap_or_default()
+                    .to_string();
+                let encoding = v
+                    .as_ref()
+                    .and_then(|j| j.get("encoding").and_then(|r| r.as_str()))
+                    .unwrap_or("utf-8")
+                    .to_string();
+                let upload_id = v
+                    .as_ref()
+                    .and_then(|j| j.get("uploadId").and_then(|r| r.as_str()))
+                    .map(String::from);
+                let chunk_index = v
+                    .as_ref()
+                    .and_then(|j| j.get("chunkIndex").and_then(|r| r.as_u64()))
+                    .map(|n| n as u32);
+                let total_chunks = v
+                    .as_ref()
+                    .and_then(|j| j.get("totalChunks").and_then(|r| r.as_u64()))
+                    .map(|n| n as u32);
+                tokio::spawn(async move {
+                    let path_for_task = path.clone();
+                    let content_for_task = content.clone();
+                    let encoding_for_task = encoding.clone();
+                    let upload_id_for_task = upload_id.clone();
+                    let (ok, file, error) = match tokio::task::spawn_blocking(move || {
+                        write_agent_file(
+                            &path_for_task,
+                            &content_for_task,
+                            &encoding_for_task,
+                            upload_id_for_task.as_deref(),
+                            chunk_index,
+                            total_chunks,
+                        )
+                    })
+                    .await
+                    {
+                        Ok(Ok(data)) => {
+                            (true, serde_json::to_value(&data).unwrap_or(json!(null)), None)
+                        }
+                        Ok(Err(e)) => (false, json!(null), Some(e)),
+                        Err(e) => (false, json!(null), Some(format!("spawn_blocking: {e}"))),
+                    };
+                    let body = json!({
+                        "requestId": request_id,
+                        "ok": ok,
+                        "file": file,
+                        "error": error,
+                    });
+                    if let Err(e) = client.emit(FILES_WRITE_RESULT, body).await {
+                        error!("emit files:write result: {}", e);
+                    }
+                });
+            }
+            .boxed()
+        })
+        .on(REMOTE_START_SYNC, move |payload: Payload, client: Client| {
+            async move {
+                let v = first_json(payload);
+                let request_id = v
+                    .as_ref()
+                    .and_then(|j| j.get("requestId").and_then(|r| r.as_str()))
+                    .unwrap_or_default()
+                    .to_string();
+                let provider = v
+                    .as_ref()
+                    .and_then(|j| j.get("provider").and_then(|r| r.as_str()))
+                    .unwrap_or("rustdesk")
+                    .to_string();
+                // Chạy nền — tránh block Socket.IO (ping/heartbeat) khi mở RustDesk.
+                tokio::spawn(async move {
+                    let provider_for_task = provider.clone();
+                    let (ok, message, error, rustdesk_id, rustdesk_password) =
+                        match tokio::task::spawn_blocking(move || {
+                            let cfg = crate::config::settings::rustdesk_config_now();
+                            if cfg.exe_path.trim().is_empty() {
+                                return Err(
+                                    "Chưa cấu hình RUSTDESK_EXE_PATH trong Cài đặt agent".into(),
+                                );
+                            }
+                            if cfg.id.trim().is_empty() {
+                                return Err("Chưa cấu hình RUSTDESK_ID trong Cài đặt agent".into());
+                            }
+                            if cfg.password.is_empty() {
+                                return Err(
+                                    "Chưa cấu hình RUSTDESK_PASSWORD trong Cài đặt agent".into(),
+                                );
+                            }
+                            let msg = crate::platform::remote::start_remote(
+                                &provider_for_task,
+                                &cfg.exe_path,
+                            )?;
+                            Ok((msg, cfg.id.trim().to_string(), cfg.password))
+                        })
+                        .await
+                        {
+                            Ok(Ok((msg, id, pass))) => (true, Some(msg), None, Some(id), Some(pass)),
+                            Ok(Err(e)) => (false, None, Some(e), None, None),
+                            Err(e) => (
+                                false,
+                                None,
+                                Some(format!("spawn_blocking: {e}")),
+                                None,
+                                None,
+                            ),
+                        };
+
+                    let mut body = json!({
+                        "requestId": request_id,
+                        "ok": ok,
+                        "provider": provider,
+                        "message": message,
+                        "error": error,
+                    });
+                    if let Some(obj) = body.as_object_mut() {
+                        if let Some(id) = rustdesk_id {
+                            obj.insert("rustdeskId".into(), json!(id));
+                        }
+                        if let Some(pass) = rustdesk_password {
+                            obj.insert("rustdeskPassword".into(), json!(pass));
+                        }
+                    }
+                    if let Err(e) = client.emit(REMOTE_START_RESULT, body).await {
+                        error!("emit remote:start result: {}", e);
+                    }
+                });
+            }
+            .boxed()
+        })
+        .on(REMOTE_STOP_SYNC, move |payload: Payload, client: Client| {
+            async move {
+                let v = first_json(payload);
+                let request_id = v
+                    .as_ref()
+                    .and_then(|j| j.get("requestId").and_then(|r| r.as_str()))
+                    .unwrap_or_default()
+                    .to_string();
+                let provider = v
+                    .as_ref()
+                    .and_then(|j| j.get("provider").and_then(|r| r.as_str()))
+                    .unwrap_or("rustdesk")
+                    .to_string();
+
+                tokio::spawn(async move {
+                    let provider_for_task = provider.clone();
+                    let (ok, message, error) = match tokio::task::spawn_blocking(move || {
+                        crate::platform::remote::stop_remote(&provider_for_task)
+                    })
+                    .await
+                    {
+                        Ok(Ok(msg)) => (true, Some(msg), None),
+                        Ok(Err(e)) => (false, None, Some(e)),
+                        Err(e) => (false, None, Some(format!("spawn_blocking: {e}"))),
+                    };
+
+                    let body = json!({
+                        "requestId": request_id,
+                        "ok": ok,
+                        "provider": provider,
+                        "message": message,
+                        "error": error,
+                    });
+                    if let Err(e) = client.emit(REMOTE_STOP_RESULT, body).await {
+                        error!("emit remote:stop result: {}", e);
+                    }
+                });
             }
             .boxed()
         })
@@ -366,6 +697,7 @@ pub async fn run_with_stop(stop: Arc<AtomicBool>) -> Result<(), Box<dyn std::err
             tokio::time::interval(Duration::from_millis(TELEMETRY_INTERVAL_MS));
         intv.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
         let mut telemetry_sampler = TelemetrySampler::new();
+        let mut heartbeat_fail_streak: u32 = 0;
         loop {
             intv.tick().await;
             if hb_stop.load(Ordering::SeqCst) {
@@ -382,8 +714,22 @@ pub async fn run_with_stop(stop: Arc<AtomicBool>) -> Result<(), Box<dyn std::err
                 "ramTotalBytes": snap.ram_total,
                 "ramLabel": snap.ram_label,
             });
-            if let Err(e) = hb_client.emit(AGENT_HEARTBEAT, body).await {
-                error!("emit {}: {}", AGENT_HEARTBEAT, e);
+            match hb_client.emit(AGENT_HEARTBEAT, body).await {
+                Ok(()) => heartbeat_fail_streak = 0,
+                Err(e) => {
+                    heartbeat_fail_streak += 1;
+                    error!(
+                        "emit {}: {} (streak {})",
+                        AGENT_HEARTBEAT, e, heartbeat_fail_streak
+                    );
+                    if heartbeat_fail_streak >= 3 {
+                        warn!(
+                            "heartbeat fail streak — disconnect để reconnect Socket.IO"
+                        );
+                        let _ = hb_client.disconnect().await;
+                        heartbeat_fail_streak = 0;
+                    }
+                }
             }
         }
     });

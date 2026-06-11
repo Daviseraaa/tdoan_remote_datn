@@ -173,6 +173,28 @@ export const ENV_FIELDS: readonly EnvFieldDef[] = [
     default: '',
     hint: 'Phân cách bằng dấu phẩy; để trống = tất cả',
   },
+  {
+    key: 'RUSTDESK_EXE_PATH',
+    label: 'Đường dẫn rustdesk.exe',
+    type: 'string',
+    group: 'Remote (RustDesk)',
+    default: 'C:\\Program Files\\RustDesk\\rustdesk.exe',
+    hint: 'Trên máy agent — dùng khi admin bấm Mở Remote',
+  },
+  {
+    key: 'RUSTDESK_ID',
+    label: 'RustDesk ID',
+    type: 'string',
+    group: 'Remote (RustDesk)',
+    hint: 'ID hiển thị trong app RustDesk trên máy này',
+  },
+  {
+    key: 'RUSTDESK_PASSWORD',
+    label: 'Mật khẩu RustDesk',
+    type: 'string',
+    group: 'Remote (RustDesk)',
+    hint: 'Mật khẩu kết nối tới máy này (Permanent password)',
+  },
 ] as const;
 
 export const ENV_GROUPS = [
@@ -182,4 +204,5 @@ export const ENV_GROUPS = [
   'Mở ứng dụng',
   'Trình duyệt',
   'Chrome extension',
+  'Remote (RustDesk)',
 ] as const;

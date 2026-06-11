@@ -1,3 +1,5 @@
+import { asciiSlugKey } from '../../common/slug-key';
+
 export type StepOutput = {
   exitCode: number | null;
   stdout?: string;
@@ -24,8 +26,38 @@ export type WorkflowRunScope = {
 
 const TEMPLATE_RE = /\{\{([^}]+)\}\}/g;
 
+/** `excel_data.0.name` hoặc `excel_data[0].name` — hỗ trợ index mảng trong template. */
+export function tokenizePath(path: string): string[] {
+  const parts: string[] = [];
+  let buf = '';
+  for (let i = 0; i < path.length; i++) {
+    const c = path[i];
+    if (c === '.') {
+      if (buf) {
+        parts.push(buf);
+        buf = '';
+      }
+      continue;
+    }
+    if (c === '[') {
+      if (buf) {
+        parts.push(buf);
+        buf = '';
+      }
+      i++;
+      const start = i;
+      while (i < path.length && path[i] !== ']') i++;
+      parts.push(path.slice(start, i));
+      continue;
+    }
+    buf += c;
+  }
+  if (buf) parts.push(buf);
+  return parts.filter(Boolean);
+}
+
 function getByPath(root: unknown, path: string): unknown {
-  const parts = path.split('.').filter(Boolean);
+  const parts = tokenizePath(path);
   let cur: unknown = root;
   for (const p of parts) {
     if (cur === null || cur === undefined) return undefined;
@@ -247,12 +279,7 @@ export function defaultOutputKey(
 }
 
 function slugify(s: string): string {
-  const t = s
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '_')
-    .replace(/^_+|_+$/g, '');
-  return t.length ? t.slice(0, 48) : '';
+  return asciiSlugKey(s);
 }
 
 export function resolveOutputKey(
@@ -336,4 +363,100 @@ export function parseWorkflowVariables(raw: unknown): Record<string, unknown> {
     return raw as Record<string, unknown>;
   }
   return {};
+}
+
+const VARIABLE_NAME_RE = /^[a-zA-Z_][a-zA-Z0-9_]{0,63}$/;
+
+export type WorkflowVariableMode = 'create' | 'read' | 'set';
+
+export function normalizeVariableName(raw: string): string {
+  const name = raw.trim();
+  if (!VARIABLE_NAME_RE.test(name)) {
+    throw new Error(`Invalid variable name: ${raw}`);
+  }
+  if (name.startsWith('_')) {
+    throw new Error(`Reserved variable name: ${name}`);
+  }
+  return name;
+}
+
+export function hasWorkflowVar(scope: WorkflowRunScope, name: string): boolean {
+  return Object.prototype.hasOwnProperty.call(scope.workflow, name);
+}
+
+export function getWorkflowVar(scope: WorkflowRunScope, name: string): unknown {
+  return scope.workflow[name];
+}
+
+export function setWorkflowVar(
+  scope: WorkflowRunScope,
+  name: string,
+  value: unknown,
+): WorkflowRunScope {
+  return {
+    ...scope,
+    workflow: { ...scope.workflow, [name]: value },
+  };
+}
+
+export function coerceVariableValue(raw: string): unknown {
+  const t = raw.trim();
+  if (t === 'true') return true;
+  if (t === 'false') return false;
+  if (t === 'null') return null;
+  if (/^-?\d+(\.\d+)?$/.test(t)) return Number(t);
+  if (
+    (t.startsWith('{') && t.endsWith('}')) ||
+    (t.startsWith('[') && t.endsWith(']'))
+  ) {
+    try {
+      return JSON.parse(t);
+    } catch {
+      /* keep string */
+    }
+  }
+  return raw;
+}
+
+export function resolveVariableValueTemplate(
+  template: string | undefined,
+  scope: WorkflowRunScope,
+): unknown {
+  if (template == null) return '';
+  const resolved = resolveTemplateString(template, scope);
+  return coerceVariableValue(resolved);
+}
+
+export function formatWorkflowValue(value: unknown): string {
+  return formatValue(value);
+}
+
+/** Bỏ biến nội bộ (_openedPids, _loopIndex, …) trước khi lưu snapshot lần chạy. */
+export function stripInternalWorkflowVars(
+  workflow: Record<string, unknown>,
+): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(workflow)) {
+    if (!k.startsWith('_')) out[k] = v;
+  }
+  return out;
+}
+
+/** Trích `rows` từ chuỗi kết quả task FILE_OPERATION read_excel. */
+export function extractExcelRowsFromTaskResult(
+  result?: string,
+  exitCode?: number | null,
+): { rows: unknown[]; sheet?: string } {
+  const parsed = parseTaskResult(result, exitCode ?? 0, false);
+  const body = parsed.json;
+  if (body && typeof body === 'object' && !Array.isArray(body)) {
+    const rec = body as Record<string, unknown>;
+    const rows = Array.isArray(rec.rows) ? rec.rows : [];
+    return {
+      rows,
+      sheet: typeof rec.sheet === 'string' ? rec.sheet : undefined,
+    };
+  }
+  if (Array.isArray(body)) return { rows: body };
+  return { rows: [] };
 }

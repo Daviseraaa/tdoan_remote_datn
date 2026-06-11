@@ -31,7 +31,7 @@ export function getUpstreamStepKeys(
     seen.add(id);
 
     const node = byId.get(id);
-    if (node && nodeExportsStepVariables(node.data.kind)) {
+    if (node && nodeExportsStepVariables(node.data.kind, node.data.config)) {
       const key = resolveNodeOutputKey(node.data, id);
       out.push({ nodeId: id, key, label: node.data.label || key });
     }

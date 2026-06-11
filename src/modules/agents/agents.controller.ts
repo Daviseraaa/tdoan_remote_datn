@@ -3,11 +3,14 @@ import {
   Controller,
   Delete,
   Get,
+  Header,
   Param,
   Patch,
   Post,
   Query,
+  Res,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { ApiOperation, ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { CurrentUser, JwtPayload } from '../../common/decorators/current-user.decorator';
 import { AgentsGateway } from './agents.gateway';
@@ -17,6 +20,7 @@ import {
   QueryAgentDto,
   UpdateRemoteAccessDto,
   WakeAgentDto,
+  WriteAgentFileDto,
 } from './dto/index';
 
 @ApiTags('Agents')
@@ -48,6 +52,49 @@ export class AgentsController {
   })
   regenerateKey(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
     return this.agentsService.regenerateKey(id, user.sub);
+  }
+
+  @Get(':id/files')
+  @ApiOperation({ summary: 'Liệt kê file trong thư mục StationHub trên agent' })
+  listFiles(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+    @Query('path') path?: string,
+  ) {
+    return this.agentsGateway.listAgentFiles(id, user.sub, path ?? '');
+  }
+
+  @Post(':id/files/write')
+  @ApiOperation({ summary: 'Ghi file lên agent (thư mục đang duyệt)' })
+  writeFile(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+    @Body() body: WriteAgentFileDto,
+  ) {
+    return this.agentsGateway.writeAgentFile(id, user.sub, body);
+  }
+
+  @Get(':id/files/download')
+  @ApiOperation({ summary: 'Tải file từ agent (sandbox StationHub)' })
+  @Header('Cache-Control', 'no-store')
+  async downloadFile(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+    @Query('path') path: string,
+    @Res() res: Response,
+  ) {
+    const file = await this.agentsGateway.readAgentFile(id, user.sub, path);
+    const name = file.path.split('/').pop() || 'download';
+    const buf =
+      file.encoding === 'base64'
+        ? Buffer.from(file.content, 'base64')
+        : Buffer.from(file.content, 'utf-8');
+    res.setHeader('Content-Type', file.mimeType || 'application/octet-stream');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${encodeURIComponent(name)}"`,
+    );
+    res.send(buf);
   }
 
   @Get(':id')
@@ -89,6 +136,20 @@ export class AgentsController {
     @Body() dto: UpdateRemoteAccessDto,
   ) {
     return this.agentsService.updateRemoteAccess(id, user.sub, dto);
+  }
+
+  @Post(':id/remote/start')
+  @ApiOperation({
+    summary: 'Mở ứng dụng RustDesk trên agent (không cài Windows service)',
+  })
+  startRemote(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
+    return this.agentsGateway.startAgentRemote(id, user.sub);
+  }
+
+  @Post(':id/remote/stop')
+  @ApiOperation({ summary: 'Đóng ứng dụng RustDesk trên agent' })
+  stopRemote(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
+    return this.agentsGateway.stopAgentRemote(id, user.sub);
   }
 
   @Delete(':id')

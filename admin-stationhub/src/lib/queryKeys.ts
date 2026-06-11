@@ -21,6 +21,9 @@ export const queryKeys = {
   workflows: (admin: boolean, params: Record<string, unknown>) =>
     ['workflows', admin, params] as const,
   workflow: (id: string) => ['workflow', id] as const,
+  workflowRuns: (params: Record<string, unknown>) =>
+    ['workflow-runs', params] as const,
+  workflowRun: (id: string) => ['workflow-run', id] as const,
   users: (params: Record<string, unknown>) => ['users', params] as const,
   audit: (params: Record<string, unknown>) => ['audit', params] as const,
 };

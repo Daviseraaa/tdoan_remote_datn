@@ -368,6 +368,7 @@ pub fn remote_access_metadata() -> Value {
         "remoteAccessCollectedAt".into(),
         json!(chrono_like_ms()),
     );
+
     Value::Object(obj)
 }
 

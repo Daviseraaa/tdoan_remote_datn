@@ -30,7 +30,8 @@ export type TaskType =
   | 'CHROME_EXTENSION'
   | 'DESKTOP_AUTOMATION'
   | 'SCREEN_CAPTURE'
-  | 'HTTP_REQUEST';
+  | 'HTTP_REQUEST'
+  | 'TELEGRAM_SEND';
 
 export type AgentStatus = 'ONLINE' | 'OFFLINE' | 'BUSY';
 
@@ -39,7 +40,19 @@ export interface AgentChromeProfile {
   name?: string;
 }
 
-export type WorkflowStepType = 'COMMAND' | 'SCRIPT' | 'DELAY' | 'CONDITION' | 'TELEGRAM';
+export type WorkflowVariableMode = 'create' | 'read' | 'set';
+
+export type WorkflowExcelMode = 'read' | 'write';
+
+export type WorkflowStepType =
+  | 'COMMAND'
+  | 'SCRIPT'
+  | 'DELAY'
+  | 'CONDITION'
+  | 'LOOP'
+  | 'VARIABLE'
+  | 'EXCEL'
+  | 'TELEGRAM';
 export type TelegramStepAction =
   | 'send_message'
   | 'send_photo'
@@ -193,6 +206,44 @@ export interface UpdateRemoteAccessDto {
   rdpEnabled?: boolean;
 }
 
+export interface StartAgentRemoteResponse {
+  ok: boolean;
+  active: boolean;
+  agentId: string;
+  agentName: string;
+  provider: string;
+  rustdeskId?: string;
+  rustdeskPassword?: string;
+  rustdeskPath?: string;
+  message: string;
+  startedAt?: string;
+  stoppedAt?: string;
+}
+
+export interface AgentFileEntry {
+  name: string;
+  path: string;
+  isDir: boolean;
+  size: number;
+  modifiedAt?: number;
+}
+
+export interface AgentFileListResponse {
+  agentId: string;
+  agentName: string;
+  path: string;
+  root: string;
+  entries: AgentFileEntry[];
+}
+
+export interface AgentFileWriteResponse {
+  agentId: string;
+  agentName: string;
+  path: string;
+  size: number;
+  written: boolean;
+}
+
 export interface Agent {
   id: string;
   name: string;
@@ -290,6 +341,15 @@ export interface WorkflowStepConfig {
   graphEdges?: WorkflowGraphEdgeStored[] | WorkflowGraphEdge[];
   conditionMode?: WorkflowConditionMode;
   conditionExitCode?: number;
+  /** Số lần lặp thân vòng (node LOOP) */
+  loopCount?: number;
+  variableMode?: WorkflowVariableMode;
+  variableName?: string;
+  variableValue?: string;
+  excelMode?: WorkflowExcelMode;
+  filePath?: string;
+  sheetName?: string;
+  hasHeader?: boolean;
   action?: TelegramStepAction;
   telegramBotId?: string;
   botToken?: string;
@@ -311,6 +371,15 @@ export interface WorkflowStep {
   onFailure?: WorkflowStepOnFailure;
 }
 
+export interface WorkflowStepRunOutput {
+  stdout?: string;
+  stderr?: string;
+  json?: unknown;
+  branch?: string;
+  actionResult?: string;
+  exitCode?: number | null;
+}
+
 export interface WorkflowStepResult {
   step: number;
   stepId?: string;
@@ -322,6 +391,7 @@ export interface WorkflowStepResult {
   path?: string;
   depth?: number;
   wave?: number;
+  output?: WorkflowStepRunOutput;
 }
 
 export interface ExecuteWorkflowResult {
@@ -362,6 +432,7 @@ export interface WorkflowStepRun {
   taskId?: string | null;
   exitCode?: number | null;
   error?: string | null;
+  output?: WorkflowStepRunOutput | null;
   depth: number;
   startedAt?: string | null;
   completedAt?: string | null;
@@ -376,13 +447,28 @@ export interface WorkflowFlowRun {
   completedAt?: string | null;
 }
 
+export interface WorkflowRunListItem {
+  id: string;
+  workflowId: string;
+  status: WorkflowRunStatus;
+  triggerType?: string | null;
+  triggerId?: string | null;
+  startedAt: string;
+  completedAt?: string | null;
+  workflow: { id: string; name: string; isActive?: boolean };
+  _count?: { stepRuns: number };
+}
+
 export interface WorkflowRunDetail {
   id: string;
   workflowId: string;
   userId: string;
   status: WorkflowRunStatus;
+  triggerType?: string | null;
   startedAt: string;
   completedAt?: string | null;
+  /** Snapshot biến workflow sau mỗi bước gán/đọc Excel. */
+  variables?: Record<string, unknown> | null;
   workflow: { id: string; name: string };
   flows: WorkflowFlowRun[];
   stepRuns: WorkflowStepRun[];

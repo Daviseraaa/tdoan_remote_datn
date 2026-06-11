@@ -86,6 +86,45 @@ export class WorkflowStepConfigDto {
   @IsNumber()
   conditionExitCode?: number;
 
+  @ApiPropertyOptional({ example: 3, description: 'Số lần lặp (node LOOP)' })
+  @IsOptional()
+  @IsNumber()
+  loopCount?: number;
+
+  @ApiPropertyOptional({ example: 'set', description: 'create | read | set' })
+  @IsOptional()
+  @IsString()
+  variableMode?: string;
+
+  @ApiPropertyOptional({ example: 'counter' })
+  @IsOptional()
+  @IsString()
+  variableName?: string;
+
+  @ApiPropertyOptional({ example: '{{steps.prev.stdout}}' })
+  @IsOptional()
+  @IsString()
+  variableValue?: string;
+
+  @ApiPropertyOptional({ example: 'read', description: 'read | write (node EXCEL)' })
+  @IsOptional()
+  @IsString()
+  excelMode?: string;
+
+  @ApiPropertyOptional({ example: 'C:\\\\data\\\\report.xlsx' })
+  @IsOptional()
+  @IsString()
+  filePath?: string;
+
+  @ApiPropertyOptional({ example: 'Sheet1' })
+  @IsOptional()
+  @IsString()
+  sheetName?: string;
+
+  @ApiPropertyOptional({ example: true })
+  @IsOptional()
+  hasHeader?: boolean;
+
   @ApiPropertyOptional({
     description: 'Thứ tự ổn định — không đổi khi sắp xếp BFS',
   })

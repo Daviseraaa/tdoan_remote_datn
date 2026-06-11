@@ -19,7 +19,7 @@ pub async fn handle_request(req: IpcRequestV1, allow_desktop: bool) -> IpcRespon
             id,
             json!({ "echo": req.payload.unwrap_or(Value::Null) }),
         ),
-        ("desktop", "runSteps") if allow_desktop => match desktop::run_steps_json(req.payload).await {
+        ("desktop", "runSteps") if allow_desktop => match desktop::run_steps_json(req.payload, None).await {
             Ok(v) => IpcResponseV1::ok_json(id, v),
             Err(e) => IpcResponseV1::err_json(id, "DESKTOP", e),
         },

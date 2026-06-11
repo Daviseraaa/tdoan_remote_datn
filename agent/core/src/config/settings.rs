@@ -119,3 +119,38 @@ impl AgentConfig {
         }
     }
 }
+
+#[derive(Debug, Clone)]
+pub struct RustdeskConfig {
+    pub exe_path: String,
+    pub id: String,
+    pub password: String,
+}
+
+fn rustdesk_key_from_config(key: &str, default: &str) -> String {
+    // Đọc thẳng từ agent.env — dotenv có thể cắt giá trị có khoảng trắng (vd. RustDesk ID).
+    if let Some(v) = env_load::read_key_from_active_config(key) {
+        if !v.trim().is_empty() {
+            return v;
+        }
+    }
+    env_load::load_env_files();
+    if let Some(v) = env_load::read_key_from_active_config(key) {
+        if !v.trim().is_empty() {
+            return v;
+        }
+    }
+    env_str(key, default)
+}
+
+/// Đọc lại từ agent.env (sau khi user sửa Cài đặt tray).
+pub fn rustdesk_config_now() -> RustdeskConfig {
+    RustdeskConfig {
+        exe_path: rustdesk_key_from_config(
+            "RUSTDESK_EXE_PATH",
+            r"C:\Program Files\RustDesk\rustdesk.exe",
+        ),
+        id: rustdesk_key_from_config("RUSTDESK_ID", ""),
+        password: rustdesk_key_from_config("RUSTDESK_PASSWORD", ""),
+    }
+}

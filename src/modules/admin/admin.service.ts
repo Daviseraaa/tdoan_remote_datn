@@ -24,6 +24,7 @@ import { CreateAdminPlanDto, UpdateAdminPlanDto } from './dto/admin-plan.dto';
 import { QueryTasksDto } from './dto/query-tasks.dto';
 import { QueryWorkflowRunsDto } from './dto/query-workflow-runs.dto';
 import { QueryPaymentsDto } from './dto/query-payments.dto';
+import { notifyTaskCompleted } from '../../common/task-completion-registry';
 import { AgentTelemetryStore } from '../agents/agent-telemetry.store';
 import { AgentsGateway } from '../agents/agents.gateway';
 import { SubscriptionService } from '../billing/subscription.service';
@@ -484,10 +485,32 @@ export class AdminService {
     if (terminalStatuses.includes(task.status)) {
       throw new BadRequestException('Task already finished');
     }
-    return this.prisma.task.update({
+
+    const wasRunning = task.status === TaskStatus.RUNNING;
+
+    const updated = await this.prisma.task.update({
       where: { id },
       data: { status: TaskStatus.CANCELLED, completedAt: new Date() },
     });
+
+    await this.prisma.taskLog.create({
+      data: {
+        taskId: id,
+        level: 'INFO',
+        message: 'Task cancelled by admin',
+      },
+    });
+
+    if (wasRunning) {
+      this.agentsGateway.emitTaskCancel(task.agentId, task.id);
+      notifyTaskCompleted(task.id, {
+        status: TaskStatus.CANCELLED,
+        exitCode: -1,
+        result: 'Cancelled by admin',
+      });
+    }
+
+    return updated;
   }
 
   async listWorkflows(pagination: PaginationDto) {

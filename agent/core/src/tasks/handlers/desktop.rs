@@ -145,9 +145,45 @@ impl TaskHandler for Handler {
             }
         }
 
-        match ctx.platform.desktop().run_steps(Value::Array(steps_arr)).await {
-            Ok(out) => (true, 0, None, Some(out)),
-            Err(e) => (false, -1, Some(e), None),
+        if ctx.is_cancelled() {
+            return (
+                false,
+                -1,
+                Some("Task cancelled".into()),
+                Some(serde_json::json!({ "cancelled": true })),
+            );
+        }
+
+        match ctx
+            .platform
+            .desktop()
+            .run_steps(Value::Array(steps_arr), ctx.cancel.clone())
+            .await
+        {
+            Ok(out) => {
+                if ctx.is_cancelled() {
+                    (
+                        false,
+                        -1,
+                        Some("Task cancelled".into()),
+                        Some(serde_json::json!({ "cancelled": true })),
+                    )
+                } else {
+                    (true, 0, None, Some(out))
+                }
+            }
+            Err(e) => {
+                if ctx.is_cancelled() || e == "Task cancelled" {
+                    (
+                        false,
+                        -1,
+                        Some("Task cancelled".into()),
+                        Some(serde_json::json!({ "cancelled": true })),
+                    )
+                } else {
+                    (false, -1, Some(e), None)
+                }
+            }
         }
     }
 }

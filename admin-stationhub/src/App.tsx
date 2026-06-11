@@ -12,6 +12,7 @@ import { NavLayoutProvider } from './context/NavLayoutContext';
 import { WsProvider } from './context/WsProvider';
 import Dashboard from './views/Dashboard';
 import Agents from './views/Agents';
+import AgentFilesBrowser from './views/AgentFilesBrowser';
 import Workflows from './views/Workflows';
 import WorkflowEditorPage from './views/WorkflowEditorPage';
 import Automations from './views/Automations';
@@ -209,6 +210,7 @@ function AppContent() {
               <Routes location={location}>
                 <Route path="/" element={<Dashboard />} />
                 <Route path="/agents" element={<Agents />} />
+                <Route path="/agents/:id/files" element={<AgentFilesBrowser />} />
                 <Route path="/tasks" element={<Tasks />} />
                 <Route path="/chrome-scripts" element={<ChromeScripts />} />
                 <Route

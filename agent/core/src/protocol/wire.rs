@@ -82,3 +82,11 @@ pub fn tool_result_to_task_wire(
         exit_code,
     }
 }
+
+pub fn cancelled_task_wire(message: &str) -> TaskWire {
+    TaskWire {
+        status: "CANCELLED".into(),
+        output: message.to_string(),
+        exit_code: -1,
+    }
+}

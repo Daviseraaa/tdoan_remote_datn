@@ -3,6 +3,12 @@ import {
   Clock,
   GitBranch,
   MessageCircle,
+  Repeat,
+  Plus,
+  BookOpen,
+  Pencil,
+  Table2,
+  FileSpreadsheet,
 } from 'lucide-react';
 import { t } from '@/src/i18n/t';
 import type { ChromeScript, DesktopRecording, TaskTemplate, TaskType, Workflow } from '@/src/types/api';
@@ -16,7 +22,7 @@ import type { DesktopAction } from '@/src/lib/desktopRecordingSteps';
 const SHELL_TASK_ITEMS: TaskType[] = ['COMMAND', 'SCRIPT', 'SYSTEM_INFO'];
 
 /** Gọi HTTP/API từ mạng agent */
-const NETWORK_TASK_ITEMS: TaskType[] = ['HTTP_REQUEST'];
+const NETWORK_TASK_ITEMS: TaskType[] = ['HTTP_REQUEST', 'TELEGRAM_SEND'];
 
 /** Mở app, tự động hóa desktop, chụp màn hình */
 const DESKTOP_TASK_ITEMS: TaskType[] = ['OPEN_APP', 'CLOSE_APP', 'DESKTOP_AUTOMATION', 'SCREEN_CAPTURE'];
@@ -34,6 +40,12 @@ const ALL_TASK_ITEMS: TaskType[] = [
 type Props = {
   onAddDelay: () => void;
   onAddCondition: () => void;
+  onAddLoop: () => void;
+  onAddVarCreate: () => void;
+  onAddVarRead: () => void;
+  onAddVarSet: () => void;
+  onAddExcelRead: () => void;
+  onAddExcelWrite: () => void;
   onAddTelegram: () => void;
   onAddTask: (type: TaskType) => void;
   onImportChromeScript: (script: ChromeScript) => void;
@@ -57,11 +69,23 @@ function PaletteSectionLabel({ label }: { label: string }) {
 function FlowControlButtons({
   onAddDelay,
   onAddCondition,
+  onAddLoop,
+  onAddVarCreate,
+  onAddVarRead,
+  onAddVarSet,
+  onAddExcelRead,
+  onAddExcelWrite,
   onAddTelegram,
   compact,
 }: {
   onAddDelay: () => void;
   onAddCondition: () => void;
+  onAddLoop: () => void;
+  onAddVarCreate: () => void;
+  onAddVarRead: () => void;
+  onAddVarSet: () => void;
+  onAddExcelRead: () => void;
+  onAddExcelWrite: () => void;
   onAddTelegram: () => void;
   compact?: boolean;
 }) {
@@ -93,6 +117,42 @@ function FlowControlButtons({
           <GitBranch size={16} />,
         )}
         {btn(
+          'border-violet-400/25 hover:bg-violet-400/10 text-violet-400',
+          t('workflows.nodeLoop', { count: 3 }),
+          onAddLoop,
+          <Repeat size={16} />,
+        )}
+        {btn(
+          'border-emerald-400/25 hover:bg-emerald-400/10 text-emerald-400',
+          t('workflows.nodeVarCreate'),
+          onAddVarCreate,
+          <Plus size={16} />,
+        )}
+        {btn(
+          'border-emerald-400/25 hover:bg-emerald-400/10 text-emerald-400',
+          t('workflows.nodeVarRead'),
+          onAddVarRead,
+          <BookOpen size={16} />,
+        )}
+        {btn(
+          'border-emerald-400/25 hover:bg-emerald-400/10 text-emerald-400',
+          t('workflows.nodeVarSet'),
+          onAddVarSet,
+          <Pencil size={16} />,
+        )}
+        {btn(
+          'border-teal-400/25 hover:bg-teal-400/10 text-teal-400',
+          t('workflows.nodeExcelRead'),
+          onAddExcelRead,
+          <Table2 size={16} />,
+        )}
+        {btn(
+          'border-teal-400/25 hover:bg-teal-400/10 text-teal-400',
+          t('workflows.nodeExcelWrite'),
+          onAddExcelWrite,
+          <FileSpreadsheet size={16} />,
+        )}
+        {btn(
           'border-sky-400/25 hover:bg-sky-400/10 text-sky-400',
           t('workflows.paletteTelegram'),
           onAddTelegram,
@@ -119,6 +179,54 @@ function FlowControlButtons({
       >
         <GitBranch size={16} className="text-amber-400 shrink-0" />
         {t('workflows.nodeCondition')}
+      </button>
+      <button
+        type="button"
+        onClick={onAddLoop}
+        className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl border border-violet-400/25 hover:bg-violet-400/10 text-left text-sm font-bold"
+      >
+        <Repeat size={16} className="text-violet-400 shrink-0" />
+        {t('workflows.nodeLoop', { count: 3 })}
+      </button>
+      <button
+        type="button"
+        onClick={onAddVarCreate}
+        className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl border border-emerald-400/25 hover:bg-emerald-400/10 text-left text-sm font-bold"
+      >
+        <Plus size={16} className="text-emerald-400 shrink-0" />
+        {t('workflows.nodeVarCreate')}
+      </button>
+      <button
+        type="button"
+        onClick={onAddVarRead}
+        className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl border border-emerald-400/25 hover:bg-emerald-400/10 text-left text-sm font-bold"
+      >
+        <BookOpen size={16} className="text-emerald-400 shrink-0" />
+        {t('workflows.nodeVarRead')}
+      </button>
+      <button
+        type="button"
+        onClick={onAddVarSet}
+        className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl border border-emerald-400/25 hover:bg-emerald-400/10 text-left text-sm font-bold"
+      >
+        <Pencil size={16} className="text-emerald-400 shrink-0" />
+        {t('workflows.nodeVarSet')}
+      </button>
+      <button
+        type="button"
+        onClick={onAddExcelRead}
+        className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl border border-teal-400/25 hover:bg-teal-400/10 text-left text-sm font-bold"
+      >
+        <Table2 size={16} className="text-teal-400 shrink-0" />
+        {t('workflows.nodeExcelRead')}
+      </button>
+      <button
+        type="button"
+        onClick={onAddExcelWrite}
+        className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl border border-teal-400/25 hover:bg-teal-400/10 text-left text-sm font-bold"
+      >
+        <FileSpreadsheet size={16} className="text-teal-400 shrink-0" />
+        {t('workflows.nodeExcelWrite')}
       </button>
       <button
         type="button"
@@ -185,6 +293,12 @@ function TaskPaletteButtons({
 export function WorkflowNodePalette({
   onAddDelay,
   onAddCondition,
+  onAddLoop,
+  onAddVarCreate,
+  onAddVarRead,
+  onAddVarSet,
+  onAddExcelRead,
+  onAddExcelWrite,
   onAddTelegram,
   onAddTask,
   onImportChromeScript,
@@ -202,6 +316,12 @@ export function WorkflowNodePalette({
         <FlowControlButtons
           onAddDelay={onAddDelay}
           onAddCondition={onAddCondition}
+          onAddLoop={onAddLoop}
+          onAddVarCreate={onAddVarCreate}
+          onAddVarRead={onAddVarRead}
+          onAddVarSet={onAddVarSet}
+          onAddExcelRead={onAddExcelRead}
+          onAddExcelWrite={onAddExcelWrite}
           onAddTelegram={onAddTelegram}
           compact
         />
@@ -228,6 +348,12 @@ export function WorkflowNodePalette({
       <FlowControlButtons
         onAddDelay={onAddDelay}
         onAddCondition={onAddCondition}
+        onAddLoop={onAddLoop}
+        onAddVarCreate={onAddVarCreate}
+        onAddVarRead={onAddVarRead}
+        onAddVarSet={onAddVarSet}
+        onAddExcelRead={onAddExcelRead}
+        onAddExcelWrite={onAddExcelWrite}
         onAddTelegram={onAddTelegram}
       />
 

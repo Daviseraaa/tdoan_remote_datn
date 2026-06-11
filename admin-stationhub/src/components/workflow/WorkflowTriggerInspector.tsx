@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { CalendarClock, MessageCircle, PlayCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import type { ScheduleKind, WorkflowTriggerType } from '@/src/api/triggers';
@@ -18,7 +17,6 @@ type Props = {
   draft: EntryTriggerDraft;
   workflowActive: boolean;
   onChange: (patch: Partial<EntryTriggerDraft>) => void;
-  onNewBotChange?: (bot: { name: string; botToken: string } | null) => void;
 };
 
 const TRIGGER_TYPES: WorkflowTriggerType[] = ['MANUAL', 'SCHEDULE', 'TELEGRAM'];
@@ -55,21 +53,7 @@ export function WorkflowTriggerInspector({
   draft,
   workflowActive,
   onChange,
-  onNewBotChange,
 }: Props) {
-  const [createNewBot, setCreateNewBot] = useState(false);
-  const [botName, setBotName] = useState('');
-  const [botToken, setBotToken] = useState('');
-
-  const syncNewBot = (create: boolean, name: string, token: string) => {
-    if (!onNewBotChange) return;
-    if (create && name.trim() && token.trim()) {
-      onNewBotChange({ name: name.trim(), botToken: token.trim() });
-    } else {
-      onNewBotChange(null);
-    }
-  };
-
   const toggleEvent = (ev: string) => {
     const next = draft.telegramEvents.includes(ev)
       ? draft.telegramEvents.filter((x) => x !== ev)
@@ -232,61 +216,16 @@ export function WorkflowTriggerInspector({
 
       {draft.type === 'TELEGRAM' ? (
         <div className="space-y-4 rounded-xl border border-white/5 bg-white/[0.02] p-4">
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={createNewBot}
-              onChange={(e) => {
-                const v = e.target.checked;
-                setCreateNewBot(v);
-                syncNewBot(v, botName, botToken);
-              }}
+          <div>
+            <label className="text-[10px] font-mono font-bold uppercase text-on-surface-variant">
+              {t('triggers.selectBot')}
+            </label>
+            <WfTelegramBotSelect
+              value={draft.telegramBotId}
+              onChange={(id) => onChange({ telegramBotId: id })}
+              autoSelectFirst={!draft.telegramBotId}
             />
-            {t('triggers.createNewBot')}
-          </label>
-          {createNewBot ? (
-            <>
-              <div>
-                <label className="text-[10px] font-mono font-bold uppercase text-on-surface-variant">
-                  {t('triggers.botName')}
-                </label>
-                <input
-                  value={botName}
-                  onChange={(e) => {
-                    setBotName(e.target.value);
-                    syncNewBot(true, e.target.value, botToken);
-                  }}
-                  className={inputCls}
-                />
-              </div>
-              <div>
-                <label className="text-[10px] font-mono font-bold uppercase text-on-surface-variant">
-                  {t('triggers.botToken')}
-                </label>
-                <input
-                  value={botToken}
-                  onChange={(e) => {
-                    setBotToken(e.target.value);
-                    syncNewBot(true, botName, e.target.value);
-                  }}
-                  type="password"
-                  className={cn(inputCls, 'font-mono')}
-                />
-              </div>
-              <p className="text-[10px] text-on-surface-variant">{t('triggers.botsSectionDesc')}</p>
-            </>
-          ) : (
-            <div>
-              <label className="text-[10px] font-mono font-bold uppercase text-on-surface-variant">
-                {t('triggers.selectBot')}
-              </label>
-              <WfTelegramBotSelect
-                value={draft.telegramBotId}
-                onChange={(id) => onChange({ telegramBotId: id })}
-                autoSelectFirst={!draft.telegramBotId}
-              />
-            </div>
-          )}
+          </div>
           <div>
             <label className="text-[10px] font-mono font-bold uppercase text-on-surface-variant">
               {t('triggers.fieldCommands')}

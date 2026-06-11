@@ -1,5 +1,19 @@
 import type { WfRunStatus } from '@/src/lib/workflowGraph';
-import type { Workflow, WorkflowStepRun } from '@/src/types/api';
+import { stepRuntimeKey } from '@/src/lib/workflowGraph';
+import type {
+  StepRunStatus,
+  Workflow,
+  WorkflowRunStatus,
+  WorkflowStep,
+  WorkflowStepResult,
+  WorkflowStepRun,
+  WorkflowStepRunOutput,
+} from '@/src/types/api';
+
+function parseStepRunOutput(raw: unknown): WorkflowStepRunOutput | undefined {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined;
+  return raw as WorkflowStepRunOutput;
+}
 
 export function stepKeyForStep(
   step: { id?: string; order: number; config?: unknown },
@@ -8,12 +22,96 @@ export function stepKeyForStep(
   return cfg?.stepKey ?? step.id ?? `step-${step.order}`;
 }
 
+export function sortStepRuns(stepRuns: WorkflowStepRun[]): WorkflowStepRun[] {
+  return [...stepRuns].sort((a, b) => {
+    const pathA = a.flowPath ?? '';
+    const pathB = b.flowPath ?? '';
+    if (pathA !== pathB) return pathA.localeCompare(pathB);
+    if (a.depth !== b.depth) return a.depth - b.depth;
+    return a.order - b.order;
+  });
+}
+
+export function stepRunToWfStatus(status: StepRunStatus): WfRunStatus {
+  switch (status) {
+    case 'COMPLETED':
+      return 'completed';
+    case 'FAILED':
+      return 'failed';
+    case 'RUNNING':
+      return 'running';
+    case 'PENDING':
+      return 'pending';
+    case 'SKIPPED':
+      return 'skipped';
+    default:
+      return 'pending';
+  }
+}
+
+const TERMINAL_RUN_STATUSES: WorkflowRunStatus[] = [
+  'COMPLETED',
+  'FAILED',
+  'CANCELLED',
+];
+
+/** Workflow đã kết thúc nhưng stepRun còn RUNNING/PENDING trong DB → không còn chạy thật. */
+export function effectiveStepRunStatus(
+  sr: WorkflowStepRun,
+  runStatus?: WorkflowRunStatus,
+): WfRunStatus {
+  const raw = stepRunToWfStatus(sr.status);
+  if (
+    runStatus &&
+    TERMINAL_RUN_STATUSES.includes(runStatus) &&
+    (sr.status === 'RUNNING' || sr.status === 'PENDING')
+  ) {
+    if (sr.exitCode != null) {
+      return sr.exitCode === 0 ? 'completed' : 'failed';
+    }
+    if (sr.error) return 'failed';
+    if (sr.output) return 'completed';
+    return runStatus === 'FAILED' ? 'failed' : 'completed';
+  }
+  return raw;
+}
+
+function resolveStepFromRun(
+  wf: Workflow | null | undefined,
+  stepId: string,
+): WorkflowStep | undefined {
+  return (wf?.steps ?? []).find((s) => s.id === stepId);
+}
+
+export function stepRunToStepResult(
+  sr: WorkflowStepRun,
+  wf?: Workflow | null,
+  runStatus?: WorkflowRunStatus,
+): WorkflowStepResult {
+  const step = resolveStepFromRun(wf, sr.stepId);
+  const order = step?.order ?? sr.order;
+  const wfStatus = effectiveStepRunStatus(sr, runStatus);
+  return {
+    step: order,
+    stepId: sr.stepId,
+    status:
+      wfStatus === 'completed' ? 'completed' : wfStatus === 'failed' ? 'failed' : wfStatus,
+    taskId: sr.taskId ?? undefined,
+    exitCode: sr.exitCode,
+    error: sr.error ?? undefined,
+    path: sr.flowPath ?? undefined,
+    depth: sr.depth,
+    wave: sr.depth,
+    output: parseStepRunOutput(sr.output),
+  };
+}
+
 export function buildRunStatusFromStepRuns(
   wf: Workflow | null | undefined,
   stepRuns: WorkflowStepRun[],
 ): Record<string, WfRunStatus> {
   const keyByStepId = new Map(
-    (wf?.steps ?? []).map((s) => [s.id ?? '', stepKeyForStep(s)]),
+    (wf?.steps ?? []).map((s) => [s.id ?? '', stepRuntimeKey(s)]),
   );
   const map: Record<string, WfRunStatus> = {};
   for (const sr of stepRuns) {
@@ -76,6 +174,7 @@ export function stepRunsToExecuteResult(
       path: sr.flowPath ?? undefined,
       depth: sr.depth,
       wave: sr.depth,
+      output: parseStepRunOutput(sr.output),
     }));
   return {
     workflowId: wf.id,

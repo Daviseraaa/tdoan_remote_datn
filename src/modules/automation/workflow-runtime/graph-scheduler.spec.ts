@@ -53,4 +53,58 @@ describe('executeGraphIndependent', () => {
 
     expect(finished.indexOf('c')).toBeLessThan(finished.indexOf('b'));
   });
+
+  it('repeats loop body via loop-back edge', async () => {
+    const loopSteps = [
+      {
+        id: 'loop',
+        order: 1,
+        type: StepType.LOOP,
+        config: { loopCount: 3 },
+        onFailure: OnFailure.STOP,
+      },
+      {
+        id: 'body',
+        order: 2,
+        type: StepType.DELAY,
+        config: { delayMs: 1 },
+        onFailure: OnFailure.STOP,
+      },
+      {
+        id: 'done',
+        order: 3,
+        type: StepType.DELAY,
+        config: { delayMs: 1 },
+        onFailure: OnFailure.STOP,
+      },
+    ];
+    const loopEdges: WorkflowGraphEdge[] = [
+      { source: WF_TRIGGER_ID, target: 'loop' },
+      { source: 'loop', target: 'body', sourceHandle: 'body' },
+      { source: 'body', target: 'loop' },
+      { source: 'loop', target: 'done', sourceHandle: 'done' },
+    ];
+    const bodyRuns: number[] = [];
+    let loopIdx = 0;
+    await executeGraphIndependent('wf', loopSteps, loopEdges, {}, async (step) => {
+      if (step.id === 'body') bodyRuns.push(bodyRuns.length);
+      let branch: string | undefined;
+      if (step.id === 'loop') {
+        branch = loopIdx < 3 ? 'body' : 'done';
+        if (branch === 'body') loopIdx += 1;
+      }
+      return {
+        result: {
+          step: step.order,
+          stepId: step.id,
+          status: 'completed',
+          branch,
+        },
+        nextCtx: emptyCtx({}),
+        stop: false,
+        branch,
+      };
+    });
+    expect(bodyRuns).toEqual([0, 1, 2]);
+  });
 });

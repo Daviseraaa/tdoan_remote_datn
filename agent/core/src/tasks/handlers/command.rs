@@ -10,18 +10,35 @@ pub struct CommandHandler;
 pub struct ScriptHandler;
 
 async fn run_shell_task(ctx: &TaskContext<'_>, t: &TaskExecute) -> TaskOutcome {
+    if ctx.is_cancelled() {
+        return (
+            false,
+            -1,
+            Some("Task cancelled".into()),
+            Some(json!({ "cancelled": true })),
+        );
+    }
     let timeout_ms = if t.timeout > 0 {
         t.timeout
     } else {
         ctx.config.command_timeout_ms
     };
-    let res = shell::execute_command(
+    let res = shell::execute_command_with_cancel(
         &t.command,
         &ctx.config.default_shell,
         timeout_ms,
         ctx.config.max_output_bytes,
+        ctx.cancel.clone(),
     )
     .await;
+    if res.cancelled || ctx.is_cancelled() {
+        return (
+            false,
+            -1,
+            Some("Task cancelled".into()),
+            Some(json!({ "cancelled": true })),
+        );
+    }
     let ok = res.exit_code == 0 && !res.timed_out;
     let payload = json!({
         "stdout": res.stdout,

@@ -50,6 +50,9 @@ import {
   flowToWorkflowPayload,
   newConditionNodeData,
   newDelayNodeData,
+  newLoopNodeData,
+  newVariableNodeData,
+  newExcelNodeData,
   newTelegramNodeData,
   buildWorkflowNodesFromChromeScript,
   buildWorkflowNodesFromDesktopRecording,
@@ -63,8 +66,11 @@ import {
   workflowGraphFingerprint,
   workflowToFlow,
   WF_EDGE_TYPE,
+  WF_HANDLE_BODY,
+  WF_HANDLE_DONE,
   WF_HANDLE_FALSE,
   WF_HANDLE_TRUE,
+  wfChainSourceHandle,
   getUpstreamStepKeys,
   type UpstreamOutputKey,
   type WfNodeData,
@@ -172,9 +178,6 @@ export function WorkflowEditor({
     null,
   );
   const [entryTrigger, setEntryTrigger] = useState<EntryTriggerDraft>(() => defaultEntryTriggerDraft());
-  const [newTelegramBot, setNewTelegramBot] = useState<{ name: string; botToken: string } | null>(
-    null,
-  );
   const entryTriggerSyncSig = useRef('');
 
   const { data: workflowTriggers } = useQuery({
@@ -263,7 +266,6 @@ export function WorkflowEditor({
     entryTriggerSyncSig.current = sig;
     const draft = draftFromWorkflowTrigger(pickEntryTrigger(workflowTriggers ?? []));
     setEntryTrigger(draft);
-    setNewTelegramBot(null);
     applyEntryTriggerToCanvas(draft);
   }, [workflow.id, graphReloadToken, workflowTriggers, applyEntryTriggerToCanvas]);
 
@@ -298,9 +300,8 @@ export function WorkflowEditor({
     () => ({
       ...flowToWorkflowPayload(nodes as Node<WfNodeData>[], edges),
       entryTrigger,
-      newTelegramBot: newTelegramBot ?? undefined,
     }),
-    [nodes, edges, entryTrigger, newTelegramBot],
+    [nodes, edges, entryTrigger],
   );
 
   const isTriggerSelected = selectedNodeId === WF_TRIGGER_ID;
@@ -313,12 +314,19 @@ export function WorkflowEditor({
       if (kind === 'condition' && handle !== WF_HANDLE_TRUE && handle !== WF_HANDLE_FALSE) {
         return;
       }
+      if (kind === 'loop' && handle !== WF_HANDLE_BODY && handle !== WF_HANDLE_DONE) {
+        return;
+      }
       const label =
         handle === WF_HANDLE_TRUE
           ? t('workflows.branchTrue')
           : handle === WF_HANDLE_FALSE
             ? t('workflows.branchFalse')
-            : undefined;
+            : handle === WF_HANDLE_BODY
+              ? t('workflows.branchBody')
+              : handle === WF_HANDLE_DONE
+                ? t('workflows.branchDone')
+                : undefined;
       const dup = edges.some(
         (e) =>
           e.source === conn.source &&
@@ -440,7 +448,7 @@ export function WorkflowEditor({
       if (chainFromSelected && chainAnchorId) {
         const srcNode = nodes.find((n) => n.id === chainAnchorId);
         const kind = (srcNode?.data as WfNodeData | undefined)?.kind;
-        const handle = kind === 'condition' ? WF_HANDLE_TRUE : undefined;
+        const handle = wfChainSourceHandle(kind);
         const edgeId = `e-${chainAnchorId}-${id}-${handle ?? 'd'}`;
         setEdges((eds) => [
           ...eds,
@@ -457,7 +465,11 @@ export function WorkflowEditor({
                 ? t('workflows.branchTrue')
                 : handle === WF_HANDLE_FALSE
                   ? t('workflows.branchFalse')
-                  : undefined,
+                  : handle === WF_HANDLE_BODY
+                    ? t('workflows.branchBody')
+                    : handle === WF_HANDLE_DONE
+                      ? t('workflows.branchDone')
+                      : undefined,
             labelStyle: handle
               ? { fill: '#a4e6ff', fontSize: 10, fontWeight: 700 }
               : undefined,
@@ -492,7 +504,11 @@ export function WorkflowEditor({
             ? t('workflows.branchTrue')
             : sourceHandle === WF_HANDLE_FALSE
               ? t('workflows.branchFalse')
-              : undefined,
+              : sourceHandle === WF_HANDLE_BODY
+                ? t('workflows.branchBody')
+                : sourceHandle === WF_HANDLE_DONE
+                  ? t('workflows.branchDone')
+                  : undefined,
         labelStyle: sourceHandle
           ? { fill: '#a4e6ff', fontSize: 10, fontWeight: 700 }
           : undefined,
@@ -608,7 +624,7 @@ export function WorkflowEditor({
       if (connectFrom) {
         const srcNode = nodes.find((n) => n.id === connectFrom);
         const kind = (srcNode?.data as WfNodeData | undefined)?.kind;
-        const handle = kind === 'condition' ? WF_HANDLE_TRUE : undefined;
+        const handle = wfChainSourceHandle(kind);
         newEdges.push(makeWorkflowEdge(connectFrom, built[0]!.stepKey, handle));
       }
       for (let i = 0; i < built.length - 1; i++) {
@@ -733,10 +749,23 @@ export function WorkflowEditor({
     );
   }, [selectedNodeId, graphEdgesForUpstream, nodes]);
 
-  const workflowVarKeys = useMemo(
-    () => Object.keys(workflow.variables ?? {}),
-    [workflow.variables],
-  );
+  const workflowVarKeys = useMemo(() => {
+    const keys = new Set(Object.keys(workflow.variables ?? {}));
+    for (const n of nodes) {
+      if (n.id === WF_TRIGGER_ID) continue;
+      const d = n.data as WfNodeData;
+      if (d.kind === 'variable') {
+        const name = d.config.variableName?.trim();
+        if (name) keys.add(name);
+        continue;
+      }
+      if (d.kind === 'excel' && (d.config.excelMode ?? 'read') === 'read') {
+        const name = d.config.variableName?.trim();
+        if (name) keys.add(name);
+      }
+    }
+    return [...keys];
+  }, [workflow.variables, nodes]);
 
   const variablesJson = useMemo(
     () => JSON.stringify(workflow.variables ?? {}, null, 2),
@@ -843,11 +872,21 @@ export function WorkflowEditor({
   }, [selectedEdgeId, deleteSelectedEdge, deleteSelectedNodes]);
 
   const updateSelectedEdgeBranch = useCallback(
-    (handle: typeof WF_HANDLE_TRUE | typeof WF_HANDLE_FALSE) => {
+    (handle: string) => {
       if (!selectedEdgeId) return;
       const edge = edges.find((e) => e.id === selectedEdgeId);
       if (!edge) return;
       const nextId = `e-${edge.source}-${edge.target}-${handle}`;
+      const label =
+        handle === WF_HANDLE_TRUE
+          ? t('workflows.branchTrue')
+          : handle === WF_HANDLE_FALSE
+            ? t('workflows.branchFalse')
+            : handle === WF_HANDLE_BODY
+              ? t('workflows.branchBody')
+              : handle === WF_HANDLE_DONE
+                ? t('workflows.branchDone')
+                : undefined;
       setEdges((eds) =>
         eds.map((e) => {
           if (e.id !== selectedEdgeId) return e;
@@ -855,11 +894,10 @@ export function WorkflowEditor({
             ...e,
             id: nextId,
             sourceHandle: handle,
-            label:
-              handle === WF_HANDLE_TRUE
-                ? t('workflows.branchTrue')
-                : t('workflows.branchFalse'),
-            labelStyle: { fill: '#a4e6ff', fontSize: 10, fontWeight: 700 },
+            label,
+            labelStyle: label
+              ? { fill: '#a4e6ff', fontSize: 10, fontWeight: 700 }
+              : undefined,
           };
         }),
       );
@@ -1063,6 +1101,34 @@ export function WorkflowEditor({
             const k = crypto.randomUUID();
             appendNode(newConditionNodeData({ x: 0, y: 0 }, k));
           }}
+          onAddLoop={() => {
+            const k = crypto.randomUUID();
+            appendNode(newLoopNodeData({ x: 0, y: 0 }, k));
+          }}
+          onAddVarCreate={() => {
+            const k = crypto.randomUUID();
+            appendNode(newVariableNodeData('create', { x: 0, y: 0 }, k));
+          }}
+          onAddVarRead={() => {
+            const k = crypto.randomUUID();
+            appendNode(newVariableNodeData('read', { x: 0, y: 0 }, k));
+          }}
+          onAddVarSet={() => {
+            const k = crypto.randomUUID();
+            appendNode(newVariableNodeData('set', { x: 0, y: 0 }, k));
+          }}
+          onAddExcelRead={() => {
+            const k = crypto.randomUUID();
+            const agentId = defaultAgentId || agents[0]?.id || '';
+            if (!defaultAgentId && agents[0]) onDefaultAgentIdChange(agents[0].id);
+            appendNode(newExcelNodeData('read', agentId, { x: 0, y: 0 }, k));
+          }}
+          onAddExcelWrite={() => {
+            const k = crypto.randomUUID();
+            const agentId = defaultAgentId || agents[0]?.id || '';
+            if (!defaultAgentId && agents[0]) onDefaultAgentIdChange(agents[0].id);
+            appendNode(newExcelNodeData('write', agentId, { x: 0, y: 0 }, k));
+          }}
           onAddTelegram={() => {
             const k = crypto.randomUUID();
             appendNode(newTelegramNodeData({ x: 0, y: 0 }, k));
@@ -1244,7 +1310,6 @@ export function WorkflowEditor({
                   draft={entryTrigger}
                   workflowActive={workflow.isActive !== false}
                   onChange={patchEntryTrigger}
-                  onNewBotChange={setNewTelegramBot}
                 />
               ) : (
                 <WorkflowStepInspector

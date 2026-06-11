@@ -1,4 +1,4 @@
-import { AlertCircle, PlayCircle, Split, Terminal } from 'lucide-react';
+import { AlertCircle, Braces, PlayCircle, Repeat, Split, Terminal } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { Workflow, WorkflowStep } from '@/src/types/api';
 
@@ -28,6 +28,9 @@ export interface UiWorkflow {
 function stepIcon(type: string): LucideIcon {
   if (type === 'SCRIPT' || type === 'COMMAND') return Terminal;
   if (type === 'CONDITION') return Split;
+  if (type === 'LOOP') return Repeat;
+  if (type === 'VARIABLE') return Braces;
+  if (type === 'EXCEL') return Braces;
   if (type === 'DELAY') return AlertCircle;
   return PlayCircle;
 }

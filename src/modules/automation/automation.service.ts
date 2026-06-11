@@ -16,10 +16,20 @@ import { TasksService } from '../tasks/tasks.service';
 import {
   buildRunScope,
   buildStepOutput,
+  extractExcelRowsFromTaskResult,
+  formatWorkflowValue,
+  getWorkflowVar,
+  hasWorkflowVar,
+  normalizeVariableName,
   parseWorkflowVariables,
   publishStepOutput,
+  resolveOutputKey,
   resolvePayload,
   resolveTemplateString,
+  resolveVariableValueTemplate,
+  setWorkflowVar,
+  type WorkflowRunScope,
+  type WorkflowVariableMode,
 } from './workflow-variables';
 import {
   resolveWorkflowGraphEdges,
@@ -29,6 +39,10 @@ import {
   executeGraphIndependent,
   type StepContext,
 } from './workflow-runtime';
+import {
+  HANDLE_BODY,
+  HANDLE_DONE,
+} from './workflow-runtime/graph-utils';
 import { WorkflowRuntimeService } from './workflow-runtime.service';
 import { TelegramActionService } from '../triggers/telegram/telegram-action.service';
 import { TelegramWorkflowProgressService } from '../triggers/telegram/telegram-workflow-progress.service';
@@ -73,7 +87,15 @@ export interface WorkflowStepConfig {
   ui?: { x: number; y: number };
   graphEdges?: WorkflowGraphEdgeStored[] | WorkflowGraphEdge[];
   conditionMode?: 'last_exit_success' | 'last_exit_failed' | 'last_exit_code_eq';
+  loopCount?: number;
   conditionExitCode?: number;
+  variableMode?: WorkflowVariableMode;
+  variableName?: string;
+  variableValue?: string;
+  excelMode?: 'read' | 'write';
+  filePath?: string;
+  sheetName?: string;
+  hasHeader?: boolean;
   outputKey?: string;
 }
 
@@ -93,7 +115,17 @@ export interface WorkflowStepResult {
   wave?: number;
   /** Kết quả bước không-task (vd. Telegram API). */
   actionResult?: string;
+  output?: WorkflowStepRunOutput;
 }
+
+export type WorkflowStepRunOutput = {
+  stdout?: string;
+  stderr?: string;
+  json?: unknown;
+  branch?: string;
+  actionResult?: string;
+  exitCode?: number | null;
+};
 
 function parseConfig(raw: unknown): WorkflowStepConfig {
   if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
@@ -246,6 +278,8 @@ function resolveTaskType(stepType: StepType, config: WorkflowStepConfig): TaskTy
       return TaskType.SCREEN_CAPTURE;
     case 'HTTP_REQUEST':
       return TaskType.HTTP_REQUEST;
+    case 'TELEGRAM_SEND':
+      return TaskType.TELEGRAM_SEND;
     case 'SCRIPT':
       return TaskType.SCRIPT;
     case 'FILE_OPERATION':
@@ -331,6 +365,7 @@ function resolveCommand(taskType: TaskType, config: WorkflowStepConfig): string 
   if (taskType === CHROME_EXTENSION_TYPE) return cmd || '[]';
   if (taskType === TaskType.HTTP_REQUEST) return cmd || 'https://example.com/api';
   if (taskType === TaskType.CLOSE_APP) return cmd || 'close';
+  if (taskType === TaskType.TELEGRAM_SEND) return cmd || 'send';
   return cmd;
 }
 
@@ -598,12 +633,18 @@ export class AutomationService {
       });
     };
 
+    const snapshotVars = async (scope: WorkflowRunScope) => {
+      if (!runId) return;
+      await this.workflowRuntime.persistRunVariables(runId, scope.workflow);
+    };
+
     const trackEnd = async (
       status: StepRunStatus,
       extra?: {
         taskId?: string;
         exitCode?: number | null;
         error?: string;
+        output?: WorkflowStepRunOutput;
       },
     ) => {
       if (!runId) return;
@@ -614,6 +655,7 @@ export class AutomationService {
         taskId: extra?.taskId,
         exitCode: extra?.exitCode,
         error: extra?.error,
+        output: extra?.output as object | undefined,
       });
       if (status === StepRunStatus.FAILED && extra?.error) {
         await this.workflowRuntime.markFlowStopped(runId, flowPath);
@@ -624,9 +666,16 @@ export class AutomationService {
       await trackStart();
       const delayMs = Math.max(0, config.delayMs ?? 1000);
       await new Promise((resolve) => setTimeout(resolve, delayMs));
-      await trackEnd(StepRunStatus.COMPLETED);
+      await trackEnd(StepRunStatus.COMPLETED, {
+        output: { json: { delayMs } },
+      });
       return {
-        result: { step: step.order, stepId: step.id, status: 'completed' },
+        result: {
+          step: step.order,
+          stepId: step.id,
+          status: 'completed',
+          output: { json: { delayMs } },
+        },
         ctx,
         stop: false,
       };
@@ -635,15 +684,303 @@ export class AutomationService {
     if (step.type === StepType.CONDITION) {
       await trackStart();
       const pass = evaluateCondition(config, ctx);
-      await trackEnd(StepRunStatus.COMPLETED);
+      const branch = pass ? HANDLE_TRUE : HANDLE_FALSE;
+      await trackEnd(StepRunStatus.COMPLETED, { output: { branch } });
       return {
         result: {
           step: step.order,
           stepId: step.id,
           status: 'completed',
-          branch: pass ? HANDLE_TRUE : HANDLE_FALSE,
+          branch,
+          output: { branch },
         },
         ctx,
+        stop: false,
+      };
+    }
+
+    if (step.type === StepType.LOOP) {
+      await trackStart();
+      const count = Math.max(1, Math.min(1000, Number(config.loopCount) || 3));
+      const rawLoopIdx = ctx.scope.workflow._loopIndex;
+      const loopIndexMap =
+        rawLoopIdx &&
+        typeof rawLoopIdx === 'object' &&
+        !Array.isArray(rawLoopIdx)
+          ? { ...(rawLoopIdx as Record<string, number>) }
+          : {};
+      const currentIndex = loopIndexMap[step.id] ?? 0;
+      const outputKey = resolveOutputKey(config, step.order, step.id);
+
+      if (currentIndex < count) {
+        loopIndexMap[step.id] = currentIndex + 1;
+        const scopeWithLoop = {
+          ...ctx.scope,
+          workflow: { ...ctx.scope.workflow, _loopIndex: loopIndexMap },
+        };
+        const nextScope = publishStepOutput(scopeWithLoop, outputKey, {
+          exitCode: 0,
+          failed: false,
+          stepId: step.id,
+          order: step.order,
+          json: { loopIndex: currentIndex, loopCount: count },
+        });
+        const loopOut = {
+          branch: HANDLE_BODY,
+          json: { loopIndex: currentIndex, loopCount: count },
+        };
+        await trackEnd(StepRunStatus.COMPLETED, { output: loopOut });
+        return {
+          result: {
+            step: step.order,
+            stepId: step.id,
+            status: 'completed',
+            branch: HANDLE_BODY,
+            output: loopOut,
+          },
+          ctx: { ...ctx, scope: nextScope },
+          stop: false,
+        };
+      }
+
+      delete loopIndexMap[step.id];
+      const scopeAfterLoop = {
+        ...ctx.scope,
+        workflow: { ...ctx.scope.workflow, _loopIndex: loopIndexMap },
+      };
+      const nextScope = publishStepOutput(scopeAfterLoop, outputKey, {
+        exitCode: 0,
+        failed: false,
+        stepId: step.id,
+        order: step.order,
+        json: { loopIndex: currentIndex, loopCount: count, completed: true },
+      });
+      const loopDoneOut = {
+        branch: HANDLE_DONE,
+        json: { loopIndex: currentIndex, loopCount: count, completed: true },
+      };
+      await trackEnd(StepRunStatus.COMPLETED, { output: loopDoneOut });
+      return {
+        result: {
+          step: step.order,
+          stepId: step.id,
+          status: 'completed',
+          branch: HANDLE_DONE,
+          output: loopDoneOut,
+        },
+        ctx: { ...ctx, scope: nextScope },
+        stop: false,
+      };
+    }
+
+    if (step.type === StepType.VARIABLE) {
+      await trackStart();
+      const mode: WorkflowVariableMode = config.variableMode ?? 'set';
+      const name = normalizeVariableName(config.variableName ?? 'my_var');
+      const outputKey = resolveOutputKey(config, step.order, step.id);
+
+      if (mode === 'read') {
+        if (!hasWorkflowVar(ctx.scope, name)) {
+          throw new Error(`Variable "${name}" not found`);
+        }
+        const value = getWorkflowVar(ctx.scope, name);
+        const stdout = formatWorkflowValue(value);
+        const nextScope = publishStepOutput(ctx.scope, outputKey, {
+          exitCode: 0,
+          failed: false,
+          stepId: step.id,
+          order: step.order,
+          stdout,
+          json: value,
+        });
+        const varOut = { stdout, json: value };
+        await trackEnd(StepRunStatus.COMPLETED, { output: varOut });
+        return {
+          result: {
+            step: step.order,
+            stepId: step.id,
+            status: 'completed',
+            output: varOut,
+          },
+          ctx: { ...ctx, scope: nextScope },
+          stop: false,
+        };
+      }
+
+      const value = resolveVariableValueTemplate(config.variableValue ?? '', ctx.scope);
+      if (mode === 'create' && hasWorkflowVar(ctx.scope, name)) {
+        throw new Error(`Variable "${name}" already exists`);
+      }
+
+      const nextScope = setWorkflowVar(ctx.scope, name, value);
+      const stdout = formatWorkflowValue(value);
+      const varOut = {
+        stdout,
+        json: { name, value },
+      };
+      await trackEnd(StepRunStatus.COMPLETED, { output: varOut });
+      await snapshotVars(nextScope);
+      return {
+        result: {
+          step: step.order,
+          stepId: step.id,
+          status: 'completed',
+          output: varOut,
+        },
+        ctx: { ...ctx, scope: nextScope },
+        stop: false,
+      };
+    }
+
+    if (step.type === StepType.EXCEL) {
+      await trackStart();
+      const mode = config.excelMode ?? 'read';
+      const name = normalizeVariableName(config.variableName ?? 'excel_data');
+      const agentId = config.agentId;
+      const filePath = resolveTemplateString(config.filePath ?? '', ctx.scope).trim();
+      if (!agentId) throw new Error('EXCEL step requires agentId');
+      if (!filePath) throw new Error('EXCEL step requires filePath');
+
+      const sheetName = config.sheetName?.trim() || undefined;
+      const hasHeader = config.hasHeader !== false;
+
+      let writeData: unknown;
+      if (mode === 'write') {
+        if (hasWorkflowVar(ctx.scope, name)) {
+          writeData = getWorkflowVar(ctx.scope, name);
+        } else {
+          writeData = resolveVariableValueTemplate(config.variableValue, ctx.scope);
+        }
+        if (
+          writeData === '' ||
+          writeData === null ||
+          writeData === undefined ||
+          (Array.isArray(writeData) && writeData.length === 0)
+        ) {
+          throw new Error(`Variable "${name}" is empty — nothing to write to Excel`);
+        }
+      }
+
+      const excelPayload: Record<string, unknown> = {
+        operation: mode === 'read' ? 'read_excel' : 'write_excel',
+        path: filePath,
+        ...(sheetName ? { sheet: sheetName } : {}),
+        ...(mode === 'read' ? { hasHeader } : { data: writeData }),
+      };
+
+      const timeoutMs = config.timeout ?? DEFAULT_TASK_TIMEOUT_MS;
+      const task = await this.tasksService.create(
+        userId,
+        {
+          type: TaskType.FILE_OPERATION,
+          command: mode === 'read' ? 'read_excel' : 'write_excel',
+          agentId,
+          payload: excelPayload,
+          timeout: timeoutMs,
+        },
+        runId ? { workflowRunId: runId } : undefined,
+      );
+
+      if (runId) {
+        await this.workflowRuntime.upsertStepRun(runId, step, { flowPath, depth }, {
+          status: StepRunStatus.RUNNING,
+          taskId: task.id,
+          startedAt: new Date(),
+        });
+      }
+
+      const outcome = await this.waitForTask(task.id, userId, timeoutMs);
+      const failed =
+        outcome.status === TaskStatus.FAILED ||
+        outcome.status === TaskStatus.TIMEOUT ||
+        outcome.status === TaskStatus.CANCELLED;
+
+      if (failed) {
+        await trackEnd(StepRunStatus.FAILED, {
+          taskId: task.id,
+          exitCode: outcome.exitCode,
+          error: outcome.error ?? `Task ${outcome.status}`,
+        });
+        return {
+          result: {
+            step: step.order,
+            stepId: step.id,
+            status: 'failed',
+            taskId: task.id,
+            exitCode: outcome.exitCode,
+            error: outcome.error ?? `Task ${outcome.status}`,
+          },
+          ctx,
+          stop: step.onFailure === OnFailure.STOP,
+        };
+      }
+
+      const { rows: excelRows, sheet: excelSheet } =
+        extractExcelRowsFromTaskResult(outcome.result, outcome.exitCode);
+
+      const outputKey = resolveOutputKey(config, step.order, step.id);
+      let nextScope = ctx.scope;
+      let excelOut: WorkflowStepRunOutput;
+
+      if (mode === 'read') {
+        const value = excelRows;
+        nextScope = setWorkflowVar(ctx.scope, name, value);
+        const rowCount = value.length;
+        const stdout = `Đọc ${rowCount} dòng → workflow.${name}`;
+        nextScope = publishStepOutput(nextScope, outputKey, {
+          exitCode: outcome.exitCode ?? 0,
+          failed: false,
+          stepId: step.id,
+          order: step.order,
+          stdout,
+          json: value,
+        });
+        excelOut = {
+          stdout,
+          json: { name, value, sheet: excelSheet, rowCount },
+          exitCode: outcome.exitCode,
+        };
+      } else {
+        let writeMeta: Record<string, unknown> = {};
+        if (outcome.result?.trim()) {
+          try {
+            writeMeta = JSON.parse(outcome.result) as Record<string, unknown>;
+          } catch {
+            writeMeta = { raw: outcome.result };
+          }
+        }
+        const rowsWritten = writeMeta.rowsWritten ?? 0;
+        const stdout = `Ghi ${rowsWritten} dòng vào ${filePath}`;
+        nextScope = publishStepOutput(nextScope, outputKey, {
+          exitCode: outcome.exitCode ?? 0,
+          failed: false,
+          stepId: step.id,
+          order: step.order,
+          stdout,
+          json: writeMeta,
+        });
+        excelOut = { stdout, json: writeMeta, exitCode: outcome.exitCode };
+      }
+
+      await trackEnd(StepRunStatus.COMPLETED, {
+        taskId: task.id,
+        exitCode: outcome.exitCode,
+        output: excelOut,
+      });
+      if (mode === 'read') {
+        await snapshotVars(nextScope);
+      }
+
+      return {
+        result: {
+          step: step.order,
+          stepId: step.id,
+          status: 'completed',
+          taskId: task.id,
+          exitCode: outcome.exitCode,
+          output: excelOut,
+        },
+        ctx: { ...ctx, scope: nextScope },
         stop: false,
       };
     }
@@ -670,7 +1007,8 @@ export class AutomationService {
           tg,
           ctx.scope,
         );
-        await trackEnd(StepRunStatus.COMPLETED);
+        const tgOut = { actionResult: tgResult, json: { messageId } };
+        await trackEnd(StepRunStatus.COMPLETED, { output: tgOut });
         return {
           result: {
             step: step.order,
@@ -678,6 +1016,7 @@ export class AutomationService {
             status: 'completed',
             actionResult: tgResult,
             taskId: messageId != null ? `tg:${messageId}` : undefined,
+            output: tgOut,
           },
           ctx,
           stop: false,
@@ -765,6 +1104,7 @@ export class AutomationService {
       taskType !== TaskType.SYSTEM_INFO &&
       taskType !== TaskType.SCREEN_CAPTURE &&
       taskType !== TaskType.CLOSE_APP &&
+      taskType !== TaskType.TELEGRAM_SEND &&
       taskType !== CHROME_EXTENSION_TYPE &&
       !command
     ) {
@@ -797,7 +1137,6 @@ export class AutomationService {
     }
 
     const timeoutMs = config.timeout ?? DEFAULT_TASK_TIMEOUT_MS;
-    await trackStart();
     const task = await this.tasksService.create(
       userId,
       {
@@ -811,6 +1150,7 @@ export class AutomationService {
     );
 
     if (runId) {
+      this.telegramProgress.onStepStart(runId, step.id);
       await this.workflowRuntime.upsertStepRun(runId, step, { flowPath, depth }, {
         status: StepRunStatus.RUNNING,
         taskId: task.id,
@@ -818,7 +1158,22 @@ export class AutomationService {
       });
     }
 
-    const outcome = await this.waitForTask(task.id, userId, timeoutMs);
+    let outcome: {
+      status: TaskStatus;
+      exitCode: number | null;
+      result?: string;
+      error?: string;
+    };
+    try {
+      outcome = await this.waitForTask(task.id, userId, timeoutMs);
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : 'Task wait failed';
+      await trackEnd(StepRunStatus.FAILED, {
+        taskId: task.id,
+        error: errMsg,
+      });
+      throw err;
+    }
     const failed =
       outcome.status === TaskStatus.FAILED ||
       outcome.status === TaskStatus.TIMEOUT ||
@@ -862,12 +1217,20 @@ export class AutomationService {
       scope: nextScope,
     };
 
+    const taskOut: WorkflowStepRunOutput = {
+      stdout: output.stdout,
+      stderr: output.stderr,
+      json: output.json,
+      exitCode: outcome.exitCode,
+    };
+
     await trackEnd(
       failed ? StepRunStatus.FAILED : StepRunStatus.COMPLETED,
       {
         taskId: task.id,
         exitCode: outcome.exitCode,
         error: failed ? outcome.error ?? `Task ${outcome.status}` : undefined,
+        output: taskOut,
       },
     );
 
@@ -879,6 +1242,7 @@ export class AutomationService {
         taskId: task.id,
         exitCode: outcome.exitCode,
         error: failed ? outcome.error ?? `Task ${outcome.status}` : undefined,
+        output: taskOut,
       },
       ctx: newCtx,
       stop: failed && step.onFailure === OnFailure.STOP,

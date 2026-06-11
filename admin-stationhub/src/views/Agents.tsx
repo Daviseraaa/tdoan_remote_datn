@@ -1,5 +1,5 @@
 ﻿import React, { useState, useMemo, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { 
   Plus, 
   Terminal, 
@@ -16,6 +16,7 @@ import {
   Trash2,
   Filter,
   Users,
+  FolderOpen,
 } from 'lucide-react';
 import { AgentCard } from '@/src/components/AgentCard';
 import { AgentRemoteAccessPanel } from '@/src/components/AgentRemoteAccessPanel';
@@ -91,7 +92,16 @@ export default function Agents() {
     limit: 200,
     status: 'RUNNING',
   });
-  const { create, remove, regenerateKey, syncChromeProfiles, wakeAgent, updateRemoteAccess } =
+  const {
+    create,
+    remove,
+    regenerateKey,
+    syncChromeProfiles,
+    wakeAgent,
+    updateRemoteAccess,
+    startRemote,
+    stopRemote,
+  } =
     useAgentMutations();
   const regAgentLive = useAgentDetail(
     regCreated?.id,
@@ -389,11 +399,36 @@ export default function Agents() {
                   </motion.div>
                 ) : null}
 
+                {selectedAgentId ? (
+                  <div className="space-y-2 px-1">
+                    <h4 className="text-[10px] font-mono text-primary font-bold uppercase tracking-[0.2em]">
+                      {t('agentFiles.title')}
+                    </h4>
+                    <p className="text-[10px] text-on-surface-variant">{t('agents.browseFilesHint')}</p>
+                    <Link
+                      to={`/agents/${selectedAgentId}/files`}
+                      onClick={() => setSelectedAgent(null)}
+                      className={cn(
+                        'flex items-center justify-center gap-2 w-full py-3 rounded-xl text-xs font-bold border transition-all',
+                        isAgentConnected(selectedAgentStatus)
+                          ? 'border-primary/30 text-primary hover:bg-primary/10'
+                          : 'border-white/10 text-on-surface-variant opacity-50 pointer-events-none',
+                      )}
+                    >
+                      <FolderOpen size={16} />
+                      {t('agents.browseFiles')}
+                    </Link>
+                  </div>
+                ) : null}
+
                 {selectedAgentRaw ? (
                   <AgentRemoteAccessPanel
                     agent={selectedAgentRaw}
+                    agentOnline={isAgentConnected(selectedAgentStatus)}
                     waking={wakeAgent.isPending}
                     saving={updateRemoteAccess.isPending}
+                    startingRemote={startRemote.isPending}
+                    stoppingRemote={stopRemote.isPending}
                     wakeError={
                       wakeAgent.isError ? apiErrorMessage(wakeAgent.error) : undefined
                     }
@@ -402,8 +437,20 @@ export default function Agents() {
                         ? apiErrorMessage(updateRemoteAccess.error)
                         : undefined
                     }
+                    remoteError={
+                      startRemote.isError
+                        ? apiErrorMessage(startRemote.error)
+                        : stopRemote.isError
+                          ? apiErrorMessage(stopRemote.error)
+                          : undefined
+                    }
                     wakeMessage={
                       wakeAgent.isSuccess ? wakeAgent.data?.message : undefined
+                    }
+                    remoteResult={
+                      startRemote.isSuccess && startRemote.variables === selectedAgentId
+                        ? startRemote.data
+                        : null
                     }
                     onWake={() => {
                       if (!selectedAgentId) return;
@@ -412,6 +459,16 @@ export default function Agents() {
                     onSave={(dto) => {
                       if (!selectedAgentId) return;
                       void updateRemoteAccess.mutateAsync({ id: selectedAgentId, dto });
+                    }}
+                    onStartRemote={async () => {
+                      if (!selectedAgentId) {
+                        throw new Error('No agent selected');
+                      }
+                      return startRemote.mutateAsync(selectedAgentId);
+                    }}
+                    onStopRemote={() => {
+                      if (!selectedAgentId) return;
+                      void stopRemote.mutateAsync(selectedAgentId);
                     }}
                   />
                 ) : null}

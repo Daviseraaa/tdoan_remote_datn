@@ -5,19 +5,24 @@ import {
 } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
-import { TaskStatus } from '@prisma/client';
+import { Prisma, TaskStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { PaginatedResponseDto, PaginationDto } from '../../common/dto/pagination.dto';
 import { TASK_QUEUE } from '../../common/constants/index';
+import { notifyTaskCompleted } from '../../common/task-completion-registry';
 import { CreateTaskDto, QueryTaskDto, CreateTaskTemplateDto, UpdateTaskTemplateDto } from './dto/index';
+import { AgentsGateway } from '../agents/agents.gateway';
 import { AgentsService } from '../agents/agents.service';
 import { SubscriptionService } from '../billing/subscription.service';
+
+const AGENT_OFFLINE_TASK_MSG = 'Agent đang offline — không gửi task';
 
 @Injectable()
 export class TasksService {
   constructor(
     private prisma: PrismaService,
     private agentsService: AgentsService,
+    private agentsGateway: AgentsGateway,
     private subscription: SubscriptionService,
     @InjectQueue(TASK_QUEUE) private taskQueue: Queue,
   ) {}
@@ -34,6 +39,42 @@ export class TasksService {
     });
     if (!agent) {
       throw new NotFoundException('Agent not found or not owned by user');
+    }
+
+    if (!this.agentsService.isAgentReachable(agent)) {
+      const task = await this.prisma.task.create({
+        data: {
+          type: dto.type,
+          command: dto.command,
+          payload: dto.payload as object,
+          priority: dto.priority ?? 0,
+          timeout: dto.timeout ?? 300_000,
+          status: TaskStatus.FAILED,
+          result: AGENT_OFFLINE_TASK_MSG,
+          exitCode: -1,
+          completedAt: new Date(),
+          userId,
+          agentId: dto.agentId,
+          ...(opts?.workflowRunId
+            ? { workflowRunId: opts.workflowRunId }
+            : {}),
+        },
+      });
+
+      await this.addLog(task.id, 'ERROR', AGENT_OFFLINE_TASK_MSG);
+      notifyTaskCompleted(task.id, {
+        status: TaskStatus.FAILED,
+        exitCode: -1,
+        result: AGENT_OFFLINE_TASK_MSG,
+        error: AGENT_OFFLINE_TASK_MSG,
+      });
+      this.agentsGateway.emitTaskStatusToUser(
+        userId,
+        task.id,
+        TaskStatus.FAILED,
+      );
+
+      return task;
     }
 
     const task = await this.prisma.task.create({
@@ -65,11 +106,20 @@ export class TasksService {
   }
 
   async findAll(userId: string, query: QueryTaskDto) {
-    const where = {
+    const search = query.search?.trim();
+    const where: Prisma.TaskWhereInput = {
       userId,
       ...(query.status && { status: query.status }),
       ...(query.type && { type: query.type }),
       ...(query.agentId && { agentId: query.agentId }),
+      ...(search && {
+        OR: [
+          { id: { contains: search, mode: 'insensitive' } },
+          { command: { contains: search, mode: 'insensitive' } },
+          { result: { contains: search, mode: 'insensitive' } },
+          { agent: { name: { contains: search, mode: 'insensitive' } } },
+        ],
+      }),
     };
 
     const [tasks, total] = await Promise.all([
@@ -104,12 +154,24 @@ export class TasksService {
       throw new BadRequestException('Task is already in a terminal state');
     }
 
+    const wasRunning = task.status === TaskStatus.RUNNING;
+
     await this.prisma.task.update({
       where: { id },
       data: { status: TaskStatus.CANCELLED, completedAt: new Date() },
     });
 
     await this.addLog(id, 'INFO', 'Task cancelled by user');
+
+    if (wasRunning) {
+      this.agentsGateway.emitTaskCancel(task.agentId, task.id);
+      notifyTaskCompleted(task.id, {
+        status: TaskStatus.CANCELLED,
+        exitCode: -1,
+        result: 'Cancelled by user',
+      });
+    }
+
     return { message: 'Task cancelled' };
   }
 

@@ -13,6 +13,7 @@ import {
   resolveChromeScriptsDir,
   resolveCloakRunnerDir,
   resolveCloakRunnerScript,
+  resolveConfigPath,
   resolveCoreExe,
 } from '../shared/paths';
 import {
@@ -60,6 +61,7 @@ export function startRustAgent() {
     ...process.env,
     ...pinned,
     STATIONHUB_AGENT_ROOT: root,
+    STATIONHUB_AGENT_CONFIG: resolveConfigPath(),
     RUST_LOG: pinned.LOG_LEVEL,
   };
   const cloakScript = resolveCloakRunnerScript();

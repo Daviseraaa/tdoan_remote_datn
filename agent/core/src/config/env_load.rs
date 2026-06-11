@@ -90,6 +90,9 @@ fn pin_critical_keys_from_file(path: &Path) {
     const KEYS: &[&str] = &[
         "CHROME_EXTENSION_ENABLED",
         "DESKTOP_AUTOMATION_ENABLED",
+        "RUSTDESK_EXE_PATH",
+        "RUSTDESK_ID",
+        "RUSTDESK_PASSWORD",
     ];
     for key in KEYS {
         if let Some(v) = read_key_from_file(path, key) {

@@ -18,6 +18,7 @@ export interface WorkflowStepResult {
 }
 import {
   buildAdjacency,
+  buildLoopBackEdgeKeys,
   buildStepIndegree,
   filterOutEdges,
   getStartStepIds,
@@ -68,7 +69,11 @@ export async function executeGraphIndependent(
   const stepsById = new Map(steps.map((s) => [s.id, s]));
   const stepIds = new Set(steps.map((s) => s.id));
   const adj = buildAdjacency(graphEdges);
-  const pendingParents = buildStepIndegree(stepIds, graphEdges);
+  const loopBackKeys = buildLoopBackEdgeKeys(steps, stepIds, adj);
+  const loopStepIds = new Set(
+    steps.filter((s) => s.type === StepType.LOOP).map((s) => s.id),
+  );
+  const pendingParents = buildStepIndegree(stepIds, graphEdges, loopBackKeys);
   const parentCtxs = new Map<string, StepContext[]>();
   for (const sid of stepIds) parentCtxs.set(sid, []);
 
@@ -93,14 +98,27 @@ export async function executeGraphIndependent(
     }
     if (!wr.step) return;
 
+    const branch = wr.branch ?? wr.result?.branch;
     const outs = filterOutEdges(
       wr.step,
       adj.get(wr.item.stepId) ?? [],
-      wr.branch,
+      branch,
     );
 
     for (const out of outs) {
       if (!stepIds.has(out.targetId)) continue;
+
+      const edgeKey = `${wr.item.stepId}|${out.targetId}`;
+      if (loopBackKeys.has(edgeKey) && loopStepIds.has(out.targetId)) {
+        inFlight += 1;
+        void runOne({
+          stepId: out.targetId,
+          ctx: wr.nextCtx,
+          path: wr.item.path,
+          depth: wr.item.depth + 1,
+        });
+        continue;
+      }
 
       parentCtxs.get(out.targetId)!.push(wr.nextCtx);
 

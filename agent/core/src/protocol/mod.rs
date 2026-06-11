@@ -1,3 +1,3 @@
 pub mod wire;
 
-pub use wire::{tool_result_to_task_wire, TaskWire};
+pub use wire::{cancelled_task_wire, tool_result_to_task_wire, TaskWire};

@@ -23,14 +23,47 @@ export interface AgentTelemetryWsPayload {
   timestamp: number;
 }
 
+export interface AgentStatusWsPayload {
+  agentId: string;
+  status: string;
+  timestamp: number;
+}
+
+export interface AgentRemoteReadyWsPayload {
+  agentId: string;
+  rustdeskId: string;
+  rustdeskPassword: string;
+  message?: string;
+  active: boolean;
+  timestamp: number;
+}
+
+const remoteReadyListeners = new Set<(payload: AgentRemoteReadyWsPayload) => void>();
+
+export function onAgentRemoteReady(
+  listener: (payload: AgentRemoteReadyWsPayload) => void,
+): () => void {
+  remoteReadyListeners.add(listener);
+  return () => remoteReadyListeners.delete(listener);
+}
+
+function attachRemoteReadyHandler(sock: Socket) {
+  sock.off('agent:remote:ready');
+  sock.on('agent:remote:ready', (payload: AgentRemoteReadyWsPayload) => {
+    remoteReadyListeners.forEach((listener) => listener(payload));
+  });
+}
+
 export function connectWs(
   onEvent: (event: TaskWsEvent, payload: TaskWsPayload) => void,
   onAgentTelemetry?: (payload: AgentTelemetryWsPayload) => void,
+  onAgentStatus?: (payload: AgentStatusWsPayload) => void,
 ): Socket | null {
   const token = getAccessToken();
   if (!token) return null;
 
   if (socket?.connected) {
+    attachRemoteReadyHandler(socket);
     return socket;
   }
 
@@ -52,6 +85,12 @@ export function connectWs(
       onAgentTelemetry(payload);
     });
   }
+  if (onAgentStatus) {
+    socket.on('agent:status', (payload: AgentStatusWsPayload) => {
+      onAgentStatus(payload);
+    });
+  }
+  attachRemoteReadyHandler(socket);
 
   return socket;
 }

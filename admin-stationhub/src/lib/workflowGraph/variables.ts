@@ -1,19 +1,41 @@
+import { asciiSlugKey } from '@/src/lib/slugKey';
 import type { WfNodeKind } from './types';
+import type { WorkflowExcelMode, WorkflowVariableMode } from '@/src/types/api';
 
 export type StepVarField = 'stdout' | 'exitCode';
 
 export function slugOutputKey(s: string): string {
-  const t = s
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '_')
-    .replace(/^_+|_+$/g, '');
-  return t.length ? t.slice(0, 48) : '';
+  return asciiSlugKey(s);
 }
 
-/** Node task xuất output vào scope `steps.<key>`. */
-export function nodeExportsStepVariables(kind: WfNodeKind): boolean {
-  return kind === 'task';
+/** Node task / đọc biến xuất output vào scope `steps.<key>`. Tạo/gán chỉ ghi `workflow.<name>`. */
+export function nodeExportsStepVariables(
+  kind: WfNodeKind,
+  config?: { variableMode?: WorkflowVariableMode },
+): boolean {
+  if (kind === 'task') return true;
+  if (kind === 'variable') return (config?.variableMode ?? 'set') === 'read';
+  return false;
+}
+
+/** Badge trên node tạo/gán biến — tên biến workflow. */
+export function resolveWorkflowVarName(config?: { variableName?: string }): string {
+  const name = config?.variableName?.trim();
+  return name || 'my_var';
+}
+
+export function nodePublishesWorkflowVar(
+  kind: WfNodeKind,
+  config?: { variableMode?: WorkflowVariableMode; excelMode?: WorkflowExcelMode },
+): boolean {
+  if (kind === 'excel') return (config?.excelMode ?? 'read') === 'read';
+  if (kind !== 'variable') return false;
+  const mode = config?.variableMode ?? 'set';
+  return mode === 'create' || mode === 'set';
+}
+
+export function formatWorkflowVar(name: string): string {
+  return `{{workflow.${name}}}`;
 }
 
 export function formatStepVar(key: string, field: StepVarField = 'stdout'): string {

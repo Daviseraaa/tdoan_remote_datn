@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import { AgentStatus } from '@prisma/client';
+import { Agent, AgentStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { PaginatedResponseDto } from '../../common/dto/pagination.dto';
 import { SubscriptionService } from '../billing/subscription.service';
@@ -105,11 +105,7 @@ export class AgentsService {
       this.prisma.agent.count({ where }),
     ]);
 
-    return new PaginatedResponseDto(
-      this.telemetry.enrichMany(agents),
-      total,
-      query,
-    );
+    return new PaginatedResponseDto(this.enrichAgents(agents), total, query);
   }
 
   async findOne(id: string, userId: string) {
@@ -117,13 +113,13 @@ export class AgentsService {
       where: { id, userId },
     });
     if (!agent) throw new NotFoundException('Agent not found');
-    return this.telemetry.enrich(agent);
+    return this.enrichAgent(agent);
   }
 
   async findOneById(id: string) {
     const agent = await this.prisma.agent.findUnique({ where: { id } });
     if (!agent) throw new NotFoundException('Agent not found');
-    return this.telemetry.enrich(agent);
+    return this.enrichAgent(agent);
   }
 
   async remove(id: string, userId: string) {
@@ -169,17 +165,55 @@ export class AgentsService {
     });
   }
 
-  async markOffline(agentKey: string) {
-    this.connectedAgents.delete(agentKey);
-    const agent = await this.prisma.agent.findUnique({ where: { agentKey } });
-    if (agent) {
-      this.telemetry.delete(agent.id);
-      this.lastSeenDbAt.delete(agentKey);
+  /**
+   * Ghi OFFLINE chỉ khi socket đang disconnect là phiên hiện tại (tránh race reconnect/SUPERSEDED).
+   */
+  async markOffline(
+    agentKey: string,
+    socketId?: string,
+  ): Promise<{ changed: boolean; agentId?: string; userId?: string }> {
+    const currentSocket = this.connectedAgents.get(agentKey);
+    if (socketId && currentSocket && currentSocket !== socketId) {
+      return { changed: false };
     }
-    return this.prisma.agent.update({
+    if (!socketId || currentSocket === socketId) {
+      this.connectedAgents.delete(agentKey);
+    }
+
+    const agent = await this.prisma.agent.findUnique({ where: { agentKey } });
+    if (!agent) {
+      return { changed: false };
+    }
+
+    this.telemetry.delete(agent.id);
+    this.lastSeenDbAt.delete(agentKey);
+
+    await this.prisma.agent.update({
       where: { agentKey },
       data: { status: AgentStatus.OFFLINE },
     });
+    return { changed: true, agentId: agent.id, userId: agent.userId };
+  }
+
+  /** Socket còn sống nhưng DB OFFLINE → hiển thị ONLINE (API poll). */
+  withLiveConnectionStatus<T extends { agentKey: string; status: AgentStatus }>(
+    agent: T,
+  ): T {
+    if (
+      this.isOnline(agent.agentKey) &&
+      agent.status === AgentStatus.OFFLINE
+    ) {
+      return { ...agent, status: AgentStatus.ONLINE };
+    }
+    return agent;
+  }
+
+  private enrichAgent(agent: Agent): Agent {
+    return this.withLiveConnectionStatus(this.telemetry.enrich(agent));
+  }
+
+  private enrichAgents(agents: Agent[]): Agent[] {
+    return agents.map((a) => this.enrichAgent(a));
   }
 
   /**
@@ -205,7 +239,7 @@ export class AgentsService {
     if (!snapshot) {
       return this.prisma.agent.update({
         where: { agentKey },
-        data: { lastSeenAt: new Date() },
+        data: { lastSeenAt: new Date(), status: AgentStatus.ONLINE },
       });
     }
 
@@ -224,6 +258,7 @@ export class AgentsService {
     return this.prisma.agent.update({
       where: { agentKey },
       data: {
+        status: AgentStatus.ONLINE,
         lastSeenAt: new Date(),
         ...(snapshot.ip ? { ip: snapshot.ip } : {}),
         metadata: metadata as object,
@@ -343,13 +378,40 @@ export class AgentsService {
     return this.connectedAgents.has(agentKey);
   }
 
+  /** Socket live hoặc DB ONLINE/BUSY — dùng trước khi dispatch task/RPC. */
+  isAgentReachable(agent: { agentKey: string; status: AgentStatus }): boolean {
+    return (
+      this.isOnline(agent.agentKey) ||
+      agent.status === AgentStatus.ONLINE ||
+      agent.status === AgentStatus.BUSY
+    );
+  }
+
+  /** Socket còn kết nối nhưng DB lệch OFFLINE → sửa lại. */
   @Cron(CronExpression.EVERY_MINUTE)
-  async checkStaleAgents() {
-    const threshold = new Date(Date.now() - 60_000);
+  async syncConnectedAgentsStatus() {
+    const connectedKeys = [...this.connectedAgents.keys()];
+    if (connectedKeys.length === 0) return;
     await this.prisma.agent.updateMany({
       where: {
-        status: AgentStatus.ONLINE,
+        agentKey: { in: connectedKeys },
+        status: AgentStatus.OFFLINE,
+      },
+      data: { status: AgentStatus.ONLINE, lastSeenAt: new Date() },
+    });
+  }
+
+  @Cron(CronExpression.EVERY_MINUTE)
+  async checkStaleAgents() {
+    const threshold = new Date(Date.now() - 120_000);
+    const connectedKeys = [...this.connectedAgents.keys()];
+    await this.prisma.agent.updateMany({
+      where: {
+        status: { in: [AgentStatus.ONLINE, AgentStatus.BUSY] },
         lastSeenAt: { lt: threshold },
+        ...(connectedKeys.length > 0
+          ? { agentKey: { notIn: connectedKeys } }
+          : {}),
       },
       data: { status: AgentStatus.OFFLINE },
     });

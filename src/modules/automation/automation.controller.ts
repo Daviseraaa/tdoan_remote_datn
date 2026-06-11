@@ -17,6 +17,7 @@ import { PaginationDto } from '../../common/dto/pagination.dto';
 import { AutomationService } from './automation.service';
 import { WorkflowRuntimeService } from './workflow-runtime.service';
 import { CreateWorkflowDto, UpdateWorkflowDto } from './dto/index';
+import { QueryUserWorkflowRunsDto } from './dto/query-user-workflow-runs.dto';
 
 @ApiTags('Automation / Workflows')
 @ApiBearerAuth()
@@ -37,6 +38,15 @@ export class AutomationController {
   @ApiOperation({ summary: 'List workflows' })
   findAll(@CurrentUser() user: JwtPayload, @Query() pagination: PaginationDto) {
     return this.automationService.findAll(user.sub, pagination);
+  }
+
+  @Get('runs')
+  @ApiOperation({ summary: 'List workflow run history for current user' })
+  listRuns(
+    @CurrentUser() user: JwtPayload,
+    @Query() query: QueryUserWorkflowRunsDto,
+  ) {
+    return this.workflowRuntime.listRuns(user.sub, query);
   }
 
   @Get('runs/:runId')

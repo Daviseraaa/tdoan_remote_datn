@@ -29,6 +29,20 @@ function stepDisplayLabel(step: WorkflowStep, config: WorkflowStepConfig): strin
     return t('workflows.nodeDelay', { ms: config.delayMs ?? 1000 });
   }
   if (step.type === 'CONDITION') return t('workflows.nodeCondition');
+  if (step.type === 'LOOP') {
+    return t('workflows.nodeLoop', { count: config.loopCount ?? 3 });
+  }
+  if (step.type === 'VARIABLE') {
+    const mode = config.variableMode ?? 'set';
+    if (mode === 'create') return t('workflows.nodeVarCreate');
+    if (mode === 'read') return t('workflows.nodeVarRead');
+    return t('workflows.nodeVarSet');
+  }
+  if (step.type === 'EXCEL') {
+    return (config.excelMode ?? 'read') === 'read'
+      ? t('workflows.nodeExcelRead')
+      : t('workflows.nodeExcelWrite');
+  }
   if (step.type === 'TELEGRAM') return t('workflows.nodeTelegram');
   const tt = config.taskType ?? (step.type === 'SCRIPT' ? 'SCRIPT' : 'COMMAND');
   if (config.command?.trim()) return config.command.trim().slice(0, 48);
@@ -70,6 +84,48 @@ export function workflowStepToBuiltNode(
         kind: 'condition',
         label: stepDisplayLabel(step, config),
         stepType: 'CONDITION',
+        config,
+        onFailure: step.onFailure ?? 'STOP',
+        runStatus: 'idle',
+      },
+    };
+  }
+
+  if (step.type === 'LOOP') {
+    return {
+      stepKey,
+      data: {
+        kind: 'loop',
+        label: stepDisplayLabel(step, config),
+        stepType: 'LOOP',
+        config,
+        onFailure: step.onFailure ?? 'STOP',
+        runStatus: 'idle',
+      },
+    };
+  }
+
+  if (step.type === 'VARIABLE') {
+    return {
+      stepKey,
+      data: {
+        kind: 'variable',
+        label: stepDisplayLabel(step, config),
+        stepType: 'VARIABLE',
+        config,
+        onFailure: step.onFailure ?? 'STOP',
+        runStatus: 'idle',
+      },
+    };
+  }
+
+  if (step.type === 'EXCEL') {
+    return {
+      stepKey,
+      data: {
+        kind: 'excel',
+        label: stepDisplayLabel(step, config),
+        stepType: 'EXCEL',
         config,
         onFailure: step.onFailure ?? 'STOP',
         runStatus: 'idle',

@@ -12,7 +12,6 @@ Agent báo cáo MAC/RDP khi connect Socket.IO; server lưu trong `agents.metadat
 | `rdpEnabled` | Registry `fDenyTSConnections == 0` |
 | `rdpPort` | Port RDP (mặc định 3389) |
 | `rdpHost` | Hostname máy |
-
 Admin có thể ghi đè `wolMacAddress`, `wolBroadcast`, `rdpHost` qua API — giá trị admin được giữ khi agent reconnect.
 
 ## API server
@@ -50,11 +49,39 @@ Biến môi trường server:
 
 Sau WoL, Windows Service agent có thể online **trước** user login; RDP vẫn cần user tự nhập mật khẩu trên client RDP.
 
+## RustDesk remote
+
+**Cấu hình local** (tray agent → Cài đặt → tab **Remote** → `agent.env`):
+
+| Biến | Mô tả |
+|------|--------|
+| `RUSTDESK_EXE_PATH` | Mặc định `C:\Program Files\RustDesk\rustdesk.exe` |
+| `RUSTDESK_ID` | ID RustDesk máy agent |
+| `RUSTDESK_PASSWORD` | Mật khẩu kết nối |
+
+Server **không** lưu RustDesk qua PATCH admin. ID/mật khẩu **không** ghi vào metadata DB.
+
+`POST /api/agents/:id/remote/start` — server chỉ bật: agent đọc `agent.env`, mở UI RustDesk (không `--install-service`), gửi `rustdeskId`/`rustdeskPassword` trong `agent:remote:start:result`. Server push `agent:remote:ready` tới admin UI (`/ws/client`).
+
+| Method | Path |
+|--------|------|
+| `POST` | `/api/agents/:id/remote/start` |
+| `POST` | `/api/admin/agents/:id/remote/start` |
+| `POST` | `/api/agents/:id/remote/stop` |
+| `POST` | `/api/admin/agents/:id/remote/stop` |
+
+`remote/stop` — đóng UI RustDesk (process session user), không dừng Windows service (session 0).
+
+WS agent: `agent:remote:start` → `agent:remote:start:result` (kèm `rustdeskId`, `rustdeskPassword`) · `agent:remote:stop` → `agent:remote:stop:result`
+
+WS admin (`/ws/client`): `agent:remote:ready` — credentials realtime cho UI kết nối RustDesk
+
 ## Code
 
 | Thành phần | File |
 |------------|------|
 | Magic packet | `src/modules/agents/wol.service.ts` |
 | Agent MAC/RDP | `agent/core/src/platform/windows/host_info.rs` |
+| RustDesk install | `agent/core/src/platform/remote/rustdesk.rs` |
 | Connect metadata | `agent/core/src/connection/runner.rs` |
 | Admin UI | `admin-stationhub/src/components/AgentRemoteAccessPanel.tsx` |

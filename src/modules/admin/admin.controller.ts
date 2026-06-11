@@ -3,12 +3,15 @@ import {
   Controller,
   Delete,
   Get,
+  Header,
   Ip,
   Param,
   Patch,
   Post,
   Query,
+  Res,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Role } from '@prisma/client';
 import { Throttle } from '@nestjs/throttler';
@@ -20,6 +23,7 @@ import { Roles } from '../../common/decorators/roles.decorator';
 import { AdminService } from './admin.service';
 import { AuditService } from './audit.service';
 import { TasksService } from '../tasks/tasks.service';
+import { AgentsGateway } from '../agents/agents.gateway';
 import { AgentsService } from '../agents/agents.service';
 import {
   UpdateRemoteAccessDto,
@@ -48,6 +52,7 @@ export class AdminController {
     private readonly audit: AuditService,
     private readonly tasks: TasksService,
     private readonly agents: AgentsService,
+    private readonly agentsGateway: AgentsGateway,
   ) {}
 
   @Get('stats')
@@ -150,6 +155,43 @@ export class AdminController {
     return this.admin.listAgents(query, query.status);
   }
 
+  @Get('agents/:id/files')
+  @ApiOperation({ summary: 'Liệt kê file StationHub trên agent (Admin)' })
+  listAgentFiles(@Param('id') id: string, @Query('path') path?: string) {
+    return this.agentsGateway.listAgentFiles(id, null, path ?? '');
+  }
+
+  @Post('agents/:id/files/write')
+  @ApiOperation({ summary: 'Ghi file lên agent (Admin)' })
+  writeAgentFile(
+    @Param('id') id: string,
+    @Body() body: import('../agents/dto/write-agent-file.dto').WriteAgentFileDto,
+  ) {
+    return this.agentsGateway.writeAgentFile(id, null, body);
+  }
+
+  @Get('agents/:id/files/download')
+  @ApiOperation({ summary: 'Tải file từ agent (Admin)' })
+  @Header('Cache-Control', 'no-store')
+  async downloadAgentFile(
+    @Param('id') id: string,
+    @Query('path') path: string,
+    @Res() res: Response,
+  ) {
+    const file = await this.agentsGateway.readAgentFile(id, null, path);
+    const name = file.path.split('/').pop() || 'download';
+    const buf =
+      file.encoding === 'base64'
+        ? Buffer.from(file.content, 'base64')
+        : Buffer.from(file.content, 'utf-8');
+    res.setHeader('Content-Type', file.mimeType || 'application/octet-stream');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${encodeURIComponent(name)}"`,
+    );
+    res.send(buf);
+  }
+
   @Get('agents/:id')
   @ApiOperation({ summary: 'Get agent by id (Admin)' })
   getAgent(@Param('id') id: string) {
@@ -238,6 +280,48 @@ export class AdminController {
       ip,
     });
     return agent;
+  }
+
+  @Post('agents/:id/remote/start')
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
+  @ApiOperation({ summary: 'Khởi động remote trên agent (Admin)' })
+  async startAgentRemote(
+    @CurrentUser() actor: JwtPayload,
+    @Param('id') id: string,
+    @Ip() ip: string,
+  ) {
+    const res = await this.agentsGateway.startAgentRemote(id, null);
+    await this.audit.record({
+      actorId: actor.sub,
+      actorEmail: actor.email,
+      action: 'agent.remote.start',
+      resource: 'agent',
+      resourceId: id,
+      metadata: { provider: res.provider },
+      ip,
+    });
+    return res;
+  }
+
+  @Post('agents/:id/remote/stop')
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
+  @ApiOperation({ summary: 'Dừng remote trên agent (Admin)' })
+  async stopAgentRemote(
+    @CurrentUser() actor: JwtPayload,
+    @Param('id') id: string,
+    @Ip() ip: string,
+  ) {
+    const res = await this.agentsGateway.stopAgentRemote(id, null);
+    await this.audit.record({
+      actorId: actor.sub,
+      actorEmail: actor.email,
+      action: 'agent.remote.stop',
+      resource: 'agent',
+      resourceId: id,
+      metadata: { provider: res.provider },
+      ip,
+    });
+    return res;
   }
 
   @Get('tasks')

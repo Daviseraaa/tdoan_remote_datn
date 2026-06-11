@@ -6,9 +6,13 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
+import type { Prisma } from '@prisma/client';
+import { PaginatedResponseDto } from '../../common/dto/pagination.dto';
+import type { QueryUserWorkflowRunsDto } from './dto/query-user-workflow-runs.dto';
 import {
   FlowRunStatus,
   StepRunStatus,
+  TaskStatus,
   WorkflowRunStatus,
   WorkflowTriggerType,
 } from '@prisma/client';
@@ -18,6 +22,7 @@ import { TelegramWorkflowProgressService } from '../triggers/telegram/telegram-w
 import { AutomationService, type WorkflowStepResult } from './automation.service';
 import { getStartStepIds, buildAdjacency } from './workflow-runtime/graph-utils';
 import { resolveWorkflowGraphEdges } from './workflow-graph';
+import { stripInternalWorkflowVars } from './workflow-variables';
 
 @Injectable()
 export class WorkflowRuntimeService {
@@ -31,6 +36,28 @@ export class WorkflowRuntimeService {
     private readonly telegramProgress: TelegramWorkflowProgressService,
   ) {}
 
+  async listRuns(userId: string, query: QueryUserWorkflowRunsDto) {
+    const where: Prisma.WorkflowRunWhereInput = {
+      userId,
+      ...(query.status && { status: query.status }),
+      ...(query.workflowId && { workflowId: query.workflowId }),
+    };
+    const [data, total] = await Promise.all([
+      this.prisma.workflowRun.findMany({
+        where,
+        orderBy: { startedAt: 'desc' },
+        skip: query.skip,
+        take: query.limit,
+        include: {
+          workflow: { select: { id: true, name: true, isActive: true } },
+          _count: { select: { stepRuns: true } },
+        },
+      }),
+      this.prisma.workflowRun.count({ where }),
+    ]);
+    return new PaginatedResponseDto(data, total, query);
+  }
+
   async getRun(runId: string, userId: string) {
     const run = await this.prisma.workflowRun.findFirst({
       where: { id: runId, userId },
@@ -42,6 +69,31 @@ export class WorkflowRuntimeService {
     });
     if (!run) throw new NotFoundException('Workflow run not found');
     return run;
+  }
+
+  /** Ghi snapshot biến workflow (sau đọc Excel, gán biến, …) vào lần chạy. */
+  async persistRunVariables(
+    workflowRunId: string,
+    workflow: Record<string, unknown>,
+  ) {
+    const snap = stripInternalWorkflowVars(workflow);
+    if (!Object.keys(snap).length) return;
+
+    const run = await this.prisma.workflowRun.findUnique({
+      where: { id: workflowRunId },
+      select: { variables: true },
+    });
+    const prev =
+      run?.variables &&
+      typeof run.variables === 'object' &&
+      !Array.isArray(run.variables)
+        ? { ...(run.variables as Record<string, unknown>) }
+        : {};
+
+    await this.prisma.workflowRun.update({
+      where: { id: workflowRunId },
+      data: { variables: { ...prev, ...snap } as object },
+    });
   }
 
   async startRunFromTrigger(
@@ -112,6 +164,8 @@ export class WorkflowRuntimeService {
         { workflowRunId: runId },
       );
 
+      await this.finalizeStaleStepRuns(runId, WorkflowRunStatus.COMPLETED);
+
       await this.prisma.workflowRun.update({
         where: { id: runId },
         data: {
@@ -134,6 +188,8 @@ export class WorkflowRuntimeService {
     } catch (err) {
       this.logger.error(`Workflow run ${runId} failed`, err);
       const msg = err instanceof Error ? err.message : 'Workflow failed';
+      await this.finalizeStaleStepRuns(runId, WorkflowRunStatus.FAILED);
+
       await this.prisma.workflowRun.update({
         where: { id: runId },
         data: {
@@ -142,6 +198,61 @@ export class WorkflowRuntimeService {
         },
       });
       await this.telegramProgress.finalize(runId, WorkflowRunStatus.FAILED, msg);
+    }
+  }
+
+  /** Đóng các step run còn RUNNING/PENDING khi workflow đã kết thúc (tránh bản ghi stale). */
+  async finalizeStaleStepRuns(
+    workflowRunId: string,
+    runStatus: WorkflowRunStatus,
+  ) {
+    const stale = await this.prisma.workflowStepRun.findMany({
+      where: {
+        workflowRunId,
+        status: { in: [StepRunStatus.RUNNING, StepRunStatus.PENDING] },
+      },
+    });
+    if (!stale.length) return;
+
+    const now = new Date();
+    for (const sr of stale) {
+      let status: StepRunStatus =
+        runStatus === WorkflowRunStatus.FAILED
+          ? StepRunStatus.FAILED
+          : StepRunStatus.COMPLETED;
+      let exitCode = sr.exitCode;
+      let error = sr.error;
+
+      if (sr.taskId) {
+        const task = await this.prisma.task.findUnique({
+          where: { id: sr.taskId },
+          select: { status: true, exitCode: true, result: true },
+        });
+        if (task) {
+          if (task.status === TaskStatus.COMPLETED) {
+            status = StepRunStatus.COMPLETED;
+            exitCode = task.exitCode;
+          } else if (
+            task.status === TaskStatus.FAILED ||
+            task.status === TaskStatus.TIMEOUT ||
+            task.status === TaskStatus.CANCELLED
+          ) {
+            status = StepRunStatus.FAILED;
+            exitCode = task.exitCode;
+            error = task.result ?? `Task ${task.status}`;
+          }
+        }
+      }
+
+      await this.prisma.workflowStepRun.update({
+        where: { id: sr.id },
+        data: {
+          status,
+          exitCode,
+          error,
+          completedAt: now,
+        },
+      });
     }
   }
 
@@ -201,6 +312,7 @@ export class WorkflowRuntimeService {
           graphEdges,
           { workflowRunId: run.id },
         );
+        await this.finalizeStaleStepRuns(run.id, WorkflowRunStatus.COMPLETED);
         await this.prisma.workflowRun.update({
           where: { id: run.id },
           data: { status: WorkflowRunStatus.COMPLETED, completedAt: new Date() },
@@ -218,6 +330,7 @@ export class WorkflowRuntimeService {
         };
       } catch (err) {
         const msg = err instanceof Error ? err.message : 'Workflow failed';
+        await this.finalizeStaleStepRuns(run.id, WorkflowRunStatus.FAILED);
         await this.prisma.workflowRun.update({
           where: { id: run.id },
           data: { status: WorkflowRunStatus.FAILED, completedAt: new Date() },
@@ -246,6 +359,7 @@ export class WorkflowRuntimeService {
       taskId?: string;
       exitCode?: number | null;
       error?: string;
+      output?: object;
       startedAt?: Date;
       completedAt?: Date;
     },
@@ -277,6 +391,7 @@ export class WorkflowRuntimeService {
         taskId: patch.taskId,
         exitCode: patch.exitCode,
         error: patch.error,
+        output: patch.output,
         startedAt: patch.startedAt,
         completedAt: patch.completedAt,
       },

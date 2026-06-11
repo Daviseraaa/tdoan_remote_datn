@@ -3,6 +3,7 @@ import {
   Camera,
   FileCode,
   Globe,
+  MessageCircle,
   Webhook,
   X,
   Info,
@@ -25,6 +26,7 @@ const ICONS: Record<TaskType, LucideIcon> = {
   DESKTOP_AUTOMATION: MousePointer2,
   SCREEN_CAPTURE: Camera,
   HTTP_REQUEST: Webhook,
+  TELEGRAM_SEND: MessageCircle,
 };
 
 export function taskTypeIcon(type: string): LucideIcon {

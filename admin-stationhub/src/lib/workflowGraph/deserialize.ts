@@ -38,6 +38,20 @@ export function stepLabel(step: WorkflowStep, config: WorkflowStepConfig): strin
   if (step.type === 'CONDITION') {
     return t('workflows.nodeCondition');
   }
+  if (step.type === 'LOOP') {
+    return t('workflows.nodeLoop', { count: config.loopCount ?? 3 });
+  }
+  if (step.type === 'VARIABLE') {
+    const mode = config.variableMode ?? 'set';
+    if (mode === 'create') return t('workflows.nodeVarCreate');
+    if (mode === 'read') return t('workflows.nodeVarRead');
+    return t('workflows.nodeVarSet');
+  }
+  if (step.type === 'EXCEL') {
+    return (config.excelMode ?? 'read') === 'read'
+      ? t('workflows.nodeExcelRead')
+      : t('workflows.nodeExcelWrite');
+  }
   const tt = config.taskType ?? (step.type === 'SCRIPT' ? 'SCRIPT' : 'COMMAND');
   if (config.command?.trim()) return config.command.trim().slice(0, 48);
   return t(`taskType.${tt}` as 'taskType.COMMAND');
@@ -69,7 +83,12 @@ export function graphV2ToRuntimeEdges(
       source: src,
       target: tgt,
       sourceHandle:
-        e.handle === 'true' || e.handle === 'false' ? e.handle : undefined,
+        e.handle === 'true' ||
+        e.handle === 'false' ||
+        e.handle === 'body' ||
+        e.handle === 'done'
+          ? e.handle
+          : undefined,
     });
   }
   return out;
@@ -173,6 +192,57 @@ export function workflowToFlow(
           kind: 'condition',
           label: nodeDisplayLabel(step, config),
           stepType: 'CONDITION',
+          config,
+          onFailure: step.onFailure ?? 'STOP',
+          runStatus: runStatusByStepId?.[id] ?? 'idle',
+        },
+      });
+      return;
+    }
+
+    if (step.type === 'LOOP') {
+      nodes.push({
+        id,
+        type: 'wfNode',
+        position,
+        data: {
+          kind: 'loop',
+          label: nodeDisplayLabel(step, config),
+          stepType: 'LOOP',
+          config,
+          onFailure: step.onFailure ?? 'STOP',
+          runStatus: runStatusByStepId?.[id] ?? 'idle',
+        },
+      });
+      return;
+    }
+
+    if (step.type === 'VARIABLE') {
+      nodes.push({
+        id,
+        type: 'wfNode',
+        position,
+        data: {
+          kind: 'variable',
+          label: nodeDisplayLabel(step, config),
+          stepType: 'VARIABLE',
+          config,
+          onFailure: step.onFailure ?? 'STOP',
+          runStatus: runStatusByStepId?.[id] ?? 'idle',
+        },
+      });
+      return;
+    }
+
+    if (step.type === 'EXCEL') {
+      nodes.push({
+        id,
+        type: 'wfNode',
+        position,
+        data: {
+          kind: 'excel',
+          label: nodeDisplayLabel(step, config),
+          stepType: 'EXCEL',
           config,
           onFailure: step.onFailure ?? 'STOP',
           runStatus: runStatusByStepId?.[id] ?? 'idle',

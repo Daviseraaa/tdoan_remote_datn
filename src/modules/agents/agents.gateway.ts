@@ -47,6 +47,33 @@ import {
   registerDesktopRecordingsWaiter,
   type AgentDesktopRecordingEntry,
 } from '../../common/desktop-recordings-registry';
+import {
+  failAgentFilesListWaiter,
+  failAgentFilesReadWaiter,
+  failAgentFilesWriteWaiter,
+  normalizeAgentFileEntry,
+  normalizeAgentFileReadPayload,
+  normalizeAgentFileWritePayload,
+  notifyAgentFilesListResult,
+  notifyAgentFilesReadResult,
+  notifyAgentFilesWriteResult,
+  registerAgentFilesListWaiter,
+  registerAgentFilesReadWaiter,
+  registerAgentFilesWriteWaiter,
+  type AgentFileEntry,
+  type AgentFileReadPayload,
+  type AgentFileWritePayload,
+  type AgentFileWriteRequest,
+  type AgentFilesListResult,
+} from '../../common/agent-files-registry';
+import {
+  failAgentRemoteStartWaiter,
+  failAgentRemoteStopWaiter,
+  notifyAgentRemoteStartResult,
+  notifyAgentRemoteStopResult,
+  registerAgentRemoteStartWaiter,
+  registerAgentRemoteStopWaiter,
+} from '../../common/agent-remote-registry';
 
 interface AgentSocket extends Socket {
   data: {
@@ -174,6 +201,7 @@ export class AgentsGateway
         status: 'ONLINE',
         agentId: agent.id,
       });
+      this.emitAgentStatusToClients(agent.userId, agent.id, AgentStatus.ONLINE);
     } catch (error) {
       this.logger.error('Connection error', error);
       client.disconnect();
@@ -182,9 +210,19 @@ export class AgentsGateway
 
   async handleDisconnect(client: AgentSocket) {
     const agent = client.data?.agent;
-    if (agent) {
-      await this.agentsService.markOffline(agent.agentKey);
+    if (!agent) return;
+
+    const result = await this.agentsService.markOffline(
+      agent.agentKey,
+      client.id,
+    );
+    if (result.changed) {
       this.logger.log(`Agent disconnected: ${agent.name} (${agent.id})`);
+      this.emitAgentStatusToClients(
+        agent.userId,
+        agent.id,
+        AgentStatus.OFFLINE,
+      );
     }
   }
 
@@ -276,6 +314,11 @@ export class AgentsGateway
     this.emitToClientRoom(`user:${agent.userId}`, WS_EVENTS.AGENT_TELEMETRY, telemetry);
     this.emitToClientRoom('admins', WS_EVENTS.AGENT_TELEMETRY, telemetry);
 
+    const prev = await this.prisma.agent.findUnique({
+      where: { id: agent.id },
+      select: { status: true },
+    });
+
     await this.agentsService.heartbeat(agent.agentKey, {
       ip,
       cpuPercent: Math.min(100, Math.max(0, cpu)),
@@ -284,6 +327,18 @@ export class AgentsGateway
       ramLabel,
       timestamp,
     });
+
+    if (
+      prev?.status === AgentStatus.OFFLINE &&
+      this.agentsService.isOnline(agent.agentKey)
+    ) {
+      this.emitAgentStatusToClients(
+        agent.userId,
+        agent.id,
+        AgentStatus.ONLINE,
+      );
+    }
+
     return { event: WS_EVENTS.AGENT_HEARTBEAT, data: { ok: true } };
   }
 
@@ -323,8 +378,14 @@ export class AgentsGateway
         ? data.result.slice(0, MAX_RESULT_SIZE) + '\n...[TRUNCATED]'
         : data.result || '';
 
-    const finalStatus =
-      data.status === 'COMPLETED' ? TaskStatus.COMPLETED : TaskStatus.FAILED;
+    let finalStatus: TaskStatus;
+    if (data.status === 'CANCELLED') {
+      finalStatus = TaskStatus.CANCELLED;
+    } else if (data.status === 'COMPLETED') {
+      finalStatus = TaskStatus.COMPLETED;
+    } else {
+      finalStatus = TaskStatus.FAILED;
+    }
 
     await this.prisma.task.update({
       where: { id: data.taskId },
@@ -339,7 +400,12 @@ export class AgentsGateway
     await this.prisma.taskLog.create({
       data: {
         taskId: data.taskId,
-        level: finalStatus === TaskStatus.COMPLETED ? 'INFO' : 'ERROR',
+        level:
+          finalStatus === TaskStatus.COMPLETED
+            ? 'INFO'
+            : finalStatus === TaskStatus.CANCELLED
+              ? 'WARN'
+              : 'ERROR',
         message: `Task ${finalStatus.toLowerCase()} (exit code ${data.exitCode ?? -1})`,
       },
     });
@@ -359,7 +425,9 @@ export class AgentsGateway
     const eventName =
       finalStatus === TaskStatus.COMPLETED
         ? WS_EVENTS.TASK_COMPLETED
-        : WS_EVENTS.TASK_FAILED;
+        : finalStatus === TaskStatus.CANCELLED
+          ? WS_EVENTS.TASK_FAILED
+          : WS_EVENTS.TASK_FAILED;
 
     const payload = {
       taskId: data.taskId,
@@ -407,9 +475,10 @@ export class AgentsGateway
       where: { id: agentId, userId },
     });
     if (!agent) throw new NotFoundException('Agent not found');
-    if (agent.status !== AgentStatus.ONLINE && agent.status !== AgentStatus.BUSY) {
-      throw new BadRequestException('Agent đang offline — không thể lấy Chrome profile');
-    }
+    this.assertAgentReachable(
+      agent,
+      'Agent đang offline — không thể lấy Chrome profile',
+    );
 
     const requestId = randomUUID();
     const wait = registerChromeProfilesWaiter(requestId, 20_000);
@@ -488,11 +557,10 @@ export class AgentsGateway
       where: { id: agentId, userId },
     });
     if (!agent) throw new NotFoundException('Agent not found');
-    if (agent.status !== AgentStatus.ONLINE && agent.status !== AgentStatus.BUSY) {
-      throw new BadRequestException(
-        'Agent đang offline — không thể đồng bộ Chrome script',
-      );
-    }
+    this.assertAgentReachable(
+      agent,
+      'Agent đang offline — không thể đồng bộ Chrome script',
+    );
 
     const requestId = randomUUID();
     const wait = registerChromeScriptsWaiter(requestId, 30_000);
@@ -566,11 +634,10 @@ export class AgentsGateway
       where: { id: agentId, userId },
     });
     if (!agent) throw new NotFoundException('Agent not found');
-    if (agent.status !== AgentStatus.ONLINE && agent.status !== AgentStatus.BUSY) {
-      throw new BadRequestException(
-        'Agent đang offline — không thể đồng bộ desktop recording',
-      );
-    }
+    this.assertAgentReachable(
+      agent,
+      'Agent đang offline — không thể đồng bộ desktop recording',
+    );
 
     const requestId = randomUUID();
     const wait = registerDesktopRecordingsWaiter(requestId, 30_000);
@@ -591,6 +658,384 @@ export class AgentsGateway
     );
 
     return { ...summary, agentId, agentName: agent.name };
+  }
+
+  @SubscribeMessage(WS_EVENTS.FILES_LIST_RESULT)
+  handleAgentFilesListResult(
+    @ConnectedSocket() client: AgentSocket,
+    @MessageBody()
+    data: {
+      requestId?: string;
+      ok?: boolean;
+      path?: string;
+      root?: string;
+      entries?: unknown[];
+      error?: string;
+    },
+  ) {
+    const agent = client.data?.agent;
+    if (!agent || !data?.requestId) return;
+
+    if (!data.ok) {
+      failAgentFilesListWaiter(
+        data.requestId,
+        data.error ?? 'Agent không liệt kê được thư mục',
+      );
+      return;
+    }
+
+    const entries: AgentFileEntry[] = [];
+    for (const item of Array.isArray(data.entries) ? data.entries : []) {
+      const row = normalizeAgentFileEntry(item);
+      if (row) entries.push(row);
+    }
+
+    notifyAgentFilesListResult(data.requestId, {
+      path: typeof data.path === 'string' ? data.path : '',
+      root: typeof data.root === 'string' ? data.root : '',
+      entries,
+    });
+    this.logger.log(
+      `Agent files list from ${agent.name}: ${entries.length} item(s)`,
+    );
+  }
+
+  @SubscribeMessage(WS_EVENTS.FILES_READ_RESULT)
+  handleAgentFilesReadResult(
+    @ConnectedSocket() client: AgentSocket,
+    @MessageBody()
+    data: {
+      requestId?: string;
+      ok?: boolean;
+      file?: unknown;
+      error?: string;
+    },
+  ) {
+    const agent = client.data?.agent;
+    if (!agent || !data?.requestId) return;
+
+    if (!data.ok) {
+      failAgentFilesReadWaiter(
+        data.requestId,
+        data.error ?? 'Agent không đọc được file',
+      );
+      return;
+    }
+
+    const file = normalizeAgentFileReadPayload(data.file);
+    if (!file) {
+      failAgentFilesReadWaiter(data.requestId, 'Phản hồi file không hợp lệ');
+      return;
+    }
+    notifyAgentFilesReadResult(data.requestId, file);
+  }
+
+  @SubscribeMessage(WS_EVENTS.FILES_WRITE_RESULT)
+  handleAgentFilesWriteResult(
+    @ConnectedSocket() client: AgentSocket,
+    @MessageBody()
+    data: {
+      requestId?: string;
+      ok?: boolean;
+      file?: unknown;
+      error?: string;
+    },
+  ) {
+    const agent = client.data?.agent;
+    if (!agent || !data?.requestId) return;
+
+    if (!data.ok) {
+      failAgentFilesWriteWaiter(
+        data.requestId,
+        data.error ?? 'Agent không ghi được file',
+      );
+      return;
+    }
+
+    const file = normalizeAgentFileWritePayload(data.file);
+    if (!file) {
+      failAgentFilesWriteWaiter(data.requestId, 'Phản hồi ghi file không hợp lệ');
+      return;
+    }
+    notifyAgentFilesWriteResult(data.requestId, file);
+    this.logger.log(
+      `Agent files write from ${agent.name}: ${file.path} (${file.size} bytes, written=${file.written})`,
+    );
+  }
+
+  @SubscribeMessage(WS_EVENTS.REMOTE_START_RESULT)
+  handleAgentRemoteStartResult(
+    @ConnectedSocket() client: AgentSocket,
+    @MessageBody()
+    data: {
+      requestId?: string;
+      ok?: boolean;
+      provider?: string;
+      message?: string;
+      error?: string;
+      rustdeskId?: string;
+      rustdeskPassword?: string;
+    },
+  ) {
+    const agent = client.data?.agent;
+    if (!agent || !data?.requestId) return;
+
+    if (!data.ok) {
+      failAgentRemoteStartWaiter(
+        data.requestId,
+        data.error ?? 'Agent không khởi động được remote',
+      );
+      return;
+    }
+
+    const rustdeskId =
+      typeof data.rustdeskId === 'string' && data.rustdeskId.trim()
+        ? data.rustdeskId.trim()
+        : undefined;
+    const rustdeskPassword =
+      typeof data.rustdeskPassword === 'string' && data.rustdeskPassword
+        ? data.rustdeskPassword
+        : undefined;
+
+    notifyAgentRemoteStartResult(data.requestId, {
+      provider:
+        typeof data.provider === 'string' && data.provider.trim()
+          ? data.provider.trim()
+          : 'rustdesk',
+      message: typeof data.message === 'string' ? data.message : undefined,
+      rustdeskId,
+      rustdeskPassword,
+    });
+
+    if (rustdeskId && rustdeskPassword) {
+      this.emitAgentRemoteReadyToClients(agent.userId, {
+        agentId: agent.id,
+        rustdeskId,
+        rustdeskPassword,
+        message: typeof data.message === 'string' ? data.message : undefined,
+        active: true,
+      });
+    }
+
+    this.logger.log(`Agent remote start OK from ${agent.name}`);
+  }
+
+  @SubscribeMessage(WS_EVENTS.REMOTE_STOP_RESULT)
+  handleAgentRemoteStopResult(
+    @ConnectedSocket() client: AgentSocket,
+    @MessageBody()
+    data: {
+      requestId?: string;
+      ok?: boolean;
+      provider?: string;
+      message?: string;
+      error?: string;
+    },
+  ) {
+    const agent = client.data?.agent;
+    if (!agent || !data?.requestId) return;
+
+    if (!data.ok) {
+      failAgentRemoteStopWaiter(
+        data.requestId,
+        data.error ?? 'Agent không dừng được remote',
+      );
+      return;
+    }
+
+    notifyAgentRemoteStopResult(data.requestId, {
+      provider:
+        typeof data.provider === 'string' && data.provider.trim()
+          ? data.provider.trim()
+          : 'rustdesk',
+      message: typeof data.message === 'string' ? data.message : undefined,
+    });
+    this.logger.log(`Agent remote stop OK from ${agent.name}`);
+  }
+
+  private assertAgentReachable(
+    agent: { agentKey: string; status: AgentStatus },
+    message: string,
+  ) {
+    if (
+      !this.agentsService.isOnline(agent.agentKey) &&
+      agent.status !== AgentStatus.ONLINE &&
+      agent.status !== AgentStatus.BUSY
+    ) {
+      throw new BadRequestException(message);
+    }
+  }
+
+  private async assertAgentOnlineForRpc(agentId: string, userId: string | null) {
+    const agent = await this.prisma.agent.findFirst({
+      where: userId ? { id: agentId, userId } : { id: agentId },
+    });
+    if (!agent) throw new NotFoundException('Agent not found');
+    this.assertAgentReachable(agent, 'Agent đang offline — không thể gọi RPC');
+    return agent;
+  }
+
+  async listAgentFiles(agentId: string, userId: string | null, path = '') {
+    const agent = await this.assertAgentOnlineForRpc(agentId, userId);
+    const requestId = randomUUID();
+    const wait = registerAgentFilesListWaiter(requestId, 25_000);
+    this.emitToAgent(agentId, WS_EVENTS.FILES_LIST_SYNC, { requestId, path });
+
+    try {
+      const result = await wait;
+      return { agentId, agentName: agent.name, ...result };
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'List files failed';
+      throw new BadRequestException(msg);
+    }
+  }
+
+  emitTaskCancel(agentId: string, taskId: string) {
+    this.emitToAgent(agentId, WS_EVENTS.TASK_CANCEL, { taskId });
+  }
+
+  async writeAgentFile(
+    agentId: string,
+    userId: string | null,
+    body: AgentFileWriteRequest,
+  ): Promise<AgentFileWritePayload & { agentId: string; agentName: string }> {
+    const agent = await this.assertAgentOnlineForRpc(agentId, userId);
+    const path = body.path?.trim();
+    if (!path) {
+      throw new BadRequestException('path is required');
+    }
+    if (!body.content) {
+      throw new BadRequestException('content is required');
+    }
+    const requestId = randomUUID();
+    const wait = registerAgentFilesWriteWaiter(requestId, 120_000);
+    this.emitToAgent(agentId, WS_EVENTS.FILES_WRITE_SYNC, {
+      requestId,
+      path,
+      content: body.content,
+      encoding: body.encoding ?? 'utf-8',
+      ...(body.uploadId ? { uploadId: body.uploadId } : {}),
+      ...(body.chunkIndex != null ? { chunkIndex: body.chunkIndex } : {}),
+      ...(body.totalChunks != null ? { totalChunks: body.totalChunks } : {}),
+    });
+
+    try {
+      const file = await wait;
+      return { agentId, agentName: agent.name, ...file };
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Write file failed';
+      throw new BadRequestException(msg);
+    }
+  }
+
+  async readAgentFile(
+    agentId: string,
+    userId: string | null,
+    path: string,
+    maxBytes?: number,
+  ): Promise<AgentFileReadPayload & { agentId: string; agentName: string }> {
+    const agent = await this.assertAgentOnlineForRpc(agentId, userId);
+    const requestId = randomUUID();
+    const wait = registerAgentFilesReadWaiter(requestId, 60_000);
+    this.emitToAgent(agentId, WS_EVENTS.FILES_READ_SYNC, {
+      requestId,
+      path,
+      ...(maxBytes != null ? { maxBytes } : {}),
+    });
+
+    try {
+      const file = await wait;
+      return { agentId, agentName: agent.name, ...file };
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Read file failed';
+      throw new BadRequestException(msg);
+    }
+  }
+
+  async startAgentRemote(agentId: string, userId: string | null) {
+    const agent = await this.assertAgentOnlineForRpc(agentId, userId);
+    const meta =
+      agent.metadata && typeof agent.metadata === 'object' && !Array.isArray(agent.metadata)
+        ? (agent.metadata as Record<string, unknown>)
+        : {};
+    const requestId = randomUUID();
+    const wait = registerAgentRemoteStartWaiter(requestId, 120_000);
+    this.emitToAgent(agentId, WS_EVENTS.REMOTE_START_SYNC, {
+      requestId,
+      provider: 'rustdesk',
+    });
+
+    try {
+      const started = await wait;
+      const now = new Date().toISOString();
+      await this.prisma.agent.update({
+        where: { id: agent.id },
+        data: {
+          metadata: {
+            ...meta,
+            lastRemoteStartAt: now,
+            rustdeskRemoteActive: true,
+          } as object,
+        },
+      });
+      return {
+        ok: true,
+        active: true,
+        agentId,
+        agentName: agent.name,
+        provider: started.provider,
+        rustdeskId: started.rustdeskId,
+        rustdeskPassword: started.rustdeskPassword,
+        message:
+          started.message ??
+          'RustDesk đã mở trên máy agent. Đang kết nối từ máy bạn…',
+        startedAt: now,
+      };
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Start remote failed';
+      throw new BadRequestException(msg);
+    }
+  }
+
+  async stopAgentRemote(agentId: string, userId: string | null) {
+    const agent = await this.assertAgentOnlineForRpc(agentId, userId);
+    const meta =
+      agent.metadata && typeof agent.metadata === 'object' && !Array.isArray(agent.metadata)
+        ? (agent.metadata as Record<string, unknown>)
+        : {};
+    const requestId = randomUUID();
+    const wait = registerAgentRemoteStopWaiter(requestId, 90_000);
+    this.emitToAgent(agentId, WS_EVENTS.REMOTE_STOP_SYNC, {
+      requestId,
+      provider: 'rustdesk',
+    });
+
+    try {
+      const stopped = await wait;
+      const now = new Date().toISOString();
+      await this.prisma.agent.update({
+        where: { id: agent.id },
+        data: {
+          metadata: {
+            ...meta,
+            rustdeskRemoteActive: false,
+            lastRemoteStopAt: now,
+          } as object,
+        },
+      });
+      return {
+        ok: true,
+        active: false,
+        agentId,
+        agentName: agent.name,
+        provider: stopped.provider,
+        message: stopped.message ?? 'Đã đóng ứng dụng RustDesk.',
+        stoppedAt: now,
+      };
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Stop remote failed';
+      throw new BadRequestException(msg);
+    }
   }
 
   @SubscribeMessage(WS_EVENTS.TASK_PROGRESS)
@@ -642,6 +1087,37 @@ export class AgentsGateway
       return parent;
     }
     return null;
+  }
+
+  /** RustDesk credentials từ agent — push realtime tới admin UI (không đọc metadata DB). */
+  private emitAgentRemoteReadyToClients(
+    userId: string,
+    payload: {
+      agentId: string;
+      rustdeskId: string;
+      rustdeskPassword: string;
+      message?: string;
+      active: boolean;
+    },
+  ) {
+    const body = { ...payload, timestamp: Date.now() };
+    this.emitToClientRoom(`user:${userId}`, WS_EVENTS.REMOTE_READY, body);
+    this.emitToClientRoom('admins', WS_EVENTS.REMOTE_READY, body);
+  }
+
+  /** Đồng bộ ONLINE/OFFLINE tới web client (không chờ poll REST). */
+  private emitAgentStatusToClients(
+    userId: string,
+    agentId: string,
+    status: AgentStatus,
+  ) {
+    const payload = {
+      agentId,
+      status,
+      timestamp: Date.now(),
+    };
+    this.emitToClientRoom(`user:${userId}`, WS_EVENTS.AGENT_STATUS, payload);
+    this.emitToClientRoom('admins', WS_EVENTS.AGENT_STATUS, payload);
   }
 
   /** Push task status tới admin UI (tránh chờ poll). */

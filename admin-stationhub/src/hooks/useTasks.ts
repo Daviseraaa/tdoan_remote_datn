@@ -16,6 +16,7 @@ export function useTasksList(params: {
   limit?: number;
   status?: TaskStatus;
   type?: TaskType;
+  search?: string;
 } = {}) {
   const { isAdmin } = useAuth();
   return useQuery({

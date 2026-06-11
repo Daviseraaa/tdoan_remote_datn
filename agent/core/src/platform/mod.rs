@@ -1,13 +1,19 @@
+pub mod agent_files;
 pub mod chrome_profiles;
 pub mod chrome_scripts_store;
 pub mod desktop_recordings_store;
 pub mod cloak_runner;
 pub mod close_app;
 pub mod open_app;
+pub mod remote;
 pub mod open_browser;
 pub mod shell;
 pub mod telegram_api;
 
+pub use agent_files::{
+    list_agent_files, read_agent_file, write_agent_file, station_hub_root, AgentFileEntry,
+    AgentFileReadResult, AgentFileWriteResult,
+};
 pub use chrome_profiles::{list_system_chrome_profiles, ChromeProfileEntry};
 pub use chrome_scripts_store::list_local_chrome_scripts;
 pub use desktop_recordings_store::list_local_desktop_recordings;
@@ -20,7 +26,9 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use serde_json::Value;
 
-pub use open_app::{OpenAppOptions, OpenAppSuccess};
+use crate::tasks::cancel::TaskCancelHandle;
+
+pub use open_app::OpenAppSuccess;
 
 /// Facade cho hành vi phụ thuộc hệ điều hành.
 pub struct Platform {
@@ -47,29 +55,25 @@ impl Platform {
 
 #[async_trait]
 pub trait OpenApp: Send + Sync {
-    async fn resolve_and_launch(
-        &self,
-        query: &str,
-        options: OpenAppOptions,
-    ) -> Result<OpenAppSuccess, String>;
+    async fn resolve_and_launch(&self, query: &str) -> Result<OpenAppSuccess, String>;
 }
 
 #[async_trait]
 pub trait DesktopAutomation: Send + Sync {
     fn is_available(&self) -> bool;
-    async fn run_steps(&self, steps: Value) -> Result<Value, String>;
+    async fn run_steps(
+        &self,
+        steps: Value,
+        cancel: Option<Arc<TaskCancelHandle>>,
+    ) -> Result<Value, String>;
 }
 
 struct DefaultOpenApp;
 
 #[async_trait]
 impl OpenApp for DefaultOpenApp {
-    async fn resolve_and_launch(
-        &self,
-        query: &str,
-        options: OpenAppOptions,
-    ) -> Result<OpenAppSuccess, String> {
-        open_app::open_app_resolve(query, &options).await
+    async fn resolve_and_launch(&self, query: &str) -> Result<OpenAppSuccess, String> {
+        open_app::open_app_resolve(query).await
     }
 }
 
@@ -93,8 +97,16 @@ impl DesktopAutomation for WindowsDesktop {
         true
     }
 
-    async fn run_steps(&self, steps: Value) -> Result<Value, String> {
-        windows::desktop::run_steps_json(Some(serde_json::json!({ "steps": steps }))).await
+    async fn run_steps(
+        &self,
+        steps: Value,
+        cancel: Option<Arc<TaskCancelHandle>>,
+    ) -> Result<Value, String> {
+        windows::desktop::run_steps_json(
+            Some(serde_json::json!({ "steps": steps })),
+            cancel,
+        )
+        .await
     }
 }
 
@@ -108,7 +120,11 @@ impl DesktopAutomation for StubDesktop {
         false
     }
 
-    async fn run_steps(&self, _steps: Value) -> Result<Value, String> {
+    async fn run_steps(
+        &self,
+        _steps: Value,
+        _cancel: Option<Arc<TaskCancelHandle>>,
+    ) -> Result<Value, String> {
         Err("DESKTOP_AUTOMATION chỉ trên Windows".into())
     }
 }

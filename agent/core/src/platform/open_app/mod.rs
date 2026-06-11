@@ -9,24 +9,11 @@ use std::process::Stdio;
 #[cfg(any(target_os = "macos", all(unix, not(target_os = "macos"))))]
 use tokio::process::Command;
 
-#[derive(Debug, Clone, Copy)]
-pub struct OpenAppOptions {
-    /// Phóng to cửa sổ chính sau khi mở (Windows: Maximized).
-    pub fullscreen: bool,
-}
-
-impl Default for OpenAppOptions {
-    fn default() -> Self {
-        Self { fullscreen: true }
-    }
-}
-
 pub struct OpenAppSuccess {
     pub method: &'static str,
     pub launched: String,
     pub pid: Option<u32>,
     pub process_name: Option<String>,
-    pub fullscreen: bool,
 }
 
 #[cfg(windows)]
@@ -256,36 +243,6 @@ $rows = @(
             .collect()
     }
 
-    const PS_FULLSCREEN_FN: &str = r#"
-function Invoke-OaFullscreen([int]$procId) {
-  if ($procId -le 0) { return }
-  Add-Type @"
-using System; using System.Runtime.InteropServices;
-public class OaFullscreenWin32 { [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow); }
-"@ -ErrorAction SilentlyContinue | Out-Null
-  $proc = Get-Process -Id $procId -ErrorAction SilentlyContinue
-  if (-not $proc) { return }
-  $proc.Refresh()
-  $h = [int]$proc.MainWindowHandle
-  if ($h -ne 0) { [void][OaFullscreenWin32]::ShowWindow([IntPtr]$h, 3) }
-}
-"#;
-
-    fn success_from_meta(
-        method: &'static str,
-        launched: String,
-        meta: LaunchMeta,
-        fullscreen: bool,
-    ) -> OpenAppSuccess {
-        OpenAppSuccess {
-            method,
-            launched,
-            pid: meta.pid,
-            process_name: meta.process_name,
-            fullscreen,
-        }
-    }
-
     fn open_app_window_wait_ms() -> u64 {
         std::env::var("OPEN_APP_WINDOW_WAIT_MS")
             .ok()
@@ -326,27 +283,22 @@ public class OaFullscreenWin32 { [DllImport("user32.dll")] public static extern 
         }
     }
 
-    async fn launch_exe_and_wait_win(exe_path: &str, fullscreen: bool) -> Result<LaunchMeta, String> {
+    async fn launch_exe_and_wait_win(exe_path: &str) -> Result<LaunchMeta, String> {
         let q = escape_ps_single(exe_path);
         let timeout = open_app_window_wait_ms();
-        let fs = if fullscreen { "$true" } else { "$false" };
-        let win_style = if fullscreen { "Maximized" } else { "Normal" };
         let script = format!(
             r#"
 $ErrorActionPreference = 'Stop'
-$oaFullscreen = {fs}
-{ps_fn}
 $path = {q}
 $timeoutMs = {timeout}
 $before = @([int64[]](Get-Process | Where-Object {{ $_.MainWindowHandle -ne 0 }} | ForEach-Object {{ $_.MainWindowHandle }}))
-$p = Start-Process -FilePath $path -PassThru -WindowStyle {win_style}
+$p = Start-Process -FilePath $path -PassThru
 $name = [System.IO.Path]::GetFileNameWithoutExtension($path)
 $deadline = [DateTime]::UtcNow.AddMilliseconds($timeoutMs)
 while ([DateTime]::UtcNow -lt $deadline) {{
   foreach ($proc in @(Get-Process -Name $name -ErrorAction SilentlyContinue)) {{
     $proc.Refresh()
     if ([int]$proc.MainWindowHandle -ne 0) {{
-      if ($oaFullscreen) {{ Invoke-OaFullscreen [int]$proc.Id }}
       @{{ ok = $true; window = $true; pid = [int]$proc.Id; processName = $proc.ProcessName }} | ConvertTo-Json -Compress
       exit 0
     }}
@@ -354,7 +306,6 @@ while ([DateTime]::UtcNow -lt $deadline) {{
   if ($p -and -not $p.HasExited) {{
     $p.Refresh()
     if ([int]$p.MainWindowHandle -ne 0) {{
-      if ($oaFullscreen) {{ Invoke-OaFullscreen [int]$p.Id }}
       @{{ ok = $true; window = $true; pid = [int]$p.Id; processName = $p.ProcessName }} | ConvertTo-Json -Compress
       exit 0
     }}
@@ -367,7 +318,6 @@ while ([DateTime]::UtcNow -lt $deadline) {{
       if ($newHandles -contains [int64]$proc.MainWindowHandle) {{ $found = $proc; break }}
     }}
     if ($found) {{
-      if ($oaFullscreen) {{ Invoke-OaFullscreen [int]$found.Id }}
       @{{ ok = $true; window = $true; pid = [int]$found.Id; processName = $found.ProcessName }} | ConvertTo-Json -Compress
     }} else {{
       @{{ ok = $true; window = $true }} | ConvertTo-Json -Compress
@@ -379,24 +329,16 @@ while ([DateTime]::UtcNow -lt $deadline) {{
 @{{ ok = $false; window = $false; message = 'Đã chạy lệnh mở nhưng không thấy cửa sổ (timeout).' }} | ConvertTo-Json -Compress
 exit 1
 "#,
-            ps_fn = PS_FULLSCREEN_FN,
-            win_style = win_style,
         );
         let out = run_ps_encoded(script.trim()).await?;
         parse_launch_ps(&out)
     }
 
-    async fn launch_explorer_and_wait_win(
-        argument_list_ps: &str,
-        fullscreen: bool,
-    ) -> Result<LaunchMeta, String> {
+    async fn launch_explorer_and_wait_win(argument_list_ps: &str) -> Result<LaunchMeta, String> {
         let timeout = open_app_window_wait_ms();
-        let fs = if fullscreen { "$true" } else { "$false" };
         let script = format!(
             r#"
 $ErrorActionPreference = 'Stop'
-$oaFullscreen = {fs}
-{ps_fn}
 $timeoutMs = {timeout}
 $before = @([int64[]](Get-Process | Where-Object {{ $_.MainWindowHandle -ne 0 }} | ForEach-Object {{ $_.MainWindowHandle }}))
 Start-Process -FilePath explorer.exe -ArgumentList {args}
@@ -410,7 +352,6 @@ while ([DateTime]::UtcNow -lt $deadline) {{
       if ($newHandles -contains [int64]$proc.MainWindowHandle) {{ $found = $proc; break }}
     }}
     if ($found) {{
-      if ($oaFullscreen) {{ Invoke-OaFullscreen [int]$found.Id }}
       @{{ ok = $true; window = $true; pid = [int]$found.Id; processName = $found.ProcessName }} | ConvertTo-Json -Compress
     }} else {{
       @{{ ok = $true; window = $true }} | ConvertTo-Json -Compress
@@ -422,35 +363,28 @@ while ([DateTime]::UtcNow -lt $deadline) {{
 @{{ ok = $false; window = $false; message = 'Đã chạy Explorer nhưng không thấy cửa sổ mới (timeout).' }} | ConvertTo-Json -Compress
 exit 1
 "#,
-            ps_fn = PS_FULLSCREEN_FN,
             args = argument_list_ps,
         );
         let out = run_ps_encoded(script.trim()).await?;
         parse_launch_ps(&out)
     }
 
-    async fn launch_exe_win(exe_path: &str, fullscreen: bool) -> Result<LaunchMeta, String> {
-        launch_exe_and_wait_win(exe_path, fullscreen).await
+    async fn launch_exe_win(exe_path: &str) -> Result<LaunchMeta, String> {
+        launch_exe_and_wait_win(exe_path).await
     }
 
-    async fn launch_explorer_shell_apps(
-        app_id: &str,
-        fullscreen: bool,
-    ) -> Result<LaunchMeta, String> {
+    async fn launch_explorer_shell_apps(app_id: &str) -> Result<LaunchMeta, String> {
         let uri = format!("shell:AppsFolder\\{}", app_id);
         let q = escape_ps_single(&uri);
-        launch_explorer_and_wait_win(&q, fullscreen).await
+        launch_explorer_and_wait_win(&q).await
     }
 
-    async fn launch_explorer_dir(path: &str, fullscreen: bool) -> Result<LaunchMeta, String> {
+    async fn launch_explorer_dir(path: &str) -> Result<LaunchMeta, String> {
         let q = escape_ps_single(path);
-        launch_explorer_and_wait_win(&q, fullscreen).await
+        launch_explorer_and_wait_win(&q).await
     }
 
-    async fn try_launch_existing_path_win(
-        target: &str,
-        fullscreen: bool,
-    ) -> Option<Result<OpenAppSuccess, String>> {
+    async fn try_launch_existing_path_win(target: &str) -> Option<Result<OpenAppSuccess, String>> {
         let path_buf = if Path::new(target).is_absolute() {
             PathBuf::from(target)
         } else {
@@ -477,28 +411,35 @@ exit 1
                 ));
             }
             let s = abs.to_string_lossy().to_string();
-            let meta = match launch_exe_win(&s, fullscreen).await {
+            let meta = match launch_exe_win(&s).await {
                 Ok(m) => m,
                 Err(e) => return Some(Err(e)),
             };
-            return Some(Ok(success_from_meta("path", s, meta, fullscreen)));
+            return Some(Ok(OpenAppSuccess {
+                method: "path",
+                launched: s,
+                pid: meta.pid,
+                process_name: meta.process_name,
+            }));
         }
         if meta.is_dir() {
             let s = abs.to_string_lossy().to_string();
-            let meta = match launch_explorer_dir(&s, fullscreen).await {
+            let meta = match launch_explorer_dir(&s).await {
                 Ok(m) => m,
                 Err(e) => return Some(Err(e)),
             };
-            return Some(Ok(success_from_meta("path", s, meta, fullscreen)));
+            return Some(Ok(OpenAppSuccess {
+                method: "path",
+                launched: s,
+                pid: meta.pid,
+                process_name: meta.process_name,
+            }));
         }
         None
     }
 
-    pub async fn resolve_and_launch_win(
-        query: &str,
-        fullscreen: bool,
-    ) -> Result<OpenAppSuccess, String> {
-        if let Some(r) = try_launch_existing_path_win(query, fullscreen).await {
+    pub async fn resolve_and_launch_win(query: &str) -> Result<OpenAppSuccess, String> {
+        if let Some(r) = try_launch_existing_path_win(query).await {
             return r;
         }
 
@@ -543,26 +484,26 @@ exit 1
         if pick_app {
             if let Some((row, sc)) = best_app {
                 if sc >= 100 {
-                    let meta = launch_explorer_shell_apps(&row.app_id, fullscreen).await?;
-                    return Ok(success_from_meta(
-                        "shell_apps",
-                        format!("{} ({})", row.name, row.app_id),
-                        meta,
-                        fullscreen,
-                    ));
+                    let meta = launch_explorer_shell_apps(&row.app_id).await?;
+                    return Ok(OpenAppSuccess {
+                        method: "shell_apps",
+                        launched: format!("{} ({})", row.name, row.app_id),
+                        pid: meta.pid,
+                        process_name: meta.process_name,
+                    });
                 }
             }
         }
 
         if let Some((row, sc)) = best_lnk {
             if sc >= 100 {
-                let meta = launch_exe_win(&row.target_path, fullscreen).await?;
-                return Ok(success_from_meta(
-                    "shortcut",
-                    format!("{} → {}", row.name, row.target_path),
-                    meta,
-                    fullscreen,
-                ));
+                let meta = launch_exe_win(&row.target_path).await?;
+                return Ok(OpenAppSuccess {
+                    method: "shortcut",
+                    launched: format!("{} → {}", row.name, row.target_path),
+                    pid: meta.pid,
+                    process_name: meta.process_name,
+                });
             }
         }
 
@@ -588,7 +529,6 @@ async fn resolve_macos(query: &str) -> Result<OpenAppSuccess, String> {
         launched: query.to_string(),
         pid: None,
         process_name: None,
-        fullscreen: false,
     })
 }
 
@@ -608,33 +548,27 @@ async fn resolve_linux(query: &str) -> Result<OpenAppSuccess, String> {
             launched: query.to_string(),
             pid: None,
             process_name: None,
-            fullscreen: false,
         });
     }
     Err("Linux: chỉ hỗ trợ đường dẫn file có thật + xdg-open.".into())
 }
 
 /// Entry chính: đường dẫn / tên app (Windows: resolve Start + shortcut).
-pub async fn open_app_resolve(
-    query: &str,
-    options: &OpenAppOptions,
-) -> Result<OpenAppSuccess, String> {
+pub async fn open_app_resolve(query: &str) -> Result<OpenAppSuccess, String> {
     let q = query.trim();
     if q.is_empty() {
         return Err("Thiếu đường dẫn hoặc tên app.".into());
     }
     #[cfg(windows)]
     {
-        return win::resolve_and_launch_win(q, options.fullscreen).await;
+        return win::resolve_and_launch_win(q).await;
     }
     #[cfg(target_os = "macos")]
     {
-        let _ = options;
         return resolve_macos(q).await;
     }
     #[cfg(all(unix, not(target_os = "macos")))]
     {
-        let _ = options;
         return resolve_linux(q).await;
     }
     #[cfg(not(any(windows, unix)))]

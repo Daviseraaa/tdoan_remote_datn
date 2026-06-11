@@ -43,7 +43,7 @@ export function WfTelegramBotSelect({
         disabled={isLoading}
         className={cn(selectCls, !value && 'text-on-surface-variant')}
       >
-        <option value="">{isLoading ? '…' : t('triggers.noBots')}</option>
+        <option value="">{isLoading ? '…' : t('triggers.noBotsShort')}</option>
         {valueMissingFromList ? (
           <option value={value}>{value}</option>
         ) : null}
@@ -55,10 +55,10 @@ export function WfTelegramBotSelect({
         ))}
       </select>
       {!isLoading && list.length === 0 ? (
-        <p className="text-[10px] text-on-surface-variant mt-1">
+        <p className="text-[10px] text-on-surface-variant mt-1.5">
           {t('workflows.telegramBotsEmpty')}{' '}
-          <Link to="/automations" className="text-primary underline">
-            {t('nav.automations')}
+          <Link to="/bots" className="text-primary font-semibold underline hover:no-underline">
+            {t('nav.bots')}
           </Link>
         </p>
       ) : null}

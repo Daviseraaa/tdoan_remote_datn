@@ -1,9 +1,42 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import * as agentsApi from '@/src/api/agents';
 import { useAuth } from '@/src/hooks/useAuth';
 import { queryKeys } from '@/src/lib/queryKeys';
-import type { CreateAgentDto, UpdateRemoteAccessDto, WakeAgentDto } from '@/src/types/api';
+import type { Agent, CreateAgentDto, UpdateRemoteAccessDto, WakeAgentDto } from '@/src/types/api';
 import type { ListAgentsParams } from '@/src/api/agents';
+
+function patchAgentMetadata(
+  qc: QueryClient,
+  isAdmin: boolean,
+  id: string,
+  patch: Record<string, unknown>,
+) {
+  qc.setQueryData<Agent>(queryKeys.agent(isAdmin, id), (old) => {
+    if (!old) return old;
+    const base =
+      old.metadata && typeof old.metadata === 'object' && !Array.isArray(old.metadata)
+        ? (old.metadata as Record<string, unknown>)
+        : {};
+    return { ...old, metadata: { ...base, ...patch } };
+  });
+
+  qc.setQueriesData<{ items?: Agent[] }>({ queryKey: ['agents'] }, (old) => {
+    if (!old?.items) return old;
+    return {
+      ...old,
+      items: old.items.map((agent) => {
+        if (agent.id !== id) return agent;
+        const base =
+          agent.metadata &&
+          typeof agent.metadata === 'object' &&
+          !Array.isArray(agent.metadata)
+            ? (agent.metadata as Record<string, unknown>)
+            : {};
+        return { ...agent, metadata: { ...base, ...patch } };
+      }),
+    };
+  });
+}
 
 export function useAgentsList(params: ListAgentsParams = {}) {
   const { isAdmin } = useAuth();
@@ -71,5 +104,34 @@ export function useAgentMutations() {
     },
   });
 
-  return { create, remove, regenerateKey, syncChromeProfiles, wakeAgent, updateRemoteAccess };
+  const startRemote = useMutation({
+    mutationFn: (id: string) => agentsApi.startAgentRemote(isAdmin, id),
+    onSuccess: (_data, id) => {
+      patchAgentMetadata(qc, isAdmin, id, { rustdeskRemoteActive: true });
+      stopRemote.reset();
+      void qc.invalidateQueries({ queryKey: queryKeys.agent(isAdmin, id) });
+      invalidate();
+    },
+  });
+
+  const stopRemote = useMutation({
+    mutationFn: (id: string) => agentsApi.stopAgentRemote(isAdmin, id),
+    onSuccess: (_data, id) => {
+      patchAgentMetadata(qc, isAdmin, id, { rustdeskRemoteActive: false });
+      startRemote.reset();
+      void qc.invalidateQueries({ queryKey: queryKeys.agent(isAdmin, id) });
+      invalidate();
+    },
+  });
+
+  return {
+    create,
+    remove,
+    regenerateKey,
+    syncChromeProfiles,
+    wakeAgent,
+    updateRemoteAccess,
+    startRemote,
+    stopRemote,
+  };
 }

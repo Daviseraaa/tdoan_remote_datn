@@ -3,12 +3,17 @@ import { Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
 import { TaskStatus, TaskType } from '@prisma/client';
 import { TASK_QUEUE, WS_EVENTS } from '../../common/constants/index';
-import { registerTaskCompletionWaiter } from '../../common/task-completion-registry';
+import {
+  notifyTaskCompleted,
+  registerTaskCompletionWaiter,
+} from '../../common/task-completion-registry';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AgentsGateway } from '../agents/agents.gateway';
+import { AgentsService } from '../agents/agents.service';
 import { SubscriptionService } from '../billing/subscription.service';
 import { TasksService } from './tasks.service';
 import { resolveScreenCaptureEmitPayload } from './tasks-screen-capture.util';
+import { resolveTelegramSendEmitPayload } from './tasks-telegram-send.util';
 
 const TASK_WORKER_CONCURRENCY = Math.max(
   1,
@@ -22,6 +27,7 @@ export class TasksProcessor extends WorkerHost {
   constructor(
     private prisma: PrismaService,
     private agentsGateway: AgentsGateway,
+    private agentsService: AgentsService,
     private tasksService: TasksService,
     private subscription: SubscriptionService,
   ) {
@@ -59,9 +65,27 @@ export class TasksProcessor extends WorkerHost {
       return;
     }
 
-    if (task.agent.status !== 'ONLINE') {
-      await this.tasksService.addLog(taskId, 'WARN', 'Agent is offline, retrying...');
-      throw new Error('Agent is offline');
+    if (!this.agentsService.isAgentReachable(task.agent)) {
+      const message = 'Agent đang offline — không gửi task';
+      await this.tasksService.updateTaskStatus(
+        taskId,
+        TaskStatus.FAILED,
+        message,
+        -1,
+      );
+      await this.tasksService.addLog(taskId, 'ERROR', message);
+      notifyTaskCompleted(taskId, {
+        status: TaskStatus.FAILED,
+        exitCode: -1,
+        result: message,
+        error: message,
+      });
+      this.agentsGateway.emitTaskStatusToUser(
+        task.userId,
+        taskId,
+        TaskStatus.FAILED,
+      );
+      return;
     }
 
     await this.tasksService.updateTaskStatus(taskId, TaskStatus.RUNNING);
@@ -71,6 +95,12 @@ export class TasksProcessor extends WorkerHost {
     let emitPayload: unknown = task.payload;
     if (task.type === TaskType.SCREEN_CAPTURE) {
       emitPayload = await resolveScreenCaptureEmitPayload(
+        this.prisma,
+        task.userId,
+        task.payload,
+      );
+    } else if (task.type === TaskType.TELEGRAM_SEND) {
+      emitPayload = await resolveTelegramSendEmitPayload(
         this.prisma,
         task.userId,
         task.payload,

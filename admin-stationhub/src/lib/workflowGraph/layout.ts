@@ -3,7 +3,9 @@ import type { WorkflowStep, WorkflowStepConfig } from '@/src/types/api';
 import { t } from '@/src/i18n/t';
 import {
   WF_EDGE_TYPE,
+  WF_HANDLE_BODY,
   WF_HANDLE_DEFAULT,
+  WF_HANDLE_DONE,
   WF_HANDLE_FALSE,
   WF_HANDLE_TRUE,
   WF_TRIGGER_ID,
@@ -61,6 +63,8 @@ export function buildFlowEdge(
 function edgeLabel(handle?: string): string | undefined {
   if (handle === WF_HANDLE_TRUE) return t('workflows.branchTrue');
   if (handle === WF_HANDLE_FALSE) return t('workflows.branchFalse');
+  if (handle === WF_HANDLE_BODY) return t('workflows.branchBody');
+  if (handle === WF_HANDLE_DONE) return t('workflows.branchDone');
   return undefined;
 }
 

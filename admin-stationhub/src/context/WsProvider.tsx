@@ -4,10 +4,11 @@ import { useAuth } from '@/src/hooks/useAuth';
 import {
   connectWs,
   disconnectWs,
+  type AgentStatusWsPayload,
   type AgentTelemetryWsPayload,
   type TaskWsPayload,
 } from '@/src/lib/ws';
-import type { Task, TaskStatus } from '@/src/types/api';
+import type { AgentStatus, Task, TaskStatus } from '@/src/types/api';
 import { normalizeRamLabel } from '@/src/lib/mappers';
 import { queryKeys } from '@/src/lib/queryKeys';
 import type { Agent, PaginatedResponse } from '@/src/types/api';
@@ -22,8 +23,24 @@ export function WsProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
+    const patchAgentsCache = (mergeAgent: (agent: Agent) => Agent) => {
+      queryClient.setQueriesData<PaginatedResponse<Agent>>(
+        { queryKey: ['agents'] },
+        (old) => {
+          if (!old?.items?.length) return old;
+          return {
+            ...old,
+            items: old.items.map(mergeAgent),
+          };
+        },
+      );
+      queryClient.setQueriesData<Agent>({ queryKey: ['agent'] }, (old) =>
+        old ? mergeAgent(old) : old,
+      );
+    };
+
     const patchAgentTelemetry = (payload: AgentTelemetryWsPayload) => {
-      const mergeAgent = (agent: Agent): Agent => {
+      patchAgentsCache((agent) => {
         if (agent.id !== payload.agentId) return agent;
         const baseMeta =
           agent.metadata && typeof agent.metadata === 'object'
@@ -31,6 +48,8 @@ export function WsProvider({ children }: { children: React.ReactNode }) {
             : {};
         return {
           ...agent,
+          status:
+            agent.status === 'OFFLINE' ? ('ONLINE' as AgentStatus) : agent.status,
           ip: payload.ip || agent.ip,
           metadata: {
             ...baseMeta,
@@ -42,17 +61,13 @@ export function WsProvider({ children }: { children: React.ReactNode }) {
             liveTelemetryAt: payload.timestamp,
           },
         };
-      };
+      });
+    };
 
-      queryClient.setQueriesData<PaginatedResponse<Agent>>(
-        { queryKey: ['agents'] },
-        (old) => {
-          if (!old?.items?.length) return old;
-          return {
-            ...old,
-            items: old.items.map(mergeAgent),
-          };
-        },
+    const patchAgentStatus = (payload: AgentStatusWsPayload) => {
+      const nextStatus = payload.status as AgentStatus;
+      patchAgentsCache((agent) =>
+        agent.id === payload.agentId ? { ...agent, status: nextStatus } : agent,
       );
     };
 
@@ -91,6 +106,7 @@ export function WsProvider({ children }: { children: React.ReactNode }) {
         queryClient.invalidateQueries({ queryKey: ['agents'] });
       },
       patchAgentTelemetry,
+      patchAgentStatus,
     );
 
     return () => disconnectWs();

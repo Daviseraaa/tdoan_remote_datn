@@ -23,7 +23,10 @@ import {
   buildCloseAppTask,
   parseCloseAppForm,
 } from '@/src/lib/closeAppPayload';
-import { buildOpenAppPayload, parseOpenAppForm } from '@/src/lib/openAppPayload';
+import {
+  buildTelegramSendTask,
+  parseTelegramSendForm,
+} from '@/src/lib/telegramSendPayload';
 
 export type { ChromeScriptStep };
 
@@ -61,7 +64,6 @@ export interface TemplateEditorState {
   command: string;
   openAppMode: OpenAppMode;
   openAppValue: string;
-  openAppFullscreen: boolean;
   desktopSteps: DesktopStep[];
   chromeSteps: ChromeScriptStep[];
   chromeUrlPattern: string;
@@ -82,6 +84,7 @@ export interface TemplateEditorState {
   openBrowserUrl: string;
   openBrowserPayload: Record<string, unknown>;
   closeAppPayload: Record<string, unknown>;
+  telegramSendPayload: Record<string, unknown>;
   timeout: number;
   priority: number;
 }
@@ -102,6 +105,7 @@ export const SELECTABLE_TEMPLATE_TYPES: TaskType[] = [
   'DESKTOP_AUTOMATION',
   'SCREEN_CAPTURE',
   'HTTP_REQUEST',
+  'TELEGRAM_SEND',
 ];
 
 export const DEFAULT_TEMPLATE_STATE: TemplateEditorState = {
@@ -112,7 +116,6 @@ export const DEFAULT_TEMPLATE_STATE: TemplateEditorState = {
   command: '',
   openAppMode: 'path',
   openAppValue: '',
-  openAppFullscreen: true,
   desktopSteps: [],
   chromeSteps: [],
   chromeUrlPattern: '',
@@ -133,6 +136,7 @@ export const DEFAULT_TEMPLATE_STATE: TemplateEditorState = {
   openBrowserUrl: 'https://',
   openBrowserPayload: {},
   closeAppPayload: { mode: 'openedInRun' },
+  telegramSendPayload: { mode: 'message', chatId: '{{telegram.chatId}}' },
   timeout: 120000,
   priority: 5,
 };
@@ -327,10 +331,19 @@ export function parseTemplateToForm(tpl: TaskTemplate, agent: Agent | null): Tem
   };
 
   if (tpl.type === 'OPEN_APP') {
-    const parsed = parseOpenAppForm(tpl.command ?? '', tpl.payload as Record<string, unknown>);
-    base.openAppMode = parsed.mode;
-    base.openAppValue = parsed.value;
-    base.openAppFullscreen = parsed.fullscreen;
+    const p = tpl.payload as Record<string, unknown> | null;
+    if (p?.path) {
+      base.openAppMode = 'path';
+      base.openAppValue = String(p.path);
+    } else if (p?.app) {
+      base.openAppMode = 'app';
+      base.openAppValue = String(p.app);
+    } else if (p?.query) {
+      base.openAppMode = 'query';
+      base.openAppValue = String(p.query);
+    } else {
+      base.openAppValue = tpl.command ?? '';
+    }
     return base;
   }
 
@@ -363,6 +376,15 @@ export function parseTemplateToForm(tpl: TaskTemplate, agent: Agent | null): Tem
     const built = buildCloseAppTask(parseCloseAppForm(tpl.payload as Record<string, unknown>));
     base.command = built.command;
     base.closeAppPayload = built.payload;
+    return base;
+  }
+
+  if (tpl.type === 'TELEGRAM_SEND') {
+    const built = buildTelegramSendTask(
+      parseTelegramSendForm(tpl.payload as Record<string, unknown>),
+    );
+    base.command = built.command;
+    base.telegramSendPayload = built.payload;
     return base;
   }
 
@@ -413,11 +435,12 @@ export function buildTemplateDto(state: TemplateEditorState): CreateTaskTemplate
       return { ...base, command: 'collect' };
     case 'OPEN_APP': {
       const v = state.openAppValue.trim();
-      const payload = buildOpenAppPayload({
-        mode: state.openAppMode,
-        value: v,
-        fullscreen: state.openAppFullscreen,
-      });
+      const payload: Record<string, unknown> =
+        state.openAppMode === 'path'
+          ? { path: v }
+          : state.openAppMode === 'app'
+            ? { app: v }
+            : { query: v };
       return { ...base, command: v, payload };
     }
     case 'OPEN_BROWSER': {
@@ -435,6 +458,15 @@ export function buildTemplateDto(state: TemplateEditorState): CreateTaskTemplate
     }
     case 'CLOSE_APP': {
       const built = buildCloseAppTask(parseCloseAppForm(state.closeAppPayload));
+      return {
+        ...base,
+        command: built.command,
+        payload: built.payload,
+        timeout: state.timeout,
+      };
+    }
+    case 'TELEGRAM_SEND': {
+      const built = buildTelegramSendTask(parseTelegramSendForm(state.telegramSendPayload));
       return {
         ...base,
         command: built.command,
@@ -553,6 +585,14 @@ export function validateTemplateState(state: TemplateEditorState): string | null
         if (!state.screenTelegramChatId.trim()) return t('screenCapture.chatRequired');
       }
       break;
+    case 'TELEGRAM_SEND': {
+      const tg = parseTelegramSendForm(state.telegramSendPayload);
+      if (!tg.telegramBotId.trim()) return t('telegramSend.botRequired');
+      if (!tg.chatId.trim()) return t('telegramSend.chatRequired');
+      if (tg.mode === 'message' && !tg.text.trim()) return t('telegramSend.textRequired');
+      if (tg.mode !== 'message' && !tg.filePath.trim()) return t('telegramSend.filePathRequired');
+      break;
+    }
     default:
       break;
   }

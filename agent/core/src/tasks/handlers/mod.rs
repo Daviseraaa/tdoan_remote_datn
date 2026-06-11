@@ -8,3 +8,4 @@ pub mod open_app;
 pub mod open_browser;
 pub mod screen_capture;
 pub mod system_info;
+pub mod telegram_send;

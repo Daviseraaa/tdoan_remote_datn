@@ -27,9 +27,10 @@ pub async fn run_desktop_replay(path: PathBuf) -> Result<(), String> {
         return Err("steps rỗng".into());
     }
 
-    let result = crate::platform::windows::desktop::run_steps_json(Some(serde_json::json!({
-        "steps": steps
-    })))
+    let result = crate::platform::windows::desktop::run_steps_json(
+        Some(serde_json::json!({ "steps": steps })),
+        None,
+    )
     .await?;
 
     println!("{}", serde_json::to_string_pretty(&result).unwrap_or_default());

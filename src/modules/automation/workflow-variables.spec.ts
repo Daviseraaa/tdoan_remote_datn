@@ -1,5 +1,6 @@
 import {
   buildStepOutput,
+  extractExcelRowsFromTaskResult,
   mergeScopes,
   parseTaskResult,
   publishStepOutput,
@@ -133,5 +134,36 @@ describe('workflow-variables', () => {
     expect(resolveTemplateString('{{steps.api.data.data.status}}', scope)).toBe('ok');
     expect(resolveTemplateString('{{steps.api.statusCode}}', scope)).toBe('200');
     expect(resolveTemplateString('{{steps.api.ok}}', scope)).toBe('true');
+  });
+
+  it('resolves workflow array index with dot or brackets', () => {
+    const scope = scopeFromContext(
+      {
+        excel_data: [
+          { name: 'Alice', amount: 10 },
+          { name: 'Bob', amount: 20 },
+        ],
+      },
+      {},
+    );
+    expect(resolveTemplateString('{{workflow.excel_data.0.name}}', scope)).toBe('Alice');
+    expect(resolveTemplateString('{{workflow.excel_data[0].name}}', scope)).toBe('Alice');
+    expect(resolveTemplateString('{{workflow.excel_data[1].name}}', scope)).toBe('Bob');
+    expect(resolveTemplateString('{{workflow.excel_data.0}}', scope)).toBe(
+      JSON.stringify({ name: 'Alice', amount: 10 }),
+    );
+  });
+
+  it('extractExcelRowsFromTaskResult reads rows from agent JSON', () => {
+    const result = JSON.stringify({
+      path: 'C:\\\\data.xlsx',
+      sheet: 'Sheet1',
+      rows: [{ a: 1 }],
+      rowCount: 1,
+    });
+    expect(extractExcelRowsFromTaskResult(result, 0)).toEqual({
+      rows: [{ a: 1 }],
+      sheet: 'Sheet1',
+    });
   });
 });

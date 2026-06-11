@@ -1,4 +1,9 @@
-import type { TaskType, WorkflowStepType } from '@/src/types/api';
+import type {
+  TaskType,
+  WorkflowExcelMode,
+  WorkflowStepType,
+  WorkflowVariableMode,
+} from '@/src/types/api';
 import { t } from '@/src/i18n/t';
 import type { WfNodeData } from './types';
 
@@ -30,7 +35,9 @@ export function newTaskNodeData(
                   ? 'https://example.com/api'
                   : taskType === 'CLOSE_APP'
                     ? 'close'
-                    : '',
+                    : taskType === 'TELEGRAM_SEND'
+                      ? 'send'
+                      : '',
       payload:
         taskType === 'CLOSE_APP'
           ? { mode: 'openedInRun' }
@@ -47,8 +54,11 @@ export function newTaskNodeData(
                 }
               : taskType === 'HTTP_REQUEST'
                 ? { method: 'GET' }
-                : taskType === 'OPEN_APP'
-                  ? { path: '', fullscreen: true }
+                : taskType === 'TELEGRAM_SEND'
+                  ? {
+                      mode: 'message',
+                      chatId: '{{telegram.chatId}}',
+                    }
                   : undefined,
       timeout: 60000,
       stepKey,
@@ -104,6 +114,83 @@ export function newConditionNodeData(
     config: {
       conditionMode: 'last_exit_success',
       conditionExitCode: 0,
+      stepKey,
+      ui: position,
+    },
+    onFailure: 'STOP',
+    runStatus: 'idle',
+  };
+}
+
+function variableNodeLabel(mode: WorkflowVariableMode): string {
+  if (mode === 'create') return t('workflows.nodeVarCreate');
+  if (mode === 'read') return t('workflows.nodeVarRead');
+  return t('workflows.nodeVarSet');
+}
+
+export function newVariableNodeData(
+  mode: WorkflowVariableMode,
+  position: { x: number; y: number },
+  stepKey: string,
+): WfNodeData {
+  return {
+    kind: 'variable',
+    label: variableNodeLabel(mode),
+    stepType: 'VARIABLE',
+    config: {
+      variableMode: mode,
+      variableName: 'my_var',
+      variableValue: mode === 'read' ? undefined : '',
+      stepKey,
+      ui: position,
+    },
+    onFailure: 'STOP',
+    runStatus: 'idle',
+  };
+}
+
+function excelNodeLabel(mode: WorkflowExcelMode): string {
+  if (mode === 'read') return t('workflows.nodeExcelRead');
+  return t('workflows.nodeExcelWrite');
+}
+
+export function newExcelNodeData(
+  mode: WorkflowExcelMode,
+  defaultAgentId: string,
+  position: { x: number; y: number },
+  stepKey: string,
+): WfNodeData {
+  return {
+    kind: 'excel',
+    label: excelNodeLabel(mode),
+    stepType: 'EXCEL',
+    config: {
+      excelMode: mode,
+      variableName: 'excel_data',
+      filePath: 'C:\\\\data\\\\report.xlsx',
+      sheetName: 'Sheet1',
+      hasHeader: true,
+      agentId: defaultAgentId,
+      timeout: 120000,
+      stepKey,
+      ui: position,
+    },
+    onFailure: 'STOP',
+    runStatus: 'idle',
+  };
+}
+
+export function newLoopNodeData(
+  position: { x: number; y: number },
+  stepKey: string,
+): WfNodeData {
+  const loopCount = 3;
+  return {
+    kind: 'loop',
+    label: t('workflows.nodeLoop', { count: loopCount }),
+    stepType: 'LOOP',
+    config: {
+      loopCount,
       stepKey,
       ui: position,
     },

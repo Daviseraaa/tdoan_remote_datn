@@ -41,6 +41,9 @@ const STEP_TYPE_VI: Partial<Record<StepType, string>> = {
   [StepType.SCRIPT]: 'Script',
   [StepType.DELAY]: 'Chờ',
   [StepType.CONDITION]: 'Điều kiện',
+  [StepType.LOOP]: 'Vòng lặp',
+  [StepType.VARIABLE]: 'Biến',
+  [StepType.EXCEL]: 'Excel',
   [StepType.TELEGRAM]: 'Telegram',
 };
 

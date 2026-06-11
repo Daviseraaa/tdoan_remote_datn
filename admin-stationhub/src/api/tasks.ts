@@ -21,6 +21,7 @@ export async function listTasks(
     limit?: number;
     status?: TaskStatus;
     type?: TaskType;
+    search?: string;
   } = {},
 ): Promise<PaginatedResponse<Task>> {
   const q = new URLSearchParams();
@@ -28,6 +29,7 @@ export async function listTasks(
   if (params.limit) q.set('limit', String(params.limit));
   if (params.status) q.set('status', params.status);
   if (params.type) q.set('type', params.type);
+  if (params.search?.trim()) q.set('search', params.search.trim());
   const query = q.toString();
   const path = tasksListPath(admin);
   const raw = await apiFetch<unknown>(`${path}${query ? `?${query}` : ''}`);

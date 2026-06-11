@@ -21,7 +21,6 @@ export type WorkflowSavePayload = {
   steps: WorkflowStep[];
   graph: WorkflowGraphV2;
   entryTrigger?: EntryTriggerDraft;
-  newTelegramBot?: { name: string; botToken: string };
 };
 
 const RUN_POLL_MS = 600;
@@ -136,9 +135,7 @@ export function useWorkflowEditor(workflowId: string) {
           },
         });
         if (payload.entryTrigger) {
-          await persistEntryTrigger(draft.id, payload.entryTrigger, {
-            createBot: payload.newTelegramBot,
-          });
+          await persistEntryTrigger(draft.id, payload.entryTrigger);
           await queryClient.invalidateQueries({ queryKey: ['workflow-triggers'] });
         }
         setDraft(saved);
@@ -183,11 +180,11 @@ export function useWorkflowEditor(workflowId: string) {
         const poll = async () => {
           const run = await workflowsApi.getWorkflowRun(start.runId);
           setRunStatusByStepId(buildRunStatusFromStepRuns(wf, run.stepRuns));
+          setExecutionResult(stepRunsToExecuteResult(wf, start.runId, run.stepRuns));
           if (TERMINAL_RUN.has(run.status)) {
             if (pollRef.current) clearInterval(pollRef.current);
             pollRef.current = null;
             setRunning(false);
-            setExecutionResult(stepRunsToExecuteResult(wf, start.runId, run.stepRuns));
           }
         };
 

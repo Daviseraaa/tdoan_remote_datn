@@ -8,6 +8,8 @@ import type {
   PaginatedResponse,
   Workflow,
   WorkflowRunDetail,
+  WorkflowRunListItem,
+  WorkflowRunStatus,
   WorkflowStep,
 } from '@/src/types/api';
 
@@ -59,6 +61,24 @@ export async function executeWorkflowSync(
   return apiFetch<ExecuteWorkflowResult>(`/workflows/${id}/execute?wait=true`, {
     method: 'POST',
   });
+}
+
+export async function listWorkflowRuns(
+  params: {
+    page?: number;
+    limit?: number;
+    status?: WorkflowRunStatus;
+    workflowId?: string;
+  } = {},
+): Promise<PaginatedResponse<WorkflowRunListItem>> {
+  const q = new URLSearchParams();
+  if (params.page) q.set('page', String(params.page));
+  if (params.limit) q.set('limit', String(params.limit));
+  if (params.status) q.set('status', params.status);
+  if (params.workflowId) q.set('workflowId', params.workflowId);
+  const query = q.toString();
+  const raw = await apiFetch<unknown>(`/workflows/runs${query ? `?${query}` : ''}`);
+  return normalizePaginated<WorkflowRunListItem>(raw);
 }
 
 export async function getWorkflowRun(runId: string): Promise<WorkflowRunDetail> {

@@ -1,10 +1,12 @@
 use async_trait::async_trait;
 use serde_json::Value;
+use std::sync::Arc;
 
 use crate::config::settings::AgentConfig;
 use crate::platform::Platform;
-use crate::protocol::{tool_result_to_task_wire, TaskWire};
+use crate::protocol::{cancelled_task_wire, tool_result_to_task_wire, TaskWire};
 
+use super::cancel::TaskCancelHandle;
 use super::handlers;
 use super::types::TaskOutcome;
 
@@ -40,6 +42,16 @@ impl TaskExecute {
 pub struct TaskContext<'a> {
     pub config: &'a AgentConfig,
     pub platform: &'a Platform,
+    pub cancel: Option<Arc<TaskCancelHandle>>,
+}
+
+impl TaskContext<'_> {
+    pub fn is_cancelled(&self) -> bool {
+        self.cancel
+            .as_ref()
+            .map(|c| c.is_cancelled())
+            .unwrap_or(false)
+    }
 }
 
 #[async_trait]
@@ -60,6 +72,7 @@ static HANDLERS: &[&dyn TaskHandler] = &[
     &handlers::chrome_extension::Handler,
     &handlers::screen_capture::Handler,
     &handlers::http_request::Handler,
+    &handlers::telegram_send::Handler,
 ];
 
 pub fn supported_task_types(platform: &Platform, _cfg: &AgentConfig) -> Vec<&'static str> {
@@ -85,6 +98,10 @@ fn normalize_task_type(raw: &str) -> String {
 }
 
 pub async fn run_task(ctx: &TaskContext<'_>, task: TaskExecute) -> TaskWire {
+    if ctx.is_cancelled() {
+        return cancelled_task_wire("Task cancelled before start");
+    }
+
     let task_type = normalize_task_type(&task.task_type);
     let handler = HANDLERS
         .iter()
@@ -105,5 +122,17 @@ pub async fn run_task(ctx: &TaskContext<'_>, task: TaskExecute) -> TaskWire {
             )
         }
     };
+
+    let cancelled = ctx.is_cancelled()
+        || pay
+            .as_ref()
+            .and_then(|p| p.get("cancelled"))
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
+
+    if cancelled {
+        return cancelled_task_wire(msg.as_deref().unwrap_or("Task cancelled"));
+    }
+
     tool_result_to_task_wire(ok, ec, msg.as_deref(), pay)
 }

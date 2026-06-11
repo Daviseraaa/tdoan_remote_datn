@@ -11,6 +11,7 @@ import {
   Layers,
   ListTodo,
   History,
+  Search,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
@@ -51,6 +52,7 @@ const TASK_TYPES: TaskType[] = [
   'CHROME_EXTENSION',
   'DESKTOP_AUTOMATION',
   'SCREEN_CAPTURE',
+  'TELEGRAM_SEND',
 ];
 
 const TASK_STATUSES: TaskStatus[] = [
@@ -221,10 +223,11 @@ export default function Tasks() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [page, setPage] = useState(1);
+  const [historySearch, setHistorySearch] = useState('');
 
   useEffect(() => {
     setPage(1);
-  }, [statusFilter, typeFilter]);
+  }, [statusFilter, typeFilter, historySearch]);
 
   const listParams = useMemo(
     () => ({
@@ -232,8 +235,11 @@ export default function Tasks() {
       limit: TASK_PAGE_LIMIT,
       ...(statusFilter ? { status: statusFilter } : {}),
       ...(typeFilter ? { type: typeFilter } : {}),
+      ...(tab === 'history' && historySearch.trim()
+        ? { search: historySearch.trim() }
+        : {}),
     }),
-    [page, statusFilter, typeFilter],
+    [page, statusFilter, typeFilter, historySearch, tab],
   );
 
   const { data, isLoading } = useTasksList(listParams);
@@ -418,10 +424,27 @@ export default function Tasks() {
         </div>
       </header>
 
-      {/* Tabs */}
-      <nav className="flex gap-1 border-b border-white/10 mb-6">
-        {tabBtn('templates', t('tasks.templatesTab'), ListTodo)}
-        {tabBtn('history', t('tasks.historyTab'), History)}
+      {/* Tabs + tìm lịch sử */}
+      <nav className="flex flex-wrap items-end justify-between gap-3 border-b border-white/10 mb-6">
+        <div className="flex gap-1 min-w-0">
+          {tabBtn('templates', t('tasks.templatesTab'), ListTodo)}
+          {tabBtn('history', t('tasks.historyTab'), History)}
+        </div>
+        {tab === 'history' ? (
+          <div className="relative flex-1 min-w-[12rem] max-w-md pb-1">
+            <Search
+              size={16}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none"
+            />
+            <input
+              type="search"
+              value={historySearch}
+              onChange={(e) => setHistorySearch(e.target.value)}
+              placeholder={t('tasks.historySearchPlaceholder')}
+              className="w-full pl-9 pr-3 py-2 rounded-xl bg-surface-container-high/50 border border-white/10 text-sm focus:outline-none focus:border-primary/40"
+            />
+          </div>
+        ) : null}
       </nav>
 
       {error ? (
@@ -483,8 +506,8 @@ export default function Tasks() {
           ) : tasks.length === 0 ? (
             <TaskEmptyState
               icon={History}
-              title={t('tasks.empty')}
-              description={t('tasks.historyEmptyHint')}
+              title={historySearch.trim() ? t('tasks.noSearchResults') : t('tasks.empty')}
+              description={historySearch.trim() ? undefined : t('tasks.historyEmptyHint')}
             />
           ) : (
             <div className="space-y-2">
