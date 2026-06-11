@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
+import { loadGoogleGsiScript } from '@/src/lib/loadGoogleGsi';
 import { t } from '@/src/i18n/t';
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID ?? '';
@@ -22,6 +23,7 @@ declare global {
             callback: (response: { credential?: string }) => void;
             auto_select?: boolean;
             ux_mode?: 'popup' | 'redirect';
+            use_fedcm_for_prompt?: boolean;
           }) => void;
           renderButton: (
             parent: HTMLElement,
@@ -79,6 +81,7 @@ export function GoogleSignInButton({
     if (!isGoogleSignInEnabled()) return;
 
     let cancelled = false;
+    let pollTimer: ReturnType<typeof setInterval> | undefined;
 
     const mountGoogleButton = () => {
       const shell = shellRef.current;
@@ -94,7 +97,7 @@ export function GoogleSignInButton({
       window.google.accounts.id.initialize({
         client_id: GOOGLE_CLIENT_ID,
         auto_select: false,
-        ux_mode: 'popup',
+        use_fedcm_for_prompt: true,
         callback: (response) => {
           const token = response.credential;
           if (!token) {
@@ -117,21 +120,24 @@ export function GoogleSignInButton({
       return true;
     };
 
-    if (mountGoogleButton()) {
-      return () => {
-        cancelled = true;
-      };
-    }
-
-    const timer = window.setInterval(() => {
-      if (mountGoogleButton()) {
-        window.clearInterval(timer);
-      }
-    }, 80);
+    void loadGoogleGsiScript()
+      .then(() => {
+        if (cancelled) return;
+        if (mountGoogleButton()) return;
+        pollTimer = window.setInterval(() => {
+          if (mountGoogleButton() && pollTimer) {
+            window.clearInterval(pollTimer);
+            pollTimer = undefined;
+          }
+        }, 80);
+      })
+      .catch(() => {
+        if (!cancelled) onErrorRef.current?.();
+      });
 
     return () => {
       cancelled = true;
-      window.clearInterval(timer);
+      if (pollTimer) window.clearInterval(pollTimer);
     };
   }, []);
 

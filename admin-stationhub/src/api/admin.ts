@@ -33,6 +33,7 @@ export async function listAdminPlans(): Promise<SubscriptionPlan[]> {
 
 export async function createAdminPlan(body: {
   name: string;
+  originalPriceVnd: number;
   priceVnd: number;
   durationDays?: number;
   maxAgents?: number;
@@ -46,6 +47,7 @@ export async function updateAdminPlan(
   id: string,
   body: Partial<{
     name: string;
+    originalPriceVnd: number;
     priceVnd: number;
     durationDays: number;
     maxAgents: number;

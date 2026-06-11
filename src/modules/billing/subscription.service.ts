@@ -12,6 +12,7 @@ import { normalizeTrialEmail } from './trial-email';
 const PLAN_SELECT = {
   id: true,
   name: true,
+  originalPriceVnd: true,
   priceVnd: true,
   durationDays: true,
   maxAgents: true,
@@ -22,6 +23,7 @@ const PLAN_SELECT = {
 export type SubscriptionPlanSummary = {
   id: string;
   name: string;
+  originalPriceVnd: number;
   priceVnd: number;
   durationDays: number;
   maxAgents: number;
@@ -141,6 +143,7 @@ export class SubscriptionService {
     const summary: SubscriptionPlanSummary = {
       id: trialPlan.id,
       name: trialPlan.name,
+      originalPriceVnd: trialPlan.originalPriceVnd,
       priceVnd: trialPlan.priceVnd,
       durationDays: trialPlan.durationDays,
       maxAgents: trialPlan.maxAgents,

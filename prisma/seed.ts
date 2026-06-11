@@ -6,6 +6,7 @@ const prisma = new PrismaClient();
 const TRIAL_PLAN_ID = '00000000-0000-4000-a000-000000000000';
 const TRIAL_PLAN = {
   name: 'Dùng thử',
+  originalPriceVnd: 0,
   priceVnd: 0,
   durationDays: 7,
   maxAgents: 1,
@@ -17,6 +18,7 @@ const TRIAL_PLAN = {
 const DEFAULT_PLAN_ID = '00000000-0000-4000-a000-000000000001';
 const DEFAULT_PLAN = {
   name: 'Gói tháng',
+  originalPriceVnd: 249_000,
   priceVnd: 199_000,
   durationDays: 30,
   maxAgents: 3,
@@ -61,17 +63,20 @@ async function main() {
   }
 
   const farFuture = new Date('2099-12-31T23:59:59.000Z');
-  const hashedPassword = await bcrypt.hash('admin123', 10);
+  const adminEmail = 'trantuandoan04@gmail.com';
+  const hashedPassword = await bcrypt.hash('Doandeptraivodichvutru', 10);
 
   const admin = await prisma.user.upsert({
-    where: { email: 'admin@stationhub.com' },
+    where: { email: adminEmail },
     update: {
+      password: hashedPassword,
+      role: Role.ADMIN,
       subscriptionStatus: SubscriptionStatus.ACTIVE,
       subscriptionExpiresAt: farFuture,
       planId: plan.id,
     },
     create: {
-      email: 'admin@stationhub.com',
+      email: adminEmail,
       name: 'Admin',
       password: hashedPassword,
       role: Role.ADMIN,
@@ -81,31 +86,10 @@ async function main() {
     },
   });
 
-  const trialExpires = new Date();
-  trialExpires.setDate(trialExpires.getDate() + trialPlan.durationDays);
-
-  const user = await prisma.user.upsert({
-    where: { email: 'user@stationhub.com' },
-    update: {
-      planId: trialPlan.id,
-    },
-    create: {
-      email: 'user@stationhub.com',
-      name: 'Demo User',
-      password: await bcrypt.hash('user123', 10),
-      role: Role.USER,
-      subscriptionStatus: SubscriptionStatus.TRIAL,
-      subscriptionExpiresAt: trialExpires,
-      trialUsedAt: new Date(),
-      planId: trialPlan.id,
-    },
-  });
-
   console.log('Seeded:', {
     trialPlan: trialPlan.name,
     plan: plan.name,
     admin: admin.email,
-    user: user.email,
   });
 }
 

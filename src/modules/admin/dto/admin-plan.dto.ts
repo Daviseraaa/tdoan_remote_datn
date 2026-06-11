@@ -14,7 +14,12 @@ export class CreateAdminPlanDto {
   @IsNotEmpty()
   name!: string;
 
-  @ApiProperty()
+  @ApiProperty({ description: 'Giá niêm yết (VND)' })
+  @IsInt()
+  @Min(0)
+  originalPriceVnd!: number;
+
+  @ApiProperty({ description: 'Giá bán thực tế (VND)' })
   @IsInt()
   @Min(0)
   priceVnd!: number;
@@ -48,6 +53,12 @@ export class UpdateAdminPlanDto {
   @IsString()
   @IsNotEmpty()
   name?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  originalPriceVnd?: number;
 
   @ApiPropertyOptional()
   @IsOptional()

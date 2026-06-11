@@ -30,13 +30,8 @@ import type { CheckoutResponse, PaymentRecord, SubscriptionPlan } from '@/src/ty
 import { apiErrorMessage } from '@/src/lib/api';
 import { t } from '@/src/i18n/t';
 import { CopyButton } from '@/src/components/CopyButton';
-
-function formatVnd(amount: number): string {
-  return new Intl.NumberFormat('vi-VN', {
-    style: 'currency',
-    currency: 'VND',
-  }).format(amount);
-}
+import { PlanPriceDisplay } from '@/src/components/admin/PlanPriceDisplay';
+import { formatVnd } from '@/src/lib/planPricing';
 
 function formatPlanPrice(plan: SubscriptionPlan): string {
   if (plan.isTrial || plan.priceVnd <= 0) return t('billing.freePrice');
@@ -512,11 +507,12 @@ function PlanPricingCard({
       </div>
 
       <div className="relative z-[1] mb-6">
-        <div className="flex items-baseline gap-1">
-          <span className={cn('text-3xl sm:text-4xl font-bold tracking-tight', style.price)}>
-            {formatVnd(plan.priceVnd)}
-          </span>
-        </div>
+        <PlanPriceDisplay
+          plan={plan}
+          size="md"
+          className="tracking-tight"
+          priceClassName={style.price}
+        />
         <p className="text-xs text-on-surface-variant/90 mt-1 font-mono">
           / {t('billing.durationDays', { days: plan.durationDays })}
         </p>

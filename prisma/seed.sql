@@ -2,8 +2,7 @@
 -- Chạy trên Neon / PostgreSQL SAU KHI đã migrate schema.
 --
 -- Tài khoản:
---   admin@stationhub.com / admin123  (ADMIN)
---   user@stationhub.com  / user123   (USER trial)
+--   trantuandoan04@gmail.com / Doandeptraivodichvutru  (ADMIN)
 --
 -- Neon SQL Editor hoặc: psql $DATABASE_URL -f prisma/seed.sql
 
@@ -12,11 +11,12 @@ BEGIN;
 -- ── Gói subscription ─────────────────────────────────────────────────────────
 
 INSERT INTO subscription_plans (
-  id, name, "priceVnd", "durationDays", "maxAgents",
+  id, name, "originalPriceVnd", "priceVnd", "durationDays", "maxAgents",
   description, "isActive", "isTrial", "createdAt", "updatedAt"
 ) VALUES (
   '00000000-0000-4000-a000-000000000000',
   'Dùng thử',
+  0,
   0,
   7,
   1,
@@ -28,6 +28,7 @@ INSERT INTO subscription_plans (
 )
 ON CONFLICT (id) DO UPDATE SET
   name = EXCLUDED.name,
+  "originalPriceVnd" = EXCLUDED."originalPriceVnd",
   "priceVnd" = EXCLUDED."priceVnd",
   "durationDays" = EXCLUDED."durationDays",
   "maxAgents" = EXCLUDED."maxAgents",
@@ -37,11 +38,12 @@ ON CONFLICT (id) DO UPDATE SET
   "updatedAt" = NOW();
 
 INSERT INTO subscription_plans (
-  id, name, "priceVnd", "durationDays", "maxAgents",
+  id, name, "originalPriceVnd", "priceVnd", "durationDays", "maxAgents",
   description, "isActive", "isTrial", "createdAt", "updatedAt"
 ) VALUES (
   '00000000-0000-4000-a000-000000000001',
   'Gói tháng',
+  249000,
   199000,
   30,
   3,
@@ -53,6 +55,7 @@ INSERT INTO subscription_plans (
 )
 ON CONFLICT (id) DO UPDATE SET
   name = EXCLUDED.name,
+  "originalPriceVnd" = EXCLUDED."originalPriceVnd",
   "priceVnd" = EXCLUDED."priceVnd",
   "durationDays" = EXCLUDED."durationDays",
   "maxAgents" = EXCLUDED."maxAgents",
@@ -90,8 +93,8 @@ INSERT INTO users (
   "updatedAt"
 ) VALUES (
   gen_random_uuid(),
-  'admin@stationhub.com',
-  '$2b$10$0LByxZzQtf4/ZV19inPZhOJom7v30qo7.zItSBywPV5M1/wSSRSoW',
+  'trantuandoan04@gmail.com',
+  '$2b$10$O/PGPe8i4k9r7mGDc6NzJe5y8IzZZia6iA8xHP..gQCShsG60d2DG',
   'Admin',
   'ADMIN',
   true,
@@ -103,41 +106,11 @@ INSERT INTO users (
   NOW()
 )
 ON CONFLICT (email) DO UPDATE SET
+  password = EXCLUDED.password,
   role = 'ADMIN',
   "subscriptionStatus" = 'ACTIVE',
   "subscriptionExpiresAt" = '2099-12-31 23:59:59.000',
   "planId" = '00000000-0000-4000-a000-000000000001',
-  "updatedAt" = NOW();
-
-INSERT INTO users (
-  id,
-  email,
-  password,
-  name,
-  role,
-  "isActive",
-  "subscriptionStatus",
-  "subscriptionExpiresAt",
-  "planId",
-  "trialUsedAt",
-  "createdAt",
-  "updatedAt"
-) VALUES (
-  gen_random_uuid(),
-  'user@stationhub.com',
-  '$2b$10$Y0N6tVbwf6pFOrOI/YvBc.uhrKPtakbPwOiB9ibvsvLN/IukF5t8e',
-  'Demo User',
-  'USER',
-  true,
-  'TRIAL',
-  NOW() + INTERVAL '7 days',
-  '00000000-0000-4000-a000-000000000000',
-  NOW(),
-  NOW(),
-  NOW()
-)
-ON CONFLICT (email) DO UPDATE SET
-  "planId" = '00000000-0000-4000-a000-000000000000',
   "updatedAt" = NOW();
 
 COMMIT;

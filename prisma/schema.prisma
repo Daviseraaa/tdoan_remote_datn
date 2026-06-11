@@ -141,6 +141,9 @@ enum PaymentStatus {
 model SubscriptionPlan {
   id           String   @id @default(uuid())
   name         String
+  /** Giá niêm yết (VND). Bằng priceVnd thì không hiển thị giảm giá. */
+  originalPriceVnd Int
+  /** Giá bán thực tế (VND) — dùng khi checkout. */
   priceVnd     Int
   durationDays Int      @default(30)
   maxAgents    Int      @default(3)

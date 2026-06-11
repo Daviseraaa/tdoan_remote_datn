@@ -8,15 +8,13 @@ import { apiErrorMessage } from '@/src/lib/api';
 import type { SubscriptionPlan } from '@/src/types/api';
 import { t } from '@/src/i18n/t';
 import AdminSubscriptionHistory from '@/src/views/admin/AdminSubscriptionHistory';
+import { PlanPriceDisplay } from '@/src/components/admin/PlanPriceDisplay';
 
 type PlansTab = 'plans' | 'history';
 
-function formatVnd(n: number): string {
-  return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(n);
-}
-
 const emptyForm = {
   name: '',
+  originalPriceVnd: 199000,
   priceVnd: 199000,
   durationDays: 30,
   maxAgents: 3,
@@ -41,6 +39,9 @@ export default function AdminPlans() {
 
   const save = useMutation({
     mutationFn: async () => {
+      if (form.originalPriceVnd < form.priceVnd) {
+        throw new Error(t('adminPortal.priceOnSaleInvalid'));
+      }
       if (modal === 'edit' && editPlan) {
         return adminApi.updateAdminPlan(editPlan.id, form);
       }
@@ -67,6 +68,7 @@ export default function AdminPlans() {
     setEditPlan(p);
     setForm({
       name: p.name,
+      originalPriceVnd: p.originalPriceVnd ?? p.priceVnd,
       priceVnd: p.priceVnd,
       durationDays: p.durationDays,
       maxAgents: p.maxAgents,
@@ -193,8 +195,8 @@ export default function AdminPlans() {
                       <p className="text-[10px] text-on-surface-variant mt-1">{t('adminPortal.trialPlanHint')}</p>
                     ) : null}
                   </td>
-                  <td className="p-4 font-mono">
-                    {p.isTrial || p.priceVnd <= 0 ? t('billing.freePrice') : formatVnd(p.priceVnd)}
+                  <td className="p-4">
+                    <PlanPriceDisplay plan={p} />
                   </td>
                   <td className="p-4">{p.durationDays} {t('adminPortal.days')}</td>
                   <td className="p-4">{p.maxAgents}</td>
@@ -298,14 +300,39 @@ export default function AdminPlans() {
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
             />
-            <input
-              type="number"
-              className="w-full px-4 py-3 rounded-xl bg-surface-container-low border border-white/10 text-sm disabled:opacity-50"
-              placeholder={t('adminPortal.priceVnd')}
-              value={form.priceVnd}
-              disabled={editPlan?.isTrial === true}
-              onChange={(e) => setForm({ ...form, priceVnd: Number(e.target.value) })}
-            />
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-[10px] font-mono font-bold uppercase text-on-surface-variant">
+                  {t('adminPortal.originalPriceVnd')}
+                </label>
+                <input
+                  type="number"
+                  className="w-full mt-1 px-4 py-3 rounded-xl bg-surface-container-low border border-white/10 text-sm disabled:opacity-50"
+                  value={form.originalPriceVnd}
+                  disabled={editPlan?.isTrial === true}
+                  onChange={(e) =>
+                    setForm({ ...form, originalPriceVnd: Number(e.target.value) })
+                  }
+                />
+              </div>
+              <div>
+                <label className="text-[10px] font-mono font-bold uppercase text-on-surface-variant">
+                  {t('adminPortal.salePriceVnd')}
+                </label>
+                <input
+                  type="number"
+                  className="w-full mt-1 px-4 py-3 rounded-xl bg-surface-container-low border border-white/10 text-sm disabled:opacity-50"
+                  value={form.priceVnd}
+                  disabled={editPlan?.isTrial === true}
+                  onChange={(e) => setForm({ ...form, priceVnd: Number(e.target.value) })}
+                />
+              </div>
+            </div>
+            {form.originalPriceVnd > form.priceVnd ? (
+              <p className="text-xs text-error font-mono">
+                {t('adminPortal.priceOnSale')}
+              </p>
+            ) : null}
             <div className="grid grid-cols-2 gap-3">
               <input
                 type="number"

@@ -21,6 +21,7 @@ export class BillingService {
       select: {
         id: true,
         name: true,
+        originalPriceVnd: true,
         priceVnd: true,
         durationDays: true,
         maxAgents: true,

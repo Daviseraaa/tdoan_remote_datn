@@ -34,6 +34,7 @@ const USER_AUTH_SELECT = {
     select: {
       id: true,
       name: true,
+      originalPriceVnd: true,
       priceVnd: true,
       durationDays: true,
       maxAgents: true,
@@ -71,6 +72,7 @@ export class AuthService {
     plan?: {
       id: string;
       name: string;
+      originalPriceVnd: number;
       priceVnd: number;
       durationDays: number;
       maxAgents: number;

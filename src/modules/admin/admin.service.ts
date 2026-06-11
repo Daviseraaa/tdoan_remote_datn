@@ -43,6 +43,7 @@ const USER_SELECT = {
     select: {
       id: true,
       name: true,
+      originalPriceVnd: true,
       priceVnd: true,
       durationDays: true,
       maxAgents: true,
@@ -274,10 +275,18 @@ export class AdminService {
     });
   }
 
+  private assertPlanPrices(originalPriceVnd: number, priceVnd: number) {
+    if (originalPriceVnd < priceVnd) {
+      throw new BadRequestException('Giá gốc không được thấp hơn giá bán');
+    }
+  }
+
   async createPlan(dto: CreateAdminPlanDto) {
+    this.assertPlanPrices(dto.originalPriceVnd, dto.priceVnd);
     return this.prisma.subscriptionPlan.create({
       data: {
         name: dto.name,
+        originalPriceVnd: dto.originalPriceVnd,
         priceVnd: dto.priceVnd,
         durationDays: dto.durationDays ?? 30,
         maxAgents: dto.maxAgents ?? 3,
@@ -299,7 +308,14 @@ export class AdminService {
       if (dto.priceVnd != null && dto.priceVnd !== 0) {
         throw new BadRequestException('Gói trial phải miễn phí (priceVnd = 0)');
       }
+      if (dto.originalPriceVnd != null && dto.originalPriceVnd !== 0) {
+        throw new BadRequestException('Gói trial phải miễn phí (originalPriceVnd = 0)');
+      }
     }
+
+    const originalPriceVnd = dto.originalPriceVnd ?? plan.originalPriceVnd;
+    const priceVnd = dto.priceVnd ?? plan.priceVnd;
+    this.assertPlanPrices(originalPriceVnd, priceVnd);
 
     return this.prisma.subscriptionPlan.update({
       where: { id },

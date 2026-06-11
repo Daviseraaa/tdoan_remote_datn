@@ -85,6 +85,9 @@ export type SubscriptionStatus = 'TRIAL' | 'ACTIVE' | 'EXPIRED' | 'CANCELLED';
 export interface SubscriptionPlan {
   id: string;
   name: string;
+  /** Giá niêm yết — bằng priceVnd thì không hiển thị giảm giá */
+  originalPriceVnd: number;
+  /** Giá bán thực tế */
   priceVnd: number;
   durationDays: number;
   maxAgents: number;
