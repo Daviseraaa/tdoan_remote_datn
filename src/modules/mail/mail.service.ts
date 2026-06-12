@@ -8,6 +8,7 @@ import { lookup as dnsLookup } from 'dns';
 import * as nodemailer from 'nodemailer';
 import type { Transporter } from 'nodemailer';
 import type SMTPTransport from 'nodemailer/lib/smtp-transport';
+import { Resend } from 'resend';
 
 const SMTP_TIMEOUT_MS = 15_000;
 
@@ -16,12 +17,29 @@ type SmtpError = Error & {
   responseCode?: number;
 };
 
+type OtpEmailContent = {
+  from: string;
+  subject: string;
+  text: string;
+  html: string;
+};
+
 @Injectable()
 export class MailService {
   private readonly logger = new Logger(MailService.name);
   private transporter: Transporter | null = null;
+  private resend: Resend | null = null;
 
   constructor(private readonly configService: ConfigService) {}
+
+  private getResend(): Resend | null {
+    const apiKey = this.configService.get<string>('resend.apiKey');
+    if (!apiKey) return null;
+    if (!this.resend) {
+      this.resend = new Resend(apiKey);
+    }
+    return this.resend;
+  }
 
   private getTransporter(): Transporter | null {
     if (this.transporter) return this.transporter;
@@ -33,7 +51,6 @@ export class MailService {
       return null;
     }
 
-    // Railway/container thường không có IPv6 — smtp.gmail.com resolve ra IPv6 → ENETUNREACH
     const smtpOptions = {
       host,
       port: this.configService.get<number>('smtp.port'),
@@ -54,36 +71,25 @@ export class MailService {
     return this.transporter;
   }
 
-  private smtpErrorMessage(err: SmtpError): string {
-    const code = err.code ?? '';
-    if (code === 'EAUTH' || err.responseCode === 535) {
-      return 'Không xác thực được máy chủ email (kiểm tra SMTP_USER / SMTP_PASS).';
-    }
-    if (
-      code === 'ETIMEDOUT' ||
-      code === 'ESOCKET' ||
-      code === 'ENETUNREACH' ||
-      code === 'ECONNREFUSED' ||
-      code === 'ENOTFOUND' ||
-      err.message.includes('ENETUNREACH')
-    ) {
-      return 'Không kết nối được máy chủ email. Vui lòng thử lại sau.';
-    }
-    return 'Không gửi được email xác thực. Vui lòng thử lại sau.';
+  private getAppName(): string {
+    return this.configService.get<string>('smtp.appName') ?? 'StationHub';
   }
 
-  async sendRegisterOtp(to: string, otp: string): Promise<void> {
-    const transporter = this.getTransporter();
-    const from =
-      this.configService.get<string>('smtp.from') ??
-      this.configService.get<string>('smtp.user') ??
-      'noreply@stationhub.local';
-    const appName =
-      this.configService.get<string>('smtp.appName') ?? 'StationHub';
+  private getFromAddress(): string {
+    return (
+      this.configService.get<string>('resend.from') ||
+      this.configService.get<string>('smtp.from') ||
+      this.configService.get<string>('smtp.user') ||
+      'noreply@stationhub.local'
+    );
+  }
+
+  private buildRegisterOtpContent(otp: string): OtpEmailContent {
+    const appName = this.getAppName();
+    const from = this.getFromAddress();
     const ttlMinutes = Math.ceil(
       (this.configService.get<number>('otp.registerTtlSeconds') ?? 600) / 60,
     );
-
     const subject = `Mã xác thực đăng ký ${appName}`;
     const text = [
       `Xin chào,`,
@@ -119,12 +125,82 @@ export class MailService {
   </body>
 </html>`;
 
+    return { from, subject, text, html };
+  }
+
+  private smtpErrorMessage(err: SmtpError): string {
+    const code = err.code ?? '';
+    if (code === 'EAUTH' || err.responseCode === 535) {
+      return 'Không xác thực được máy chủ email (kiểm tra SMTP_USER / SMTP_PASS).';
+    }
+    if (
+      code === 'ETIMEDOUT' ||
+      code === 'ESOCKET' ||
+      code === 'ENETUNREACH' ||
+      code === 'ECONNREFUSED' ||
+      code === 'ENOTFOUND' ||
+      err.message.includes('ENETUNREACH')
+    ) {
+      return 'Không kết nối được máy chủ email. Vui lòng thử lại sau.';
+    }
+    return 'Không gửi được email xác thực. Vui lòng thử lại sau.';
+  }
+
+  private async sendViaResend(
+    to: string,
+    content: OtpEmailContent,
+  ): Promise<void> {
+    const resend = this.getResend();
+    if (!resend) return;
+
+    const replyTo = this.configService.get<string>('resend.replyTo');
+
+    let data: { id: string } | null = null;
+    let error: { message: string; name: string } | null = null;
+
+    try {
+      const result = await resend.emails.send({
+        from: content.from,
+        to: [to],
+        subject: content.subject,
+        html: content.html,
+        text: content.text,
+        replyTo: replyTo || undefined,
+        tags: [{ name: 'category', value: 'register_otp' }],
+      });
+      data = result.data;
+      error = result.error;
+    } catch (err) {
+      const networkErr = err as Error;
+      this.logger.error(
+        `Resend OTP lỗi mạng to=${to} message=${networkErr.message}`,
+        networkErr.stack,
+      );
+      throw new ServiceUnavailableException(
+        'Không gửi được email xác thực. Vui lòng thử lại sau.',
+      );
+    }
+
+    if (error) {
+      this.logger.error(
+        `Resend OTP thất bại to=${to} name=${error.name} message=${error.message}`,
+      );
+      throw new ServiceUnavailableException(
+        'Không gửi được email xác thực. Vui lòng thử lại sau.',
+      );
+    }
+
+    this.logger.log(`Resend OTP đã gửi to=${to} id=${data?.id ?? 'n/a'}`);
+  }
+
+  private async sendViaSmtp(
+    to: string,
+    content: OtpEmailContent,
+  ): Promise<void> {
+    const transporter = this.getTransporter();
     if (!transporter) {
       const nodeEnv = this.configService.get<string>('nodeEnv');
       if (nodeEnv !== 'production') {
-        this.logger.warn(
-          `SMTP chưa cấu hình — OTP đăng ký cho ${to}: ${otp}`,
-        );
         return;
       }
       throw new ServiceUnavailableException(
@@ -135,12 +211,12 @@ export class MailService {
     const smtpUser = this.configService.get<string>('smtp.user');
     try {
       await transporter.sendMail({
-        from,
+        from: content.from,
         to,
-        replyTo: smtpUser || from,
-        subject,
-        text,
-        html,
+        replyTo: smtpUser || content.from,
+        subject: content.subject,
+        text: content.text,
+        html: content.html,
         headers: {
           'Auto-Submitted': 'auto-generated',
           'X-Auto-Response-Suppress': 'All',
@@ -149,10 +225,35 @@ export class MailService {
     } catch (err) {
       const smtpErr = err as SmtpError;
       this.logger.error(
-        `Gửi OTP thất bại to=${to} code=${smtpErr.code ?? 'unknown'} responseCode=${smtpErr.responseCode ?? 'n/a'} message=${smtpErr.message}`,
+        `SMTP OTP thất bại to=${to} code=${smtpErr.code ?? 'unknown'} responseCode=${smtpErr.responseCode ?? 'n/a'} message=${smtpErr.message}`,
         smtpErr.stack,
       );
       throw new ServiceUnavailableException(this.smtpErrorMessage(smtpErr));
     }
+  }
+
+  async sendRegisterOtp(to: string, otp: string): Promise<void> {
+    const content = this.buildRegisterOtpContent(otp);
+
+    if (this.getResend()) {
+      await this.sendViaResend(to, content);
+      return;
+    }
+
+    const transporter = this.getTransporter();
+    if (!transporter) {
+      const nodeEnv = this.configService.get<string>('nodeEnv');
+      if (nodeEnv !== 'production') {
+        this.logger.warn(
+          `Email chưa cấu hình — OTP đăng ký cho ${to}: ${otp}`,
+        );
+        return;
+      }
+      throw new ServiceUnavailableException(
+        'Dịch vụ email chưa được cấu hình. Vui lòng thử lại sau.',
+      );
+    }
+
+    await this.sendViaSmtp(to, content);
   }
 }

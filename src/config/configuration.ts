@@ -49,6 +49,12 @@ export default () => ({
     trialDays: parseInt(process.env.SUBSCRIPTION_TRIAL_DAYS || '7', 10),
   },
 
+  resend: {
+    apiKey: process.env.RESEND_API_KEY || '',
+    from: process.env.RESEND_FROM || process.env.SMTP_FROM || '',
+    replyTo: process.env.RESEND_REPLY_TO || '',
+  },
+
   smtp: {
     host: process.env.SMTP_HOST || 'smtp.gmail.com',
     port: parseInt(process.env.SMTP_PORT || '587', 10),
