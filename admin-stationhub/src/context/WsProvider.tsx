@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/src/hooks/useAuth';
 import {
@@ -16,6 +16,7 @@ import type { Agent, PaginatedResponse } from '@/src/types/api';
 export function WsProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const statsInvalidateTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!user) {
@@ -95,21 +96,31 @@ export function WsProvider({ children }: { children: React.ReactNode }) {
       );
     };
 
+    const scheduleStatsInvalidate = () => {
+      if (statsInvalidateTimer.current) return;
+      statsInvalidateTimer.current = setTimeout(() => {
+        statsInvalidateTimer.current = null;
+        queryClient.invalidateQueries({ queryKey: queryKeys.adminStats });
+        queryClient.invalidateQueries({ queryKey: queryKeys.userStats });
+      }, 2_000);
+    };
+
     connectWs(
       (_event, payload) => {
         patchTaskStatus(payload);
-        queryClient.invalidateQueries({ queryKey: queryKeys.adminStats });
-        queryClient.invalidateQueries({ queryKey: ['admin', 'tasks'] });
-        queryClient.invalidateQueries({ queryKey: queryKeys.userStats });
-        queryClient.invalidateQueries({ queryKey: ['tasks'] });
-        queryClient.invalidateQueries({ queryKey: ['task'] });
-        queryClient.invalidateQueries({ queryKey: ['agents'] });
+        scheduleStatsInvalidate();
       },
       patchAgentTelemetry,
       patchAgentStatus,
     );
 
-    return () => disconnectWs();
+    return () => {
+      if (statsInvalidateTimer.current) {
+        clearTimeout(statsInvalidateTimer.current);
+        statsInvalidateTimer.current = null;
+      }
+      disconnectWs();
+    };
   }, [user, queryClient]);
 
   return <>{children}</>;

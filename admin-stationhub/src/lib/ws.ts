@@ -67,10 +67,15 @@ export function connectWs(
     return socket;
   }
 
+  const isLocal =
+    WS_URL.includes('localhost') || WS_URL.includes('127.0.0.1');
+
   socket = io(`${WS_URL}/ws/client`, {
     auth: { token },
     query: { token },
-    transports: ['websocket', 'polling'],
+    // Prod: chỉ WebSocket — tránh long-polling HTTP chiếm slot kết nối tới cùng host API.
+    transports: isLocal ? ['websocket', 'polling'] : ['websocket'],
+    upgrade: isLocal,
   });
 
   socket.on('task:running', (payload: TaskWsPayload) =>

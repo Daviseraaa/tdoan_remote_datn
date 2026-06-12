@@ -7,6 +7,7 @@ export function useUsersList(params: { page?: number; limit?: number } = {}) {
   return useQuery({
     queryKey: queryKeys.users(params),
     queryFn: () => usersApi.listUsers(params),
+    staleTime: 30_000,
   });
 }
 

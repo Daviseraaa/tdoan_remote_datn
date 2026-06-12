@@ -30,6 +30,8 @@ async function bootstrap() {
     origin: normalizedOrigins,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    maxAge: 86_400,
   });
 
   app.useGlobalPipes(
