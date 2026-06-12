@@ -4,6 +4,8 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import Redis from 'ioredis';
 import * as bcrypt from 'bcrypt';
 import {
   AgentStatus,
@@ -52,16 +54,54 @@ const USER_SELECT = {
   },
 } as const;
 
+const ADMIN_STATS_CACHE_KEY = 'admin:stats:v1';
+const ADMIN_STATS_CACHE_TTL_SEC = 15;
+
 @Injectable()
 export class AdminService {
+  private readonly redis: Redis;
+
   constructor(
     private prisma: PrismaService,
     private telemetry: AgentTelemetryStore,
     private subscription: SubscriptionService,
     private agentsGateway: AgentsGateway,
-  ) {}
+    configService: ConfigService,
+  ) {
+    this.redis = new Redis({
+      host: configService.get<string>('redis.host'),
+      port: configService.get<number>('redis.port'),
+      password: configService.get<string>('redis.password'),
+    });
+  }
 
   async getStats() {
+    try {
+      const cached = await this.redis.get(ADMIN_STATS_CACHE_KEY);
+      if (cached) {
+        return JSON.parse(cached) as Awaited<ReturnType<AdminService['computeStats']>>;
+      }
+    } catch {
+      /* Redis optional — fall through to DB */
+    }
+
+    const stats = await this.computeStats();
+
+    try {
+      await this.redis.set(
+        ADMIN_STATS_CACHE_KEY,
+        JSON.stringify(stats),
+        'EX',
+        ADMIN_STATS_CACHE_TTL_SEC,
+      );
+    } catch {
+      /* ignore cache write errors */
+    }
+
+    return stats;
+  }
+
+  private async computeStats() {
     const [
       totalUsers,
       adminUsers,

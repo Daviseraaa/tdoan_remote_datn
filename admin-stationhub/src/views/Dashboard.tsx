@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { Suspense, lazy, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   TrendingUp,
@@ -13,19 +13,9 @@ import {
   Users,
   Cpu,
   Database,
+  Loader2,
 } from 'lucide-react';
 import { motion } from 'motion/react';
-import {
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  LineChart,
-  Line,
-} from 'recharts';
 import { cn } from '@/src/lib/utils';
 import { t } from '@/src/i18n/t';
 import { useDashboard } from '@/src/hooks/useDashboard';
@@ -56,6 +46,18 @@ import {
 import type { Agent } from '@/src/types/api';
 
 const HEALTH_PREVIEW_LIMIT = 8;
+
+const DashboardTaskChart = lazy(
+  () => import('@/src/components/dashboard/DashboardTaskChart'),
+);
+
+function ChartSkeleton() {
+  return (
+    <div className="h-full w-full flex items-center justify-center text-on-surface-variant">
+      <Loader2 size={24} className="animate-spin text-primary" />
+    </div>
+  );
+}
 
 const MetricCard = ({
   label,
@@ -379,51 +381,9 @@ export default function Dashboard() {
             </div>
           </div>
           <div className="h-[220px] sm:h-[300px] lg:h-[340px] w-full min-w-0">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={chartData}>
-                <defs>
-                  <linearGradient id="colorSuccess" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#a4e6ff" stopOpacity={0.2} />
-                    <stop offset="95%" stopColor="#a4e6ff" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.03)" />
-                <XAxis
-                  dataKey="time"
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fill: '#bbc9cf', fontSize: 10, fontWeight: 500 }}
-                  dy={10}
-                />
-                <YAxis hide />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: '#171f33',
-                    border: '1px solid rgba(255,255,255,0.1)',
-                    borderRadius: '12px',
-                    fontSize: '12px',
-                  }}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="success"
-                  stroke="#a4e6ff"
-                  strokeWidth={3}
-                  fillOpacity={1}
-                  fill="url(#colorSuccess)"
-                  isAnimationActive={false}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="failure"
-                  stroke="#ffb4ab"
-                  strokeWidth={2}
-                  strokeDasharray="4 4"
-                  dot={false}
-                  isAnimationActive={false}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
+            <Suspense fallback={<ChartSkeleton />}>
+              <DashboardTaskChart data={chartData} />
+            </Suspense>
           </div>
         </section>
 

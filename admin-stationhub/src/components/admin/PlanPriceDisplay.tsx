@@ -24,24 +24,30 @@ export function PlanPriceDisplay({ plan, size = 'sm', className, priceClassName 
   const pct = planDiscountPercent(plan);
   const saleCls = size === 'md' ? 'text-3xl sm:text-4xl font-bold' : 'font-mono font-bold';
 
+  if (!onSale) {
+    return (
+      <span className={cn(saleCls, priceClassName, className)}>
+        {formatVnd(plan.priceVnd)}
+      </span>
+    );
+  }
+
   return (
-    <div className={cn('flex flex-col gap-0.5', className)}>
+    <div className={cn('flex flex-col items-start gap-0.5', className)}>
+      <span
+        className={cn(
+          'text-on-surface-variant/70 line-through font-mono',
+          size === 'md' ? 'text-base sm:text-lg' : 'text-xs',
+        )}
+      >
+        {formatVnd(planOriginalPrice(plan))}
+      </span>
       <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
         <span className={cn(saleCls, priceClassName)}>{formatVnd(plan.priceVnd)}</span>
-        {onSale && pct != null ? (
-          <>
-            <span
-              className={cn(
-                'text-on-surface-variant/70 line-through',
-                size === 'md' ? 'text-lg' : 'text-xs',
-              )}
-            >
-              {formatVnd(planOriginalPrice(plan))}
-            </span>
-            <span className="text-[10px] font-bold text-error px-1.5 py-0.5 rounded-full bg-error/15">
-              {t('billing.discountPercent', { n: String(pct) })}
-            </span>
-          </>
+        {pct != null ? (
+          <span className="text-[10px] font-bold text-error px-1.5 py-0.5 rounded-full bg-error/15">
+            {t('billing.discountPercent', { n: String(pct) })}
+          </span>
         ) : null}
       </div>
     </div>
