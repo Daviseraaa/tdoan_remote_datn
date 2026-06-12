@@ -133,6 +133,9 @@ export class AuthService {
     const ttlSeconds =
       this.configService.get<number>('otp.registerTtlSeconds') ?? 600;
     const otp = this.generateRegisterOtp();
+
+    await this.mailService.sendRegisterOtp(normalized, otp);
+
     await this.redis.set(REGISTER_OTP_KEY(normalized), otp, 'EX', ttlSeconds);
     await this.redis.set(
       REGISTER_OTP_COOLDOWN_KEY(normalized),
@@ -141,8 +144,6 @@ export class AuthService {
       cooldownSeconds,
     );
     await this.redis.del(REGISTER_OTP_ATTEMPTS_KEY(normalized));
-
-    await this.mailService.sendRegisterOtp(normalized, otp);
 
     return {
       message: 'Mã OTP đã được gửi đến email của bạn',

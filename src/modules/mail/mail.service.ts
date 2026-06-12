@@ -7,6 +7,13 @@ import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
 import type { Transporter } from 'nodemailer';
 
+const SMTP_TIMEOUT_MS = 15_000;
+
+type SmtpError = Error & {
+  code?: string;
+  responseCode?: number;
+};
+
 @Injectable()
 export class MailService {
   private readonly logger = new Logger(MailService.name);
@@ -29,8 +36,27 @@ export class MailService {
       port: this.configService.get<number>('smtp.port'),
       secure: this.configService.get<boolean>('smtp.secure'),
       auth: { user, pass },
+      connectionTimeout: SMTP_TIMEOUT_MS,
+      greetingTimeout: SMTP_TIMEOUT_MS,
+      socketTimeout: SMTP_TIMEOUT_MS,
     });
     return this.transporter;
+  }
+
+  private smtpErrorMessage(err: SmtpError): string {
+    const code = err.code ?? '';
+    if (code === 'EAUTH' || err.responseCode === 535) {
+      return 'Không xác thực được máy chủ email (kiểm tra SMTP_USER / SMTP_PASS).';
+    }
+    if (
+      code === 'ETIMEDOUT' ||
+      code === 'ESOCKET' ||
+      code === 'ECONNREFUSED' ||
+      code === 'ENOTFOUND'
+    ) {
+      return 'Không kết nối được máy chủ email. Vui lòng thử lại sau.';
+    }
+    return 'Không gửi được email xác thực. Vui lòng thử lại sau.';
   }
 
   async sendRegisterOtp(to: string, otp: string): Promise<void> {
@@ -94,17 +120,26 @@ export class MailService {
     }
 
     const smtpUser = this.configService.get<string>('smtp.user');
-    await transporter.sendMail({
-      from,
-      to,
-      replyTo: smtpUser || from,
-      subject,
-      text,
-      html,
-      headers: {
-        'Auto-Submitted': 'auto-generated',
-        'X-Auto-Response-Suppress': 'All',
-      },
-    });
+    try {
+      await transporter.sendMail({
+        from,
+        to,
+        replyTo: smtpUser || from,
+        subject,
+        text,
+        html,
+        headers: {
+          'Auto-Submitted': 'auto-generated',
+          'X-Auto-Response-Suppress': 'All',
+        },
+      });
+    } catch (err) {
+      const smtpErr = err as SmtpError;
+      this.logger.error(
+        `Gửi OTP thất bại to=${to} code=${smtpErr.code ?? 'unknown'} responseCode=${smtpErr.responseCode ?? 'n/a'} message=${smtpErr.message}`,
+        smtpErr.stack,
+      );
+      throw new ServiceUnavailableException(this.smtpErrorMessage(smtpErr));
+    }
   }
 }
