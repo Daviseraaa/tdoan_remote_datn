@@ -4,8 +4,10 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { lookup as dnsLookup } from 'dns';
 import * as nodemailer from 'nodemailer';
 import type { Transporter } from 'nodemailer';
+import type SMTPTransport from 'nodemailer/lib/smtp-transport';
 
 const SMTP_TIMEOUT_MS = 15_000;
 
@@ -31,7 +33,8 @@ export class MailService {
       return null;
     }
 
-    this.transporter = nodemailer.createTransport({
+    // Railway/container thường không có IPv6 — smtp.gmail.com resolve ra IPv6 → ENETUNREACH
+    const smtpOptions = {
       host,
       port: this.configService.get<number>('smtp.port'),
       secure: this.configService.get<boolean>('smtp.secure'),
@@ -39,7 +42,15 @@ export class MailService {
       connectionTimeout: SMTP_TIMEOUT_MS,
       greetingTimeout: SMTP_TIMEOUT_MS,
       socketTimeout: SMTP_TIMEOUT_MS,
-    });
+      lookup: (
+        hostname: string,
+        _options: unknown,
+        callback: (err: NodeJS.ErrnoException | null, address: string, family: number) => void,
+      ) => {
+        dnsLookup(hostname, { family: 4 }, callback);
+      },
+    } as SMTPTransport.Options;
+    this.transporter = nodemailer.createTransport(smtpOptions);
     return this.transporter;
   }
 
@@ -51,8 +62,10 @@ export class MailService {
     if (
       code === 'ETIMEDOUT' ||
       code === 'ESOCKET' ||
+      code === 'ENETUNREACH' ||
       code === 'ECONNREFUSED' ||
-      code === 'ENOTFOUND'
+      code === 'ENOTFOUND' ||
+      err.message.includes('ENETUNREACH')
     ) {
       return 'Không kết nối được máy chủ email. Vui lòng thử lại sau.';
     }
