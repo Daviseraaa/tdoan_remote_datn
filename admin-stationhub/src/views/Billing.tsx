@@ -22,7 +22,7 @@ import {
   Leaf,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import { cn } from '@/src/lib/utils';
+import { normalizePlanBenefits } from '@/src/lib/planBenefits';
 import { useAuth } from '@/src/hooks/useAuth';
 import { useSubscription } from '@/src/hooks/useSubscription';
 import * as billingApi from '@/src/api/billing';
@@ -122,8 +122,11 @@ function isAgentDuplicate(text: string, maxAgents: number): boolean {
   );
 }
 
-/** Quyền lợi: mô tả marketing (lọc trùng ngày/agent) → luôn ngày → agent → tự kích hoạt */
+/** Quyền lợi: admin chỉnh (benefits) → legacy mô tả → mặc định theo gói */
 function buildPlanFeatures(plan: SubscriptionPlan): string[] {
+  const custom = normalizePlanBenefits(plan.benefits);
+  if (custom.length > 0) return custom;
+
   const marketing: string[] = [];
   const desc = plan.description?.trim();
 

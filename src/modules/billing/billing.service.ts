@@ -26,6 +26,7 @@ export class BillingService {
         durationDays: true,
         maxAgents: true,
         description: true,
+        benefits: true,
         isTrial: true,
       },
     });

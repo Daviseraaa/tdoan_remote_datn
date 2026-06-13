@@ -4,6 +4,7 @@ import { Cpu } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import * as agentsApi from '@/src/api/agents';
 import { Pagination } from '@/src/components/Pagination';
+import { useAdminQueryEnabled } from '@/src/hooks/useAdminQueryEnabled';
 import { queryKeys } from '@/src/lib/queryKeys';
 import { t } from '@/src/i18n/t';
 import type { AgentStatus } from '@/src/types/api';
@@ -24,6 +25,7 @@ function statusColor(s: AgentStatus): string {
 export default function AdminAgents() {
   const [page, setPage] = useState(1);
   const [status, setStatus] = useState<AgentStatus | ''>('');
+  const adminEnabled = useAdminQueryEnabled();
 
   const { data, isLoading } = useQuery({
     queryKey: queryKeys.agents(true, { page, limit: PAGE, status: status || undefined }),
@@ -33,7 +35,8 @@ export default function AdminAgents() {
         limit: PAGE,
         status: status || undefined,
       }),
-    refetchInterval: 15_000,
+    enabled: adminEnabled,
+    refetchInterval: adminEnabled ? 15_000 : false,
   });
 
   const agents = data?.items ?? [];

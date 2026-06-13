@@ -39,6 +39,7 @@ const USER_AUTH_SELECT = {
       durationDays: true,
       maxAgents: true,
       description: true,
+      benefits: true,
       isTrial: true,
     },
   },
@@ -77,6 +78,7 @@ export class AuthService {
       durationDays: number;
       maxAgents: number;
       description: string | null;
+      benefits: unknown;
       isTrial: boolean;
     } | null;
   }) {

@@ -17,6 +17,7 @@ const PLAN_SELECT = {
   durationDays: true,
   maxAgents: true,
   description: true,
+  benefits: true,
   isTrial: true,
 } as const;
 
@@ -28,6 +29,7 @@ export type SubscriptionPlanSummary = {
   durationDays: number;
   maxAgents: number;
   description: string | null;
+  benefits: unknown;
   isTrial: boolean;
 };
 
@@ -148,6 +150,7 @@ export class SubscriptionService {
       durationDays: trialPlan.durationDays,
       maxAgents: trialPlan.maxAgents,
       description: trialPlan.description,
+      benefits: trialPlan.benefits,
       isTrial: trialPlan.isTrial,
     };
 

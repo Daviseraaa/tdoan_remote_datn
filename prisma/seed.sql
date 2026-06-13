@@ -39,7 +39,7 @@ ON CONFLICT (id) DO UPDATE SET
 
 INSERT INTO subscription_plans (
   id, name, "originalPriceVnd", "priceVnd", "durationDays", "maxAgents",
-  description, "isActive", "isTrial", "createdAt", "updatedAt"
+  description, benefits, "isActive", "isTrial", "createdAt", "updatedAt"
 ) VALUES (
   '00000000-0000-4000-a000-000000000001',
   'Gói tháng',
@@ -47,7 +47,8 @@ INSERT INTO subscription_plans (
   199000,
   30,
   3,
-  'Automation đầy đủ — tối đa 3 agent',
+  NULL,
+  '["Automation đầy đủ","30 ngày sử dụng","Tối đa 3 agent đồng thời","Tự kích hoạt sau khi chuyển khoản"]'::jsonb,
   true,
   false,
   NOW(),
@@ -60,6 +61,7 @@ ON CONFLICT (id) DO UPDATE SET
   "durationDays" = EXCLUDED."durationDays",
   "maxAgents" = EXCLUDED."maxAgents",
   description = EXCLUDED.description,
+  benefits = EXCLUDED.benefits,
   "isActive" = EXCLUDED."isActive",
   "isTrial" = EXCLUDED."isTrial",
   "updatedAt" = NOW();

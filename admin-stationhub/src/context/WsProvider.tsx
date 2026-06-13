@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { useAdminQueryEnabled } from '@/src/hooks/useAdminQueryEnabled';
 import { useAuth } from '@/src/hooks/useAuth';
 import {
   connectWs,
@@ -15,6 +16,7 @@ import type { Agent, PaginatedResponse } from '@/src/types/api';
 
 export function WsProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
+  const adminEnabled = useAdminQueryEnabled();
   const queryClient = useQueryClient();
   const statsInvalidateTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -84,13 +86,15 @@ export function WsProvider({ children }: { children: React.ReactNode }) {
           return { ...old, items: old.items.map(patch) };
         },
       );
-      queryClient.setQueriesData<{ items: Task[]; meta: unknown }>(
-        { queryKey: ['admin', 'tasks'] },
-        (old) => {
-          if (!old?.items?.length) return old;
-          return { ...old, items: old.items.map(patch) };
-        },
-      );
+      if (adminEnabled) {
+        queryClient.setQueriesData<{ items: Task[]; meta: unknown }>(
+          { queryKey: ['admin', 'tasks'] },
+          (old) => {
+            if (!old?.items?.length) return old;
+            return { ...old, items: old.items.map(patch) };
+          },
+        );
+      }
       queryClient.setQueriesData<Task>({ queryKey: ['task'] }, (old) =>
         old?.id === payload.taskId ? { ...old, status } : old,
       );
@@ -100,8 +104,9 @@ export function WsProvider({ children }: { children: React.ReactNode }) {
       if (statsInvalidateTimer.current) return;
       statsInvalidateTimer.current = setTimeout(() => {
         statsInvalidateTimer.current = null;
-        queryClient.invalidateQueries({ queryKey: queryKeys.adminStats });
-        queryClient.invalidateQueries({ queryKey: queryKeys.userStats });
+        if (adminEnabled) {
+          queryClient.invalidateQueries({ queryKey: queryKeys.adminStats });
+        }
       }, 2_000);
     };
 
@@ -121,7 +126,7 @@ export function WsProvider({ children }: { children: React.ReactNode }) {
       }
       disconnectWs();
     };
-  }, [user, queryClient]);
+  }, [user, adminEnabled, queryClient]);
 
   return <>{children}</>;
 }

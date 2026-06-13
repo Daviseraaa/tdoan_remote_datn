@@ -92,6 +92,8 @@ export interface SubscriptionPlan {
   durationDays: number;
   maxAgents: number;
   description?: string | null;
+  /** Quyền lợi hiển thị Billing — admin chỉnh từng dòng */
+  benefits?: string[] | null;
   isActive?: boolean;
   isTrial?: boolean;
   createdAt?: string;

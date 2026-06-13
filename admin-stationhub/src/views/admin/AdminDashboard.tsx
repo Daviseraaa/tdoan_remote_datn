@@ -24,6 +24,7 @@ import {
   Legend,
 } from 'recharts';
 import * as adminApi from '@/src/api/admin';
+import { useAdminQueryEnabled } from '@/src/hooks/useAdminQueryEnabled';
 import { queryKeys } from '@/src/lib/queryKeys';
 import { t } from '@/src/i18n/t';
 import {
@@ -64,11 +65,13 @@ function StatCard({
 
 export default function AdminDashboard() {
   const [trendRange, setTrendRange] = useState<TaskTrendRange>('24H');
+  const adminEnabled = useAdminQueryEnabled();
 
   const { data: stats, isLoading, refetch, isFetching } = useQuery({
     queryKey: queryKeys.adminStats,
     queryFn: adminApi.getAdminStats,
-    refetchInterval: 30_000,
+    enabled: adminEnabled,
+    refetchInterval: adminEnabled ? 30_000 : false,
   });
 
   const taskChart = useMemo(() => {

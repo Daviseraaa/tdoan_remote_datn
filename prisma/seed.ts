@@ -22,7 +22,13 @@ const DEFAULT_PLAN = {
   priceVnd: 199_000,
   durationDays: 30,
   maxAgents: 3,
-  description: 'Automation đầy đủ — tối đa 3 agent',
+  description: null,
+  benefits: [
+    'Automation đầy đủ',
+    '30 ngày sử dụng',
+    'Tối đa 3 agent đồng thời',
+    'Tự kích hoạt sau khi chuyển khoản',
+  ],
   isActive: true,
   isTrial: false,
 };

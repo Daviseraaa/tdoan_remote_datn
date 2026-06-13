@@ -50,9 +50,20 @@ const USER_SELECT = {
       durationDays: true,
       maxAgents: true,
       description: true,
+      benefits: true,
     },
   },
 } as const;
+
+function normalizePlanBenefits(raw: unknown): string[] | undefined {
+  if (raw == null) return undefined;
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter((item): item is string => typeof item === 'string')
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .slice(0, 20);
+}
 
 const ADMIN_STATS_CACHE_KEY = 'admin:stats:v1';
 const ADMIN_STATS_CACHE_TTL_SEC = 15;
@@ -331,6 +342,7 @@ export class AdminService {
         durationDays: dto.durationDays ?? 30,
         maxAgents: dto.maxAgents ?? 3,
         description: dto.description,
+        benefits: normalizePlanBenefits(dto.benefits) ?? [],
         isActive: dto.isActive ?? true,
         isTrial: false,
       },
@@ -357,9 +369,15 @@ export class AdminService {
     const priceVnd = dto.priceVnd ?? plan.priceVnd;
     this.assertPlanPrices(originalPriceVnd, priceVnd);
 
+    const { benefits, ...rest } = dto;
     return this.prisma.subscriptionPlan.update({
       where: { id },
-      data: dto,
+      data: {
+        ...rest,
+        ...(benefits !== undefined
+          ? { benefits: normalizePlanBenefits(benefits) ?? [] }
+          : {}),
+      },
     });
   }
 

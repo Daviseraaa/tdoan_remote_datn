@@ -61,6 +61,7 @@ CREATE TABLE "subscription_plans" (
     "durationDays" INTEGER NOT NULL DEFAULT 30,
     "maxAgents" INTEGER NOT NULL DEFAULT 3,
     "description" TEXT,
+    "benefits" JSONB,
     "isActive" BOOLEAN NOT NULL DEFAULT true,
     "isTrial" BOOLEAN NOT NULL DEFAULT false,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,

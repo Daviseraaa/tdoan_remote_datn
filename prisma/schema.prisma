@@ -148,6 +148,8 @@ model SubscriptionPlan {
   durationDays Int      @default(30)
   maxAgents    Int      @default(3)
   description  String?
+  /** Danh sách quyền lợi hiển thị trên trang Billing (JSON string[]). Rỗng = dùng mặc định. */
+  benefits     Json?
   isActive     Boolean  @default(true)
   /** Gói trial — chỉ gán khi đăng ký, không bán qua checkout */
   isTrial      Boolean  @default(false)

@@ -23,7 +23,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@/src/lib/utils';
 import { useQuery } from '@tanstack/react-query';
 import * as adminApi from '@/src/api/admin';
-import { useAuth } from '@/src/hooks/useAuth';
+import { useAdminQueryEnabled } from '@/src/hooks/useAdminQueryEnabled';
 import { queryKeys } from '@/src/lib/queryKeys';
 import { Link } from 'react-router-dom';
 import { t } from '@/src/i18n/t';
@@ -31,12 +31,12 @@ import { t } from '@/src/i18n/t';
 export default function NOC() {
   const [time, setTime] = useState(new Date().toUTCString());
   const [showAlert, setShowAlert] = useState(false);
-  const { isAdmin } = useAuth();
+  const adminEnabled = useAdminQueryEnabled();
   const { data: stats } = useQuery({
     queryKey: queryKeys.adminStats,
     queryFn: () => adminApi.getAdminStats(),
-    enabled: isAdmin,
-    refetchInterval: 10_000,
+    enabled: adminEnabled,
+    refetchInterval: adminEnabled ? 10_000 : false,
   });
 
   useEffect(() => {

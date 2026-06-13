@@ -4,6 +4,7 @@ import { History } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import * as adminApi from '@/src/api/admin';
 import { Pagination } from '@/src/components/Pagination';
+import { useAdminQueryEnabled } from '@/src/hooks/useAdminQueryEnabled';
 import { queryKeys } from '@/src/lib/queryKeys';
 import { t } from '@/src/i18n/t';
 
@@ -47,6 +48,7 @@ function paymentStatusClass(status: string): string {
 }
 
 export default function AdminSubscriptionHistory() {
+  const adminEnabled = useAdminQueryEnabled();
   const [page, setPage] = useState(1);
   const [status, setStatus] = useState<(typeof STATUSES)[number]>('');
 
@@ -58,7 +60,8 @@ export default function AdminSubscriptionHistory() {
         limit: PAGE,
         status: status || undefined,
       }),
-    refetchInterval: 30_000,
+    enabled: adminEnabled,
+    refetchInterval: adminEnabled ? 30_000 : false,
   });
 
   const rows = data?.items ?? [];

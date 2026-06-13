@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as taskTemplatesApi from '@/src/api/taskTemplates';
+import { useAdminQueryEnabled } from '@/src/hooks/useAdminQueryEnabled';
 import { useAuth } from '@/src/hooks/useAuth';
 import { queryKeys } from '@/src/lib/queryKeys';
 import type { CreateTaskTemplateDto } from '@/src/types/api';
@@ -24,14 +25,17 @@ export function useTaskTemplatesList(params: { page?: number; limit?: number } =
 
 export function useTaskTemplateMutations() {
   const { isAdmin } = useAuth();
+  const adminEnabled = useAdminQueryEnabled();
   const qc = useQueryClient();
 
   const invalidate = () => {
     void qc.invalidateQueries({ queryKey: ['task-templates'] });
     void qc.invalidateQueries({ queryKey: ['tasks'] });
-    void qc.invalidateQueries({ queryKey: ['admin', 'tasks'] });
-    void qc.invalidateQueries({ queryKey: ['admin', 'stats'] });
     void qc.invalidateQueries({ queryKey: ['task'] });
+    if (adminEnabled) {
+      void qc.invalidateQueries({ queryKey: ['admin', 'tasks'] });
+      void qc.invalidateQueries({ queryKey: ['admin', 'stats'] });
+    }
   };
 
   const create = useMutation({

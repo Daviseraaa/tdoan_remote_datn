@@ -4,6 +4,7 @@ import { GitBranch, Filter } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import * as adminApi from '@/src/api/admin';
 import { Pagination } from '@/src/components/Pagination';
+import { useAdminQueryEnabled } from '@/src/hooks/useAdminQueryEnabled';
 import { queryKeys } from '@/src/lib/queryKeys';
 import { t } from '@/src/i18n/t';
 
@@ -39,6 +40,7 @@ function statusClass(status: string): string {
 }
 
 export default function AdminFlowActivity() {
+  const adminEnabled = useAdminQueryEnabled();
   const [page, setPage] = useState(1);
   const [triggerType, setTriggerType] = useState<(typeof CHANNELS)[number]>('');
   const [status, setStatus] = useState<(typeof STATUSES)[number]>('');
@@ -57,7 +59,8 @@ export default function AdminFlowActivity() {
         triggerType: triggerType || undefined,
         status: status || undefined,
       }),
-    refetchInterval: 20_000,
+    enabled: adminEnabled,
+    refetchInterval: adminEnabled ? 20_000 : false,
   });
 
   const rows = data?.items ?? [];

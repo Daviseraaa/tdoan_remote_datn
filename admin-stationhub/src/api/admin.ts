@@ -38,6 +38,7 @@ export async function createAdminPlan(body: {
   durationDays?: number;
   maxAgents?: number;
   description?: string;
+  benefits?: string[];
   isActive?: boolean;
 }): Promise<SubscriptionPlan> {
   return apiFetch<SubscriptionPlan>('/admin/plans', { method: 'POST', body });
@@ -52,6 +53,7 @@ export async function updateAdminPlan(
     durationDays: number;
     maxAgents: number;
     description: string;
+    benefits: string[];
     isActive: boolean;
   }>,
 ): Promise<SubscriptionPlan> {

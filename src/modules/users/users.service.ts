@@ -30,6 +30,7 @@ export const USER_SELECT = {
       durationDays: true,
       maxAgents: true,
       description: true,
+      benefits: true,
       isTrial: true,
     },
   },

@@ -215,7 +215,7 @@ export default function Dashboard() {
         workflows: '0',
       };
     }
-    const agentsTotal = dash.agentsCount?.data?.meta.total ?? 0;
+    const agentsTotal = dash.agentsPreview?.data?.meta.total ?? 0;
     const wfTotal = dash.workflowsCount?.data?.meta.total ?? 0;
     return {
       totalAgents: String(agentsTotal),
@@ -283,7 +283,7 @@ export default function Dashboard() {
   const agentTotal =
     dash.mode === 'admin'
       ? (dash.stats.data?.agents.total ?? 0)
-      : (dash.agentsCount?.data?.meta.total ?? 0);
+      : (dash.agentsPreview?.data?.meta.total ?? 0);
 
   const availability =
     dash.mode === 'admin' && dash.stats.data

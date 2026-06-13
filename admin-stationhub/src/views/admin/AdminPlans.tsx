@@ -3,12 +3,18 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Plus, Pencil, Package, History, Trash2 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import * as adminApi from '@/src/api/admin';
+import { useAdminQueryEnabled } from '@/src/hooks/useAdminQueryEnabled';
 import { queryKeys } from '@/src/lib/queryKeys';
 import { apiErrorMessage } from '@/src/lib/api';
 import type { SubscriptionPlan } from '@/src/types/api';
 import { t } from '@/src/i18n/t';
 import AdminSubscriptionHistory from '@/src/views/admin/AdminSubscriptionHistory';
 import { PlanPriceDisplay } from '@/src/components/admin/PlanPriceDisplay';
+import {
+  benefitsToText,
+  normalizePlanBenefits,
+  parseBenefitsText,
+} from '@/src/lib/planBenefits';
 
 type PlansTab = 'plans' | 'history';
 
@@ -19,11 +25,26 @@ const emptyForm = {
   durationDays: 30,
   maxAgents: 3,
   description: '',
+  benefitsText: '',
   isActive: true,
 };
 
+function planFormPayload(form: typeof emptyForm) {
+  return {
+    name: form.name,
+    originalPriceVnd: form.originalPriceVnd,
+    priceVnd: form.priceVnd,
+    durationDays: form.durationDays,
+    maxAgents: form.maxAgents,
+    description: form.description.trim() || undefined,
+    benefits: parseBenefitsText(form.benefitsText),
+    isActive: form.isActive,
+  };
+}
+
 export default function AdminPlans() {
   const qc = useQueryClient();
+  const adminEnabled = useAdminQueryEnabled();
   const [tab, setTab] = useState<PlansTab>('plans');
   const [modal, setModal] = useState<'create' | 'edit' | null>(null);
   const [editPlan, setEditPlan] = useState<SubscriptionPlan | null>(null);
@@ -35,6 +56,7 @@ export default function AdminPlans() {
   const { data: plans = [], isLoading } = useQuery({
     queryKey: queryKeys.adminPlans,
     queryFn: adminApi.listAdminPlans,
+    enabled: adminEnabled,
   });
 
   const save = useMutation({
@@ -43,9 +65,9 @@ export default function AdminPlans() {
         throw new Error(t('adminPortal.priceOnSaleInvalid'));
       }
       if (modal === 'edit' && editPlan) {
-        return adminApi.updateAdminPlan(editPlan.id, form);
+        return adminApi.updateAdminPlan(editPlan.id, planFormPayload(form));
       }
-      return adminApi.createAdminPlan(form);
+      return adminApi.createAdminPlan(planFormPayload(form));
     },
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: queryKeys.adminPlans });
@@ -73,6 +95,7 @@ export default function AdminPlans() {
       durationDays: p.durationDays,
       maxAgents: p.maxAgents,
       description: p.description ?? '',
+      benefitsText: benefitsToText(normalizePlanBenefits(p.benefits)),
       isActive: p.isActive !== false,
     });
     setError('');
@@ -349,8 +372,22 @@ export default function AdminPlans() {
                 onChange={(e) => setForm({ ...form, maxAgents: Number(e.target.value) })}
               />
             </div>
+            <div>
+              <label className="text-[10px] font-mono font-bold uppercase text-on-surface-variant">
+                {t('adminPortal.planBenefits')}
+              </label>
+              <textarea
+                className="w-full mt-1 px-4 py-3 rounded-xl bg-surface-container-low border border-white/10 text-sm min-h-[120px] font-mono"
+                placeholder={t('adminPortal.planBenefitsPlaceholder')}
+                value={form.benefitsText}
+                onChange={(e) => setForm({ ...form, benefitsText: e.target.value })}
+              />
+              <p className="text-[11px] text-on-surface-variant/80 mt-1.5 leading-snug">
+                {t('adminPortal.planBenefitsHint')}
+              </p>
+            </div>
             <textarea
-              className="w-full px-4 py-3 rounded-xl bg-surface-container-low border border-white/10 text-sm min-h-[80px]"
+              className="w-full px-4 py-3 rounded-xl bg-surface-container-low border border-white/10 text-sm min-h-[60px]"
               placeholder={t('adminPortal.description')}
               value={form.description}
               onChange={(e) => setForm({ ...form, description: e.target.value })}

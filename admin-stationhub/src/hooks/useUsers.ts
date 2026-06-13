@@ -1,13 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as usersApi from '@/src/api/users';
+import { useAdminQueryEnabled } from '@/src/hooks/useAdminQueryEnabled';
 import { queryKeys } from '@/src/lib/queryKeys';
 import type { CreateUserDto, UpdateUserDto } from '@/src/types/api';
 
 export function useUsersList(params: { page?: number; limit?: number } = {}) {
+  const adminEnabled = useAdminQueryEnabled();
   return useQuery({
     queryKey: queryKeys.users(params),
     queryFn: () => usersApi.listUsers(params),
     staleTime: 30_000,
+    enabled: adminEnabled,
   });
 }
 
