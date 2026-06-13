@@ -17,10 +17,12 @@ import {
   resolveCoreExe,
 } from '../shared/paths';
 import {
-  ingestAgentLogLine,
+  appendUserLogLine,
   resetAgentStatusOnStart,
   setAgentProcessRunning,
+  updateConnectionFromLog,
 } from '../shared/agent-status';
+import { formatUserLog, type UiLogLevel } from '../shared/log-filter';
 import { resolveAppIconPath } from '../shared/app-icon';
 import { showSettingsWindow } from '../main/settings-window';
 import { installDatnNativeWindowsService, NATIVE_SVC_NAME } from '../service/native-windows-service';
@@ -39,14 +41,22 @@ export function restartRustAgent(): void {
   setTimeout(() => startRustAgent(), 500);
 }
 
-function pushLog(level: string, msg: string) {
+function pushLog(level: UiLogLevel, rawMsg: string) {
+  updateConnectionFromLog(rawMsg);
+
+  const entry = formatUserLog(rawMsg, level);
+  if (!entry) {
+    logger.debug({ raw: rawMsg }, 'agent log skipped');
+    return;
+  }
+
   const time = new Date().toLocaleTimeString();
-  const line = `[${time}] [${level}] ${msg}`.trim();
-  ingestAgentLogLine(line);
+  const line = `[${time}] [${entry.level}] ${entry.text}`.trim();
+  appendUserLogLine(line);
   logger.debug({ line }, 'agent log');
 }
 
-type AgentLogLevel = 'INFO' | 'WARN' | 'ERROR';
+type AgentLogLevel = UiLogLevel;
 
 /** Rust tracing ghi INFO ra stderr — đọc level thật trong nội dung, không gắn ERROR theo stream. */
 function resolveAgentLineLevel(trimmed: string): AgentLogLevel {

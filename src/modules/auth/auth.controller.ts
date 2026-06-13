@@ -1,6 +1,7 @@
-import { Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
+import { Body, Controller, HttpCode, HttpStatus, Post, Res } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
+import type { Response } from 'express';
 import { Public, SkipSubscription } from '../../common/decorators/index';
 import { CurrentUser, JwtPayload } from '../../common/decorators/current-user.decorator';
 import { AuthService } from './auth.service';
@@ -41,6 +42,20 @@ export class AuthController {
   @ApiOperation({ summary: 'Login or register with Google ID token' })
   loginWithGoogle(@Body() dto: GoogleAuthDto) {
     return this.authService.loginWithGoogle(dto.idToken);
+  }
+
+  @Public()
+  @Post('google/redirect')
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @ApiOperation({
+    summary: 'Google GIS redirect callback (Safari / ITP browsers)',
+  })
+  async googleRedirect(
+    @Body('credential') credential: string | undefined,
+    @Res() res: Response,
+  ) {
+    const url = await this.authService.completeGoogleRedirect(credential);
+    return res.redirect(302, url);
   }
 
   @Public()

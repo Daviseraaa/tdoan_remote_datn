@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { Link, Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { Terminal, AlertCircle } from 'lucide-react';
 import { useAuth } from '@/src/hooks/useAuth';
 import { apiErrorMessage } from '@/src/lib/api';
@@ -12,12 +12,19 @@ export default function Login() {
   const { login, loginWithGoogle, isAdmin, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   const from = (location.state as { from?: { pathname: string } })?.from?.pathname ?? '/';
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (searchParams.get('google_error') === '1') {
+      setError(t('login.googleError'));
+    }
+  }, [searchParams]);
 
   if (!authLoading && isAuthenticated()) {
     const dest = isAdmin ? '/admin' : from.startsWith('/admin') ? '/' : from;

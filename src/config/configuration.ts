@@ -69,6 +69,13 @@ export default () => ({
     clientId: process.env.GOOGLE_CLIENT_ID || '',
   },
 
+  frontend: {
+    url:
+      process.env.FRONTEND_URL?.trim() ||
+      parseOrigins(process.env.CORS_ORIGINS, 'http://localhost:5173')[0] ||
+      'http://localhost:5173',
+  },
+
   otp: {
     registerTtlSeconds: parseInt(process.env.REGISTER_OTP_TTL_SECONDS || '600', 10),
     registerCooldownSeconds: parseInt(

@@ -1,4 +1,5 @@
 import * as os from 'os';
+import { redactSensitive } from './log-filter';
 import { loadDesktopConfig } from './config';
 
 export type ConnectionPhase =
@@ -46,12 +47,10 @@ export function setAgentProcessRunning(running: boolean): void {
   }
 }
 
-export function ingestAgentLogLine(line: string): void {
-  const trimmed = line.trim();
+/** Cập nhật trạng thái kết nối từ log thô (không lưu vào UI log). */
+export function updateConnectionFromLog(raw: string): void {
+  const trimmed = raw.trim();
   if (!trimmed) return;
-
-  recentLines.push(trimmed);
-  if (recentLines.length > MAX_LINES) recentLines.shift();
 
   const lower = trimmed.toLowerCase();
 
@@ -60,20 +59,21 @@ export function ingestAgentLogLine(line: string): void {
     touch('Đang kết nối server…');
     return;
   }
-  if (/socket\.io:.*chờ xác thực/i.test(trimmed)) {
+  if (/socket\.io:.*chờ xác thực|transport OK/i.test(trimmed)) {
     connection = 'connecting';
     touch('Đang xác thực Agent Key…');
     return;
   }
-  if (/socket\.io:\s*kết nối thành công/i.test(trimmed)) {
+  if (/socket\.io:\s*kết nối thành công|server authenticated agent/i.test(trimmed)) {
     connection = 'connected';
     touch('Đã kết nối server');
     return;
   }
   if (/socket\.io:\s*kết nối thất bại/i.test(trimmed)) {
     connection = 'failed';
-    const detail = trimmed.split('—').pop()?.trim() || trimmed;
-    touch(`Kết nối thất bại — ${detail}`);
+    const detail = trimmed.split('—').slice(1).join('—').trim();
+    const safe = redactSensitive(detail) || 'Không thể kết nối';
+    touch(`Kết nối thất bại — ${safe}`);
     return;
   }
   if (/rust agent đã khởi động/i.test(lower)) {
@@ -84,8 +84,15 @@ export function ingestAgentLogLine(line: string): void {
   if (/rust agent thoát/i.test(lower)) {
     connection = 'stopped';
     processRunning = false;
-    touch('Agent thoát bất thường');
+    touch('Agent đã dừng');
   }
+}
+
+export function appendUserLogLine(line: string): void {
+  const trimmed = line.trim();
+  if (!trimmed) return;
+  recentLines.push(trimmed);
+  if (recentLines.length > MAX_LINES) recentLines.shift();
 }
 
 export function getAgentStatus(): AgentStatusSnapshot {
@@ -106,5 +113,6 @@ export function getAgentStatus(): AgentStatusSnapshot {
 export function resetAgentStatusOnStart(): void {
   processRunning = true;
   connection = 'starting';
+  recentLines.length = 0;
   touch('Đang khởi động agent…');
 }

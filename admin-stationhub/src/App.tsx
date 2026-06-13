@@ -26,6 +26,7 @@ import Documentation from './views/Documentation';
 import NOC from './views/NOC';
 import Login from './views/Login';
 import Register from './views/Register';
+import GoogleAuthCallback from './views/GoogleAuthCallback';
 import Billing from './views/Billing';
 import Bots from './views/Bots';
 import { SubscriptionBanner } from './components/SubscriptionBanner';
@@ -265,6 +266,7 @@ export default function App() {
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/auth/google/callback" element={<GoogleAuthCallback />} />
             <Route
               path="/admin/*"
               element={

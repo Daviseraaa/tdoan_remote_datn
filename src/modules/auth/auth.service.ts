@@ -315,6 +315,43 @@ export class AuthService {
     };
   }
 
+  buildGoogleRedirectSuccessUrl(tokens: {
+    accessToken: string;
+    refreshToken: string;
+  }): string {
+    const base =
+      this.configService.get<string>('frontend.url') ?? 'http://localhost:5173';
+    const url = new URL('/auth/google/callback', base);
+    url.hash = new URLSearchParams({
+      access_token: tokens.accessToken,
+      refresh_token: tokens.refreshToken,
+    }).toString();
+    return url.toString();
+  }
+
+  buildGoogleRedirectFailureUrl(): string {
+    const base =
+      this.configService.get<string>('frontend.url') ?? 'http://localhost:5173';
+    const url = new URL('/login', base);
+    url.searchParams.set('google_error', '1');
+    return url.toString();
+  }
+
+  async completeGoogleRedirect(credential: string | undefined): Promise<string> {
+    try {
+      if (!credential?.trim()) {
+        return this.buildGoogleRedirectFailureUrl();
+      }
+      const result = await this.loginWithGoogle(credential);
+      return this.buildGoogleRedirectSuccessUrl({
+        accessToken: result.accessToken,
+        refreshToken: result.refreshToken,
+      });
+    } catch {
+      return this.buildGoogleRedirectFailureUrl();
+    }
+  }
+
   async login(dto: LoginDto) {
     const user = await this.prisma.user.findUnique({
       where: { email: dto.email },

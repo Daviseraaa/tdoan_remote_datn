@@ -1,6 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
+import {
+  getGoogleRedirectUri,
+  loadGoogleGsiScript,
+  prefersGoogleRedirect,
+} from '@/src/lib/googleAuth';
 import { t } from '@/src/i18n/t';
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID ?? '';
@@ -19,9 +24,11 @@ declare global {
         id: {
           initialize: (config: {
             client_id: string;
-            callback: (response: { credential?: string }) => void;
+            callback?: (response: { credential?: string }) => void;
             auto_select?: boolean;
             ux_mode?: 'popup' | 'redirect';
+            login_uri?: string;
+            itp_support?: boolean;
           }) => void;
           renderButton: (
             parent: HTMLElement,
@@ -71,6 +78,7 @@ export function GoogleSignInButton({
   const onSuccessRef = useRef(onSuccess);
   const onErrorRef = useRef(onError);
   const [ready, setReady] = useState(false);
+  const useRedirect = prefersGoogleRedirect();
 
   onSuccessRef.current = onSuccess;
   onErrorRef.current = onError;
@@ -79,6 +87,8 @@ export function GoogleSignInButton({
     if (!isGoogleSignInEnabled()) return;
 
     let cancelled = false;
+    let pollTimer: ReturnType<typeof setInterval> | null = null;
+    let resizeObserver: ResizeObserver | null = null;
 
     const mountGoogleButton = () => {
       const shell = shellRef.current;
@@ -88,22 +98,31 @@ export function GoogleSignInButton({
       }
 
       const width = Math.min(400, Math.max(200, Math.floor(shell.offsetWidth)));
+      if (width < 200) return false;
 
       host.innerHTML = '';
 
-      window.google.accounts.id.initialize({
+      const init: Parameters<typeof window.google.accounts.id.initialize>[0] = {
         client_id: GOOGLE_CLIENT_ID,
         auto_select: false,
-        ux_mode: 'popup',
-        callback: (response) => {
+        itp_support: true,
+        ux_mode: useRedirect ? 'redirect' : 'popup',
+      };
+
+      if (useRedirect) {
+        init.login_uri = getGoogleRedirectUri();
+      } else {
+        init.callback = (response) => {
           const token = response.credential;
           if (!token) {
             onErrorRef.current?.();
             return;
           }
           void onSuccessRef.current(token);
-        },
-      });
+        };
+      }
+
+      window.google.accounts.id.initialize(init);
 
       window.google.accounts.id.renderButton(host, {
         type: 'standard',
@@ -117,23 +136,39 @@ export function GoogleSignInButton({
       return true;
     };
 
-    if (mountGoogleButton()) {
-      return () => {
-        cancelled = true;
-      };
-    }
-
-    const timer = window.setInterval(() => {
-      if (mountGoogleButton()) {
-        window.clearInterval(timer);
+    const startObservers = () => {
+      const shell = shellRef.current;
+      if (shell && typeof ResizeObserver !== 'undefined') {
+        resizeObserver = new ResizeObserver(() => {
+          if (!cancelled) mountGoogleButton();
+        });
+        resizeObserver.observe(shell);
       }
-    }, 80);
+    };
+
+    void loadGoogleGsiScript()
+      .then(() => {
+        if (cancelled) return;
+        if (!mountGoogleButton()) {
+          pollTimer = setInterval(() => {
+            if (mountGoogleButton() && pollTimer) {
+              clearInterval(pollTimer);
+              pollTimer = null;
+            }
+          }, 80);
+        }
+        startObservers();
+      })
+      .catch(() => {
+        onErrorRef.current?.();
+      });
 
     return () => {
       cancelled = true;
-      window.clearInterval(timer);
+      if (pollTimer) clearInterval(pollTimer);
+      resizeObserver?.disconnect();
     };
-  }, []);
+  }, [useRedirect]);
 
   if (!isGoogleSignInEnabled()) return null;
 
@@ -146,7 +181,6 @@ export function GoogleSignInButton({
         <p className="block text-[10px] font-mono font-bold uppercase tracking-widest text-on-surface-variant mb-2">
           {t('auth.oauthLabel')}
         </p>
-        {/* Google iframe phải nằm trong viewport — overlay trong suốt, không click giả từ nút ẩn */}
         <div
           ref={shellRef}
           className={cn(
@@ -182,8 +216,9 @@ export function GoogleSignInButton({
           <div
             ref={googleHostRef}
             className={cn(
-              'absolute inset-0 z-10 overflow-hidden rounded-xl',
+              'absolute inset-0 z-10 overflow-hidden rounded-xl touch-manipulation',
               'opacity-[0.011] cursor-pointer',
+              '[transform:translateZ(0)]',
               !ready && 'invisible',
             )}
             aria-label={label}

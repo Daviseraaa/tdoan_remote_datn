@@ -10,8 +10,14 @@ export function getRefreshToken(): string | null {
 }
 
 export function setTokens(accessToken: string, refreshToken: string): void {
-  localStorage.setItem(ACCESS_KEY, accessToken);
-  localStorage.setItem(REFRESH_KEY, refreshToken);
+  try {
+    localStorage.setItem(ACCESS_KEY, accessToken);
+    localStorage.setItem(REFRESH_KEY, refreshToken);
+  } catch {
+    throw new Error(
+      'Không thể lưu phiên đăng nhập. Tắt chế độ duyệt web riêng tư hoặc cho phép lưu trữ trang web.',
+    );
+  }
 }
 
 export function clearTokens(): void {
