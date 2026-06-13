@@ -48,6 +48,17 @@ export class BillingController {
   }
 
   @SkipSubscription()
+  @Get('payments/:id/checkout')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Xem lại mã chuyển khoản (đơn PENDING)' })
+  paymentCheckout(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+  ) {
+    return this.billing.getPaymentCheckout(user.sub, id);
+  }
+
+  @SkipSubscription()
   @Get('payments/:id/status')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Trạng thái đơn thanh toán (poll sau CK)' })

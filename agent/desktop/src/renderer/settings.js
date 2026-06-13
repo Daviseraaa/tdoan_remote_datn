@@ -182,10 +182,13 @@ function renderConnectionPanel() {
           <button type="button" class="key-btn" id="copyKeyBtn">Sao chép</button>
           <button type="button" class="key-btn" id="toggleKeyBtn">Hiện</button>
         </div>
-        <p class="key-hint">
-          Lấy key từ <strong>StationHub Console → Agents</strong> khi tạo agent mới.
-          Dán vào đây rồi bấm <strong>Lưu &amp; áp dụng</strong>.
-        </p>
+      </div>
+
+      <div class="glass-card log-card conn-log-span">
+        <h3 class="card-title">Log kết nối</h3>
+        <div class="log-stream" id="logStream" aria-live="polite">
+          <div class="log-empty">Chưa có log — agent sẽ ghi tại đây khi chạy.</div>
+        </div>
       </div>
     </div>`;
 
@@ -280,6 +283,36 @@ function formatTime(iso) {
   }
 }
 
+function logLineClass(line) {
+  const wrapper = line.match(/^\[[^\]]+\]\s*\[(INFO|WARN|ERROR)\]/i);
+  if (wrapper) {
+    const lv = wrapper[1].toUpperCase();
+    if (lv === 'ERROR') return 'line-err';
+    if (lv === 'WARN') return 'line-warn';
+    return '';
+  }
+  if (/thành công|THÀNH CÔNG|authenticated|đã kết nối/i.test(line)) return 'line-ok';
+  return '';
+}
+
+function renderLogStream(lines) {
+  const stream = $('#logStream');
+
+  if (!stream) return;
+  if (!lines?.length) {
+    stream.innerHTML = '<div class="log-empty">Chưa có log — agent sẽ ghi tại đây khi chạy.</div>';
+    return;
+  }
+
+  stream.innerHTML = lines
+    .map((line) => {
+      const cls = logLineClass(line);
+      return `<div class="log-line${cls ? ` ${cls}` : ''}">${esc(line)}</div>`;
+    })
+    .join('');
+  stream.scrollTop = stream.scrollHeight;
+}
+
 async function refreshStatus() {
   const api = window.stationhubSettings;
   if (!api?.getStatus) return;
@@ -305,6 +338,8 @@ async function refreshStatus() {
 
   if (proc) proc.textContent = s.processRunning ? 'Agent đang chạy' : 'Đã dừng';
   if (time) time.textContent = formatTime(s.lastEventAt);
+
+  renderLogStream(s.recentLines);
 
   if ($('#versionChip')) $('#versionChip').textContent = `v${s.agentVersion}`;
 }

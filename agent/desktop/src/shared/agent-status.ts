@@ -20,7 +20,7 @@ export interface AgentStatusSnapshot {
   recentLines: string[];
 }
 
-const MAX_LINES = 8;
+const MAX_LINES = 24;
 
 let processRunning = false;
 let connection: ConnectionPhase = 'stopped';

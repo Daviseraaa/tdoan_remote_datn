@@ -62,14 +62,14 @@ export function WfImportMenu({
 
   const { data: templatesPage, isLoading: templatesLoading } = useQuery({
     queryKey: ['task-templates', 'wf-import', isAdmin],
-    queryFn: () => taskTemplatesApi.listTaskTemplates(isAdmin, { page: 1, limit: 200 }),
+    queryFn: () => taskTemplatesApi.listTaskTemplates(isAdmin, { page: 1, limit: 100 }),
     enabled: enabled && sources.includes('task'),
   });
   const templates = templatesPage?.items ?? [];
 
   const { data: workflowsPage, isLoading: workflowsLoading } = useQuery({
     queryKey: ['workflows', 'wf-import', isAdmin],
-    queryFn: () => workflowsApi.listWorkflows(isAdmin, { page: 1, limit: 200 }),
+    queryFn: () => workflowsApi.listWorkflows(isAdmin, { page: 1, limit: 100 }),
     enabled: enabled && sources.includes('workflow'),
   });
   const workflows = workflowsPage?.items ?? [];

@@ -54,17 +54,24 @@ export class BillingService {
 
     const bank = this.sepay.getBankInstructions(paymentCode, plan.priceVnd);
 
-    const payment = await this.prisma.payment.create({
-      data: {
-        userId,
-        planId: plan.id,
-        amountVnd: plan.priceVnd,
-        orderCode: BigInt(orderCode),
-        paymentCode,
-        provider: 'SEPAY',
-        status: PaymentStatus.PENDING,
-        expiresAt,
-      },
+    const payment = await this.prisma.$transaction(async (tx) => {
+      await tx.payment.updateMany({
+        where: { userId, status: PaymentStatus.PENDING },
+        data: { status: PaymentStatus.EXPIRED },
+      });
+
+      return tx.payment.create({
+        data: {
+          userId,
+          planId: plan.id,
+          amountVnd: plan.priceVnd,
+          orderCode: BigInt(orderCode),
+          paymentCode,
+          provider: 'SEPAY',
+          status: PaymentStatus.PENDING,
+          expiresAt,
+        },
+      });
     });
 
     return {
@@ -77,7 +84,22 @@ export class BillingService {
     };
   }
 
+  /** PENDING quá expiresAt → EXPIRED (lazy cleanup khi đọc lịch sử). */
+  async expireOverduePendingPayments(userId?: string): Promise<number> {
+    const result = await this.prisma.payment.updateMany({
+      where: {
+        status: PaymentStatus.PENDING,
+        expiresAt: { lt: new Date() },
+        ...(userId ? { userId } : {}),
+      },
+      data: { status: PaymentStatus.EXPIRED },
+    });
+    return result.count;
+  }
+
   async getPaymentStatus(userId: string, paymentId: string) {
+    await this.expireOverduePendingPayments(userId);
+
     const payment = await this.prisma.payment.findFirst({
       where: { id: paymentId, userId },
       select: {
@@ -95,7 +117,41 @@ export class BillingService {
     return payment;
   }
 
-  listPayments(userId: string, limit = 20) {
+  /** Mở lại QR / thông tin CK cho đơn PENDING còn hiệu lực. */
+  async getPaymentCheckout(userId: string, paymentId: string) {
+    await this.expireOverduePendingPayments(userId);
+
+    const payment = await this.prisma.payment.findFirst({
+      where: { id: paymentId, userId },
+      include: { plan: { select: { name: true } } },
+    });
+    if (!payment) {
+      throw new NotFoundException('Không tìm thấy giao dịch');
+    }
+    if (payment.status === PaymentStatus.PAID) {
+      throw new BadRequestException('Đơn đã thanh toán');
+    }
+    if (payment.status !== PaymentStatus.PENDING) {
+      throw new BadRequestException('Mã chuyển khoản đã hết hạn. Tạo mã mới.');
+    }
+
+    const bank = this.sepay.getBankInstructions(
+      payment.paymentCode,
+      payment.amountVnd,
+    );
+
+    return {
+      paymentId: payment.id,
+      orderCode: payment.orderCode.toString(),
+      planName: payment.plan.name,
+      expiresAt: payment.expiresAt?.toISOString() ?? '',
+      ...bank,
+    };
+  }
+
+  async listPayments(userId: string, limit = 20) {
+    await this.expireOverduePendingPayments(userId);
+
     return this.prisma.payment
       .findMany({
         where: { userId },

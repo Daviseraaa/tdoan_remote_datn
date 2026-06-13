@@ -23,6 +23,10 @@ export async function createCheckout(planId: string): Promise<CheckoutResponse> 
   });
 }
 
+export async function getPaymentCheckout(paymentId: string): Promise<CheckoutResponse> {
+  return apiFetch<CheckoutResponse>(`/billing/payments/${paymentId}/checkout`);
+}
+
 export async function getPaymentStatus(paymentId: string): Promise<PaymentStatusResponse> {
   return apiFetch<PaymentStatusResponse>(`/billing/payments/${paymentId}/status`);
 }

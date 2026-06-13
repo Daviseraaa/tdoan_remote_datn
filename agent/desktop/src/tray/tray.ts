@@ -46,6 +46,36 @@ function pushLog(level: string, msg: string) {
   logger.debug({ line }, 'agent log');
 }
 
+type AgentLogLevel = 'INFO' | 'WARN' | 'ERROR';
+
+/** Rust tracing ghi INFO ra stderr — đọc level thật trong nội dung, không gắn ERROR theo stream. */
+function resolveAgentLineLevel(trimmed: string): AgentLogLevel {
+  const rust = trimmed.match(
+    /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z\s+(ERROR|WARN|INFO|DEBUG|TRACE)\s/i,
+  );
+  if (rust) {
+    const lv = rust[1].toUpperCase();
+    if (lv === 'ERROR') return 'ERROR';
+    if (lv === 'WARN') return 'WARN';
+    return 'INFO';
+  }
+
+  if (/Socket\.IO:\s*kết nối THÀNH CÔNG|Server authenticated|transport OK/i.test(trimmed)) {
+    return 'INFO';
+  }
+  if (/Socket\.IO:\s*kết nối thất bại|THẤT BẠI|panic|fatal error/i.test(trimmed)) {
+    return 'ERROR';
+  }
+  if (/THẤT BẠI|thất bại|\bpanic\b|fatal|\bfailed\b|lỗi kết nối/i.test(trimmed)) {
+    return 'ERROR';
+  }
+  if (/Rust agent thoát|signal=SIGTERM|signal=SIGINT/i.test(trimmed)) {
+    return 'WARN';
+  }
+
+  return 'INFO';
+}
+
 export function startRustAgent() {
   const exe = resolveCoreExe();
   if (!fs.existsSync(exe)) {
@@ -77,20 +107,17 @@ export function startRustAgent() {
   });
   rustAgent = child;
   resetAgentStatusOnStart();
-  const onChunk = (buf: Buffer, level: 'INFO' | 'ERROR' = 'INFO') => {
+  const onChunk = (buf: Buffer) => {
     const s = buf.toString('utf8').trim();
     if (!s) return;
     for (const line of s.split(/\r?\n/)) {
       const trimmed = line.trim();
       if (!trimmed) continue;
-      const isErr =
-        level === 'ERROR' ||
-        /panic|error|THẤT BẠI|failed|lỗi/i.test(trimmed);
-      pushLog(isErr ? 'ERROR' : 'INFO', trimmed);
+      pushLog(resolveAgentLineLevel(trimmed), trimmed);
     }
   };
-  child.stdout?.on('data', (buf) => onChunk(buf, 'INFO'));
-  child.stderr?.on('data', (buf) => onChunk(buf, 'ERROR'));
+  child.stdout?.on('data', onChunk);
+  child.stderr?.on('data', onChunk);
   child.on('exit', (code, signal) => {
     rustAgent = null;
     setAgentProcessRunning(false);

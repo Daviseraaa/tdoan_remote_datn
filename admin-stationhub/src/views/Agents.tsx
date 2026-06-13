@@ -79,7 +79,7 @@ export default function Agents() {
     return isAgentClusterFilter(c) ? c : 'all';
   });
   const AGENT_PAGE_LIMIT = 12;
-  const CLUSTER_FETCH_LIMIT = 200;
+  const CLUSTER_FETCH_LIMIT = 100;
   const useClusterClientPaging = clusterFilter !== 'all';
 
   const { data: agentsPage, isLoading } = useAgentsList({
@@ -89,7 +89,7 @@ export default function Agents() {
   });
   const { data: runningTasksPage } = useTasksList({
     page: 1,
-    limit: 200,
+    limit: 100,
     status: 'RUNNING',
   });
   const {

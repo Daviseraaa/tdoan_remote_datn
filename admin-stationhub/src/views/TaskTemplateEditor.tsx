@@ -55,7 +55,7 @@ import { t } from '@/src/i18n/t';
 import type { Agent, TaskType } from '@/src/types/api';
 
 const AGENT_PAGE_LIMIT = 12;
-const CLUSTER_FETCH_LIMIT = 200;
+const CLUSTER_FETCH_LIMIT = 100;
 
 const FILTER_BTN =
   'flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl border border-white/10 hover:bg-white/5 text-sm font-bold shrink-0';

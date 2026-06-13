@@ -292,6 +292,32 @@ html, body {
   .conn-layout { grid-template-columns: 1fr; }
 }
 
+.conn-log-span {
+  grid-column: 1 / -1;
+}
+
+.log-card .card-title {
+  margin: 0 0 10px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--cyan);
+  letter-spacing: -0.02em;
+}
+
+.log-card .log-stream {
+  margin-top: 0;
+  max-height: 148px;
+}
+
+.log-empty {
+  color: var(--text-dim);
+  font-style: italic;
+}
+
+.log-line + .log-line {
+  margin-top: 2px;
+}
+
 .glass-card {
   position: relative;
   padding: 20px;
@@ -446,6 +472,7 @@ html, body {
 }
 
 .log-stream .line-ok { color: rgba(52, 211, 153, 0.85); }
+.log-stream .line-warn { color: rgba(251, 191, 36, 0.9); }
 .log-stream .line-err { color: #fca5a5; }
 
 /* Key card */
@@ -506,7 +533,7 @@ html, body {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 8px;
-  margin-bottom: 14px;
+  margin-bottom: 10px;
 }
 
 .key-btn {

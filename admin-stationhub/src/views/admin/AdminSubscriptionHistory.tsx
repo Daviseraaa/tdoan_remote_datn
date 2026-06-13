@@ -4,6 +4,7 @@ import { History } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import * as adminApi from '@/src/api/admin';
 import { Pagination } from '@/src/components/Pagination';
+import { PaymentHistoryCard } from '@/src/components/admin/PaymentHistoryCard';
 import { useAdminQueryEnabled } from '@/src/hooks/useAdminQueryEnabled';
 import { queryKeys } from '@/src/lib/queryKeys';
 import { t } from '@/src/i18n/t';
@@ -67,9 +68,16 @@ export default function AdminSubscriptionHistory() {
   const rows = data?.items ?? [];
   const meta = data?.meta;
 
+  const emptyState = (
+    <div className="py-10 text-center text-on-surface-variant">
+      <History size={24} className="mx-auto mb-2 opacity-40" />
+      <p className="text-sm">{t('adminPortal.noPayments')}</p>
+    </div>
+  );
+
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap gap-2">
+      <div className="flex gap-1.5 sm:gap-2 overflow-x-auto pb-1 -mx-1 px-1 custom-scrollbar">
         {STATUSES.map((s) => (
           <button
             key={s || 'all'}
@@ -79,7 +87,7 @@ export default function AdminSubscriptionHistory() {
               setPage(1);
             }}
             className={cn(
-              'px-3 py-1.5 rounded-lg text-xs font-bold',
+              'shrink-0 px-3 py-2 sm:py-1.5 rounded-lg text-xs font-bold touch-manipulation',
               status === s ? 'bg-primary text-on-primary' : 'bg-white/5',
             )}
           >
@@ -88,7 +96,27 @@ export default function AdminSubscriptionHistory() {
         ))}
       </div>
 
-      <div className="glass-card rounded-2xl border border-white/10 overflow-hidden">
+      {/* Mobile: cards */}
+      <div className="lg:hidden space-y-3">
+        {isLoading ? (
+          <p className="py-10 text-center text-sm text-on-surface-variant">{t('common.loading')}</p>
+        ) : null}
+        {!isLoading && rows.length === 0 ? emptyState : null}
+        {rows.map((p) => (
+          <PaymentHistoryCard
+            key={p.id}
+            payment={p}
+            statusLabel={paymentStatusLabel(p.status)}
+            statusClass={paymentStatusClass(p.status)}
+          />
+        ))}
+        {meta ? (
+          <Pagination page={page} limit={PAGE} total={meta.total} onPageChange={setPage} />
+        ) : null}
+      </div>
+
+      {/* Desktop: table */}
+      <div className="hidden lg:block glass-card rounded-2xl border border-white/10 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>

@@ -30,6 +30,7 @@ import { notifyTaskCompleted } from '../../common/task-completion-registry';
 import { AgentTelemetryStore } from '../agents/agent-telemetry.store';
 import { AgentsGateway } from '../agents/agents.gateway';
 import { SubscriptionService } from '../billing/subscription.service';
+import { BillingService } from '../billing/billing.service';
 
 const USER_SELECT = {
   id: true,
@@ -76,6 +77,7 @@ export class AdminService {
     private prisma: PrismaService,
     private telemetry: AgentTelemetryStore,
     private subscription: SubscriptionService,
+    private billing: BillingService,
     private agentsGateway: AgentsGateway,
     configService: ConfigService,
   ) {
@@ -610,6 +612,8 @@ export class AdminService {
   }
 
   async listPayments(query: QueryPaymentsDto) {
+    await this.billing.expireOverduePendingPayments();
+
     const where: Prisma.PaymentWhereInput = {
       ...(query.status && { status: query.status }),
       ...(query.userId && { userId: query.userId }),

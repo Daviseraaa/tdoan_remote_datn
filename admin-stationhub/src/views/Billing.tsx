@@ -16,12 +16,14 @@ import {
   X,
   ShieldCheck,
   ArrowRight,
+  ChevronRight,
   Gem,
   Crown,
   Award,
   Leaf,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
+import { cn } from '@/src/lib/utils';
 import { normalizePlanBenefits } from '@/src/lib/planBenefits';
 import { useAuth } from '@/src/hooks/useAuth';
 import { useSubscription } from '@/src/hooks/useSubscription';
@@ -715,7 +717,17 @@ function TransferOverlay({
   );
 }
 
-function PaymentHistoryList({ payments, loading }: { payments: PaymentRecord[]; loading: boolean }) {
+function PaymentHistoryList({
+  payments,
+  loading,
+  openingPaymentId,
+  onOpenPending,
+}: {
+  payments: PaymentRecord[];
+  loading: boolean;
+  openingPaymentId: string | null;
+  onOpenPending: (paymentId: string) => void;
+}) {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12 gap-2 text-on-surface-variant">
@@ -739,38 +751,80 @@ function PaymentHistoryList({ payments, loading }: { payments: PaymentRecord[]; 
 
   return (
     <ul className="divide-y divide-white/5">
-      {payments.map((p) => (
-        <li
-          key={p.id}
-          className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 py-4 px-1 hover:bg-white/[0.02] rounded-xl transition-colors"
-        >
-          <div className="flex items-start gap-3 min-w-0">
-            <div className="w-10 h-10 rounded-xl bg-surface-container-high flex items-center justify-center shrink-0">
-              <Receipt size={18} className="text-primary opacity-80" />
+      {payments.map((p) => {
+        const isPending = p.status === 'PENDING';
+        const isOpening = openingPaymentId === p.id;
+
+        const rowInner = (
+          <>
+            <div className="flex items-start gap-3 min-w-0 flex-1">
+              <div className="w-10 h-10 rounded-xl bg-surface-container-high flex items-center justify-center shrink-0">
+                {isOpening ? (
+                  <Loader2 size={18} className="text-primary animate-spin" />
+                ) : (
+                  <Receipt size={18} className="text-primary opacity-80" />
+                )}
+              </div>
+              <div className="min-w-0">
+                <p className="font-bold truncate">{p.plan.name}</p>
+                <p className="text-xs font-mono text-on-surface-variant mt-0.5 truncate">
+                  {p.paymentCode ?? p.orderCode}
+                </p>
+                <p className="text-[11px] text-on-surface-variant opacity-70 mt-0.5">
+                  {formatDate(p.createdAt)}
+                </p>
+                {isPending ? (
+                  <p className="text-[11px] text-primary font-medium mt-1.5">
+                    {isOpening ? t('billing.reopeningPayment') : t('billing.openPendingPayment')}
+                  </p>
+                ) : null}
+              </div>
             </div>
-            <div className="min-w-0">
-              <p className="font-bold truncate">{p.plan.name}</p>
-              <p className="text-xs font-mono text-on-surface-variant mt-0.5 truncate">
-                {p.paymentCode ?? p.orderCode}
-              </p>
-              <p className="text-[11px] text-on-surface-variant opacity-70 mt-0.5">
-                {formatDate(p.createdAt)}
-              </p>
+            <div className="flex sm:flex-col items-center sm:items-end gap-2 sm:gap-1 pl-[52px] sm:pl-0 shrink-0">
+              <p className="font-bold text-sm">{formatVnd(p.amountVnd)}</p>
+              <span
+                className={cn(
+                  'px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border',
+                  paymentStatusStyle(p.status),
+                )}
+              >
+                {paymentStatusLabel(p.status)}
+              </span>
+              {isPending ? (
+                <ChevronRight size={16} className="text-primary sm:hidden" aria-hidden />
+              ) : null}
             </div>
-          </div>
-          <div className="flex sm:flex-col items-center sm:items-end gap-2 sm:gap-1 pl-[52px] sm:pl-0">
-            <p className="font-bold text-sm">{formatVnd(p.amountVnd)}</p>
-            <span
-              className={cn(
-                'px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border',
-                paymentStatusStyle(p.status),
-              )}
-            >
-              {paymentStatusLabel(p.status)}
-            </span>
-          </div>
-        </li>
-      ))}
+          </>
+        );
+
+        if (isPending) {
+          return (
+            <li key={p.id}>
+              <button
+                type="button"
+                disabled={isOpening}
+                onClick={() => onOpenPending(p.id)}
+                className={cn(
+                  'w-full flex flex-col sm:flex-row sm:items-center justify-between gap-3 py-4 px-1 rounded-xl transition-colors text-left touch-manipulation',
+                  'hover:bg-primary/5 active:bg-primary/10 border border-transparent hover:border-primary/20',
+                  isOpening && 'opacity-70 pointer-events-none',
+                )}
+              >
+                {rowInner}
+              </button>
+            </li>
+          );
+        }
+
+        return (
+          <li
+            key={p.id}
+            className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 py-4 px-1 rounded-xl"
+          >
+            {rowInner}
+          </li>
+        );
+      })}
     </ul>
   );
 }
@@ -780,6 +834,7 @@ export default function Billing() {
   const { isAdmin, isActive, daysLeft, status, expiresAt, plan } = useSubscription();
   const queryClient = useQueryClient();
   const [checkoutPlanId, setCheckoutPlanId] = useState<string | null>(null);
+  const [openingPaymentId, setOpeningPaymentId] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [pendingCheckout, setPendingCheckout] = useState<CheckoutResponse | null>(null);
 
@@ -806,10 +861,25 @@ export default function Billing() {
     try {
       const result = await billingApi.createCheckout(planId);
       setPendingCheckout(result);
+      await queryClient.invalidateQueries({ queryKey: ['billing', 'payments'] });
     } catch (err) {
       setError(apiErrorMessage(err));
     } finally {
       setCheckoutPlanId(null);
+    }
+  };
+
+  const handleOpenPending = async (paymentId: string) => {
+    setError('');
+    setOpeningPaymentId(paymentId);
+    try {
+      const result = await billingApi.getPaymentCheckout(paymentId);
+      setPendingCheckout(result);
+    } catch (err) {
+      setError(apiErrorMessage(err));
+      await queryClient.invalidateQueries({ queryKey: ['billing', 'payments'] });
+    } finally {
+      setOpeningPaymentId(null);
     }
   };
 
@@ -860,7 +930,10 @@ export default function Billing() {
             <TransferOverlay
               checkout={pendingCheckout}
               onPaid={() => void handlePaid()}
-              onClose={() => setPendingCheckout(null)}
+              onClose={() => {
+                setPendingCheckout(null);
+                void queryClient.invalidateQueries({ queryKey: ['billing', 'payments'] });
+              }}
             />,
             document.body,
           )
@@ -928,7 +1001,12 @@ export default function Billing() {
             <h3 className="font-bold text-lg">{t('billing.paymentHistory')}</h3>
           </div>
           <div className="px-6 sm:px-8 pb-2">
-            <PaymentHistoryList payments={payments} loading={paymentsLoading} />
+            <PaymentHistoryList
+              payments={payments}
+              loading={paymentsLoading}
+              openingPaymentId={openingPaymentId}
+              onOpenPending={(id) => void handleOpenPending(id)}
+            />
           </div>
         </section>
       ) : null}
