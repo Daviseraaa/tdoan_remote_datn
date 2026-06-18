@@ -1,0 +1,123 @@
+export const vi = {
+  common: {
+    cancel: 'Hủy',
+  },
+  nav: {
+    closeSidebar: 'Đóng menu',
+  },
+  landing: {
+    navDocs: 'Tài liệu',
+    navDemo: 'Xem demo',
+    navTelegram: 'Nhóm Telegram',
+    navZalo: 'Nhóm Zalo',
+    ctaStart: 'Bắt đầu miễn phí',
+    ctaWatchDemo: 'Xem demo',
+
+    heroEyebrow: 'Nền tảng vận hành máy trạm',
+    heroTitle: 'Quản lý nhiều máy tính từ một bảng điều khiển',
+    heroSubtitle:
+      'StationHub giúp bạn gửi lệnh, lập lịch và theo dõi kết quả trên Windows, macOS và Linux — kích hoạt từ trình duyệt hoặc Telegram',
+    heroNote: 'Miễn phí đăng ký · Cài ứng dụng trên máy trong vài phút',
+
+    featuresEyebrow: 'Tính năng',
+    featuresTitle: 'Mọi thứ cần để vận hành máy trạm từ xa',
+    featuresSubtitle:
+      'Tập trung theo dõi, tự động hóa và phản hồi nhanh — phù hợp đội IT, vận hành và doanh nghiệp có nhiều máy.',
+    feature1Title: 'Bảng điều khiển tập trung',
+    feature1Desc:
+      'Xem máy nào đang trực tuyến, nhóm theo văn phòng hoặc môi trường, theo dõi tiến độ từng yêu cầu thực thi.',
+    feature2Title: 'Quy trình tự động nhiều bước',
+    feature2Desc:
+      'Ghép lệnh, điều kiện và lặp lại thành quy trình có thể chạy lại an toàn — thay vì copy-paste script thủ công.',
+    feature3Title: 'Điều khiển qua Telegram',
+    feature3Desc:
+      'Gửi lệnh từ điện thoại khi cần xử lý gấp. Bot Telegram kích hoạt quy trình đã cấu hình sẵn trên máy chủ.',
+    feature4Title: 'Lịch chạy & hàng đợi',
+    feature4Desc:
+      'Đặt lịch sao lưu, kiểm tra sức khỏe hệ thống hoặc triển khai bản vá định kỳ. Hàng đợi giúp không quá tải máy.',
+
+    howEyebrow: 'Bắt đầu',
+    howTitle: 'Ba bước để chạy lệnh đầu tiên',
+    step1Title: 'Đăng ký & kết nối máy',
+    step1Desc:
+      'Tạo tài khoản, cài ứng dụng StationHub trên máy cần quản lý và ghép nối với tài khoản của bạn.',
+    step2Title: 'Tạo quy trình hoặc gửi lệnh',
+    step2Desc:
+      'Chạy lệnh đơn giản ngay, hoặc thiết kế quy trình nhiều bước với biến số và điều kiện.',
+    step3Title: 'Theo dõi kết quả',
+    step3Desc:
+      'Xem log, trạng thái và lịch sử trên bảng điều khiển. Nhận thông báo qua Telegram nếu đã cấu hình.',
+    howHint: 'Cần hướng dẫn chi tiết hơn?',
+    howHintLink: 'Xem hướng dẫn bắt đầu nhanh',
+
+    ctaTitle: 'Sẵn sàng thử StationHub?',
+    ctaSubtitle:
+      'Đăng ký miễn phí, kết nối máy đầu tiên và chạy lệnh trong vài phút. Cộng đồng hỗ trợ trên Telegram và Zalo.',
+
+    demoEyebrow: 'Video hướng dẫn',
+    demoListTitle: 'Danh sách video',
+    demoPlaceholder: 'Video sẽ được cập nhật sớm.',
+    demoLoadingTitle: 'Đang tải tiêu đề…',
+    demoUntitled: 'Video YouTube',
+    demoNoVideo: 'Chưa gắn link video',
+
+    mockWorkspace: 'Hệ thống chính',
+    mockWorkspaceSub: '24 máy · 3 nhóm',
+    mockGenerate: 'Chạy quy trình',
+    mockNavDashboard: 'Tổng quan',
+    mockNavAgents: 'Máy trạm',
+    mockNavWorkflows: 'Quy trình',
+    mockNavTasks: 'Hàng đợi',
+    mockRecentTitle: 'Quy trình gần đây',
+    mockRecent1: 'Sao lưu cơ sở dữ liệu đêm',
+    mockRecent2: 'Triển khai bản vá v2.4',
+    mockRecent3: 'Kiểm tra nhóm máy A',
+    mockStat1Label: 'Trực tuyến',
+    mockStat1Sub: 'Máy hoạt động',
+    mockStat2Label: 'Quy trình',
+    mockStat2Sub: 'Đang bật',
+    mockStat3Label: 'Đang chạy',
+    mockStat3Sub: 'Việc thực hiện',
+    mockStat4Label: 'Hoàn thành',
+    mockStat4Sub: 'Tuần này',
+    mockCard1: 'Sao lưu DB',
+    mockCard2: 'Triển khai bản vá',
+    mockCard3: 'Kiểm tra sức khỏe',
+    mockColTask: 'Nội dung',
+    mockColAgents: 'Máy',
+    mockColPriority: 'Ưu tiên',
+    mockColStatus: 'Trạng thái',
+    mockRow1Q: 'Chạy script sao lưu trên nhóm sản xuất',
+    mockRow2Q: 'Cập nhật ứng dụng phiên bản mới',
+    mockRow3Q: 'Thu thập log lỗi 24 giờ',
+    mockRow4Q: 'Khởi động lại dịch vụ nginx',
+    mockRow5Q: 'Đồng bộ tệp cấu hình',
+    mockStatusRunning: 'Đang chạy',
+    mockStatusQueued: 'Xếp hàng',
+    mockStatusDone: 'Hoàn thành',
+  },
+  docs: {
+    searchPlaceholder: 'Tìm trong tài liệu…',
+    searchEmpty: 'Không tìm thấy trang phù hợp',
+    browseAll: 'Xem tất cả tài liệu',
+    goToApp: 'Vào ứng dụng',
+    openMenu: 'Mở menu tài liệu',
+    closeMenu: 'Đóng menu',
+    menuTitle: 'Mục lục',
+    onThisPage: 'Trên trang này',
+    nav: {
+      gettingStarted: 'Bắt đầu',
+      introduction: 'Giới thiệu',
+      quickStart: 'Bắt đầu nhanh',
+      features: 'Tính năng',
+      agents: 'Kết nối máy trạm',
+      workflows: 'Quy trình tự động',
+      tasks: 'Giao việc & hàng đợi',
+      telegram: 'Điều khiển qua Telegram',
+      fileExplorer: 'Duyệt và tải tệp',
+      help: 'Trợ giúp',
+      troubleshooting: 'Xử lý sự cố',
+      faq: 'Câu hỏi thường gặp',
+    },
+  },
+} as const;

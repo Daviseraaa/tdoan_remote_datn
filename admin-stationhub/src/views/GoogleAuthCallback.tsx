@@ -31,7 +31,7 @@ export default function GoogleAuthCallback() {
         setTokens(accessToken, refreshToken);
         const user = await usersApi.getMe();
         await refreshUser();
-        const dest = checkAdmin(user) ? '/admin' : '/';
+        const dest = checkAdmin(user) ? '/admin' : '/dashboard';
         navigate(dest, { replace: true });
       } catch {
         setError(t('login.googleError'));

@@ -389,6 +389,10 @@ model TelegramBot {
   mode          String   @default("webhook")
   webhookSecret String?
   enabled       Boolean  @default(true)
+  /** Chat ID được phép kích hoạt — mảng chuỗi; rỗng/null = mọi chat */
+  allowedChatIds Json?
+  /** User ID Telegram được phép — mảng chuỗi; rỗng/null = mọi user */
+  allowedUserIds Json?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 

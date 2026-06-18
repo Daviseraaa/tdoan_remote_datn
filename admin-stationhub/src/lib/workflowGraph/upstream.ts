@@ -71,14 +71,18 @@ export function getUpstreamStepKeys(
   return out;
 }
 
-/** Biến `workflow.*` khả dụng: biến khởi tạo + biến do node upstream publish (excel đọc, tạo/gán). */
+/** Biến `workflow.*` khả dụng: biến khởi tạo + biến Telegram (tham số lệnh) + biến upstream publish. */
 export function getUpstreamWorkflowVarKeys(
   nodeId: string,
   edges: WfGraphEdge[],
   nodes: { id: string; data: WfNodeData }[],
   initialWorkflowVars?: Record<string, unknown>,
+  extraVarKeys?: string[],
 ): string[] {
-  const keys = new Set(Object.keys(initialWorkflowVars ?? {}));
+  const keys = new Set([
+    ...Object.keys(initialWorkflowVars ?? {}),
+    ...(extraVarKeys ?? []),
+  ]);
   const upstreamIds = collectUpstreamNodeIds(nodeId, edges);
 
   for (const n of nodes) {

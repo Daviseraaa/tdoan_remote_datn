@@ -12,7 +12,7 @@ import { t } from '@/src/i18n/t';
 import type { Edge, Node } from '@xyflow/react';
 import { WfInspectorBlock } from './WfInspectorLayout';
 import { WfStepVarsSection } from './WfStepVarsSection';
-import { WfVarsInspectorFooter } from './WfVarsInspectorFooter';
+import { WfWorkflowVariablesEditorSection } from './WfVarsInspectorFooter';
 
 type Props = {
   edge: Edge | null;
@@ -62,13 +62,11 @@ export function WorkflowEdgeInspector({
 
   return (
     <div className="flex-1 overflow-y-auto custom-scrollbar p-4 sm:p-5 space-y-3">
-      <WfInspectorBlock tone="vars">
-        <WfStepVarsSection
-          upstream={upstreamOutputKeys}
-          workflowVarKeys={workflowVarKeys}
-          showTelegramVars={showTelegramVars}
-        />
-      </WfInspectorBlock>
+      <WfWorkflowVariablesEditorSection
+        workflowId={workflowId}
+        workflowVariables={workflowVariables}
+        onWorkflowVariablesChange={onWorkflowVariablesChange}
+      />
 
       <WfInspectorBlock tone="properties">
         <div className="space-y-2 text-sm">
@@ -139,11 +137,13 @@ export function WorkflowEdgeInspector({
         </button>
       </WfInspectorBlock>
 
-      <WfVarsInspectorFooter
-        workflowId={workflowId}
-        workflowVariables={workflowVariables}
-        onWorkflowVariablesChange={onWorkflowVariablesChange}
-      />
+      <WfInspectorBlock tone="vars">
+        <WfStepVarsSection
+          upstream={upstreamOutputKeys}
+          workflowVarKeys={workflowVarKeys}
+          showTelegramVars={showTelegramVars}
+        />
+      </WfInspectorBlock>
     </div>
   );
 }

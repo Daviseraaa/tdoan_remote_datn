@@ -16,7 +16,7 @@ import { WfAgentSelect } from './WfAgentSelect';
 import { WfTelegramBotSelect } from './WfTelegramBotSelect';
 import { WfInspectorBlock } from './WfInspectorLayout';
 import { WfStepVarsSection } from './WfStepVarsSection';
-import { WfVarsInspectorFooter } from './WfVarsInspectorFooter';
+import { WfWorkflowVariablesEditorSection, WfNodeExportSection } from './WfVarsInspectorFooter';
 import { WfNodeExportFields } from './WfNodeExportFields';
 import {
   nodeExportsStepVariables,
@@ -148,13 +148,11 @@ export function WorkflowStepInspector({
 
   return (
     <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-3 custom-scrollbar min-w-0 w-full">
-      <WfInspectorBlock tone="vars">
-        <WfStepVarsSection
-          upstream={upstreamOutputKeys}
-          workflowVarKeys={workflowVarKeys}
-          showTelegramVars={showTelegramVars}
-        />
-      </WfInspectorBlock>
+      <WfWorkflowVariablesEditorSection
+        workflowId={workflowId}
+        workflowVariables={workflowVariables}
+        onWorkflowVariablesChange={onWorkflowVariablesChange}
+      />
 
       <WfInspectorBlock tone="properties">
         <div>
@@ -647,13 +645,15 @@ export function WorkflowStepInspector({
       </div>
       </WfInspectorBlock>
 
-      <WfVarsInspectorFooter
-        workflowId={workflowId}
-        workflowVariables={workflowVariables}
-        onWorkflowVariablesChange={onWorkflowVariablesChange}
-        exportContent={exportFields}
-        hasExport={hasExport}
-      />
+      <WfNodeExportSection exportContent={exportFields} hasExport={hasExport} />
+
+      <WfInspectorBlock tone="vars">
+        <WfStepVarsSection
+          upstream={upstreamOutputKeys}
+          workflowVarKeys={workflowVarKeys}
+          showTelegramVars={showTelegramVars}
+        />
+      </WfInspectorBlock>
     </div>
   );
 }

@@ -11,6 +11,7 @@ import {
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CurrentUser, JwtPayload } from '../../common/decorators/current-user.decorator';
 import { CreateTelegramBotDto, CreateWorkflowTriggerDto } from './dto/create-trigger.dto';
+import { UpdateTelegramBotDto } from './dto/update-telegram-bot.dto';
 import { TriggersService } from './triggers.service';
 
 @ApiTags('Workflow Triggers')
@@ -35,6 +36,16 @@ export class TriggersController {
   @ApiOperation({ summary: 'Remove Telegram bot' })
   deleteBot(@CurrentUser() user: JwtPayload, @Param('botId') botId: string) {
     return this.triggers.deleteBot(user.sub, botId);
+  }
+
+  @Patch('telegram/bots/:botId')
+  @ApiOperation({ summary: 'Update Telegram bot (access list, name, enabled)' })
+  updateBot(
+    @CurrentUser() user: JwtPayload,
+    @Param('botId') botId: string,
+    @Body() dto: UpdateTelegramBotDto,
+  ) {
+    return this.triggers.updateBot(user.sub, botId, dto);
   }
 
   @Get()

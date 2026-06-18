@@ -1,0 +1,176 @@
+@config "../tailwind.config.js";
+@plugin "@tailwindcss/typography";
+@import "tailwindcss";
+
+@theme {
+  --font-nimbus: "Nimbus Sans TW01", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --color-docs-accent: #c9564a;
+  --color-docs-accent-hover: #b54a3f;
+}
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    @apply font-nimbus antialiased;
+    margin: 0;
+  }
+}
+
+@layer components {
+  @keyframes fade-up {
+    from {
+      opacity: 0;
+      transform: translateY(24px);
+      filter: blur(6px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+      filter: blur(0);
+    }
+  }
+
+  @keyframes fade-down {
+    from {
+      opacity: 0;
+      transform: translateY(-16px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes hero-rise {
+    from {
+      opacity: 0;
+      transform: translateY(64px) scale(0.97);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  .animate-fade-up {
+    animation: fade-up 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .animate-fade-down {
+    animation: fade-down 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .animate-hero-rise {
+    animation: hero-rise 1.1s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .animate-fade-up,
+    .animate-fade-down,
+    .animate-hero-rise {
+      animation: none !important;
+    }
+  }
+
+  .docs-prose {
+    @apply prose prose-gray prose-base sm:prose-lg w-full min-w-0;
+    max-width: none;
+    --tw-prose-headings: #1f2937;
+    --tw-prose-links: #c9564a;
+    --tw-prose-bold: #111827;
+  }
+
+  .docs-prose :where(p, ul, ol, li, h2, h3) {
+    max-width: none;
+    overflow-wrap: break-word;
+  }
+
+  .docs-prose p {
+    @apply text-gray-600 text-[17px] sm:text-[18px] leading-[1.75];
+  }
+
+  .docs-prose ul {
+    @apply text-gray-600 text-[17px] sm:text-[18px] leading-[1.75];
+  }
+
+  .docs-prose li {
+    @apply my-1.5;
+  }
+
+  .docs-h2 {
+    @apply text-xl sm:text-2xl font-semibold text-gray-900 mt-9 sm:mt-11 mb-4 pt-2 border-t border-gray-100 first:mt-0 first:pt-0 first:border-t-0;
+  }
+
+  .docs-h3 {
+    @apply text-lg sm:text-xl font-semibold text-gray-800 mt-6 sm:mt-8 mb-2.5;
+  }
+
+  .docs-grid {
+    display: grid;
+    width: 100%;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  @media (min-width: 1024px) {
+    .docs-grid {
+      grid-template-columns: clamp(13rem, 16vw, 18rem) minmax(0, 1fr);
+    }
+  }
+
+  .docs-nav-col {
+    position: sticky;
+    top: 4rem;
+    z-index: 10;
+    height: calc(100dvh - 4rem);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    border-right: 1px solid rgb(229 231 235 / 0.7);
+    background-color: #fafaf9;
+    padding: 1.25rem clamp(1.25rem, 1.5vw, 1.5rem) 1.25rem clamp(0.75rem, 1vw, 1rem);
+  }
+
+  .docs-main-col {
+    min-width: 0;
+    overflow-x: visible;
+  }
+
+  .docs-page {
+    display: grid;
+    width: 100%;
+    min-width: 0;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  @media (min-width: 1280px) {
+    .docs-page {
+      grid-template-columns: minmax(0, 1fr) clamp(11rem, 14vw, 16rem);
+    }
+  }
+
+  .docs-article {
+    min-width: 0;
+    overflow-x: visible;
+  }
+
+  .docs-toc-col {
+    display: none;
+    position: sticky;
+    top: 4rem;
+    z-index: 10;
+    height: calc(100dvh - 4rem);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    background-color: #fafaf9;
+    padding: 1.25rem clamp(1.5rem, 2vw, 3rem) 1.25rem clamp(1rem, 1.5vw, 1.5rem);
+  }
+
+  @media (min-width: 1280px) {
+    .docs-toc-col {
+      display: block;
+    }
+  }
+}

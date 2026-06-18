@@ -41,6 +41,8 @@ export interface TelegramBot {
   mode: string;
   enabled: boolean;
   webhookUrl?: string | null;
+  allowedChatIds?: string[] | null;
+  allowedUserIds?: string[] | null;
 }
 
 export async function listTriggers(workflowId?: string): Promise<WorkflowTrigger[]> {
@@ -80,4 +82,19 @@ export async function createTelegramBot(body: {
 
 export async function deleteTelegramBot(botId: string): Promise<void> {
   return apiFetch<void>(`/triggers/telegram/bots/${botId}`, { method: 'DELETE' });
+}
+
+export async function patchTelegramBot(
+  botId: string,
+  body: {
+    name?: string;
+    enabled?: boolean;
+    allowedChatIds?: string;
+    allowedUserIds?: string;
+  },
+): Promise<TelegramBot> {
+  return apiFetch<TelegramBot>(`/triggers/telegram/bots/${botId}`, {
+    method: 'PATCH',
+    body,
+  });
 }

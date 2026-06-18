@@ -4,6 +4,7 @@ import { PrismaService } from '../../../prisma/prisma.service';
 import { TriggerDispatcherService } from '../trigger-dispatcher.service';
 import type { TelegramMatchConfig, TelegramTriggerPayload } from './telegram.types';
 import { extractTelegramCommandArgs } from './telegram-command-args';
+import { isTelegramSenderAllowed } from './telegram-bot-access';
 
 @Injectable()
 export class TelegramUpdateService {
@@ -29,6 +30,20 @@ export class TelegramUpdateService {
 
     const parsed = this.parseUpdate(update);
     if (!parsed) return;
+
+    if (
+      !isTelegramSenderAllowed(
+        parsed.chatId,
+        parsed.userId,
+        bot.allowedChatIds,
+        bot.allowedUserIds,
+      )
+    ) {
+      this.logger.warn(
+        `Telegram update rejected bot=${botId} chat=${parsed.chatId} user=${parsed.userId} (không trong danh sách cho phép)`,
+      );
+      return;
+    }
 
     const triggers = await this.prisma.workflowTrigger.findMany({
       where: {

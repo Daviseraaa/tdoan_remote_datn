@@ -41,6 +41,7 @@ import {
   pickEntryTrigger,
   type EntryTriggerDraft,
 } from '@/src/lib/workflowEntryTrigger';
+import { parseTelegramVariableArgNames } from '@/src/lib/triggerForm';
 import { WorkflowEdgeInspector } from './WorkflowEdgeInspector';
 import { WorkflowExecutionPanel } from './WorkflowExecutionPanel';
 import { WfAgentSelect } from './WfAgentSelect';
@@ -292,9 +293,35 @@ export function WorkflowEditor({
         applyEntryTriggerToCanvas(next);
         return next;
       });
+
+      if (patch.variableArgsText !== undefined) {
+        const nextType = patch.type ?? entryTrigger.type;
+        if (nextType === 'TELEGRAM') {
+          const names = parseTelegramVariableArgNames(patch.variableArgsText);
+          const cur = workflow.variables ?? {};
+          const missing = names.filter((k) => !(k in cur));
+          if (missing.length) {
+            onMetaChange({
+              variables: {
+                ...cur,
+                ...Object.fromEntries(missing.map((k) => [k, ''])),
+              },
+            });
+          }
+        }
+      }
+
       onDirty();
     },
-    [applyEntryTriggerToCanvas, onDirty, queryClient, workflow.id],
+    [
+      applyEntryTriggerToCanvas,
+      onDirty,
+      queryClient,
+      workflow.id,
+      workflow.variables,
+      entryTrigger.type,
+      onMetaChange,
+    ],
   );
 
   const currentPayload = useCallback(
@@ -761,15 +788,32 @@ export function WorkflowEditor({
 
   const showTelegramVars = entryTrigger.type === 'TELEGRAM';
 
+  const telegramVarArgKeys = useMemo(
+    () =>
+      entryTrigger.type === 'TELEGRAM'
+        ? parseTelegramVariableArgNames(entryTrigger.variableArgsText)
+        : [],
+    [entryTrigger.type, entryTrigger.variableArgsText],
+  );
+
   const workflowVarKeys = useMemo(() => {
-    if (!varsContextNodeId) return Object.keys(workflow.variables ?? {});
+    if (!varsContextNodeId) {
+      return [...new Set([...Object.keys(workflow.variables ?? {}), ...telegramVarArgKeys])];
+    }
     return getUpstreamWorkflowVarKeys(
       varsContextNodeId,
       graphEdgesForUpstream,
       nodes.map((n) => ({ id: n.id, data: n.data as WfNodeData })),
       workflow.variables,
+      telegramVarArgKeys,
     );
-  }, [varsContextNodeId, graphEdgesForUpstream, nodes, workflow.variables]);
+  }, [
+    varsContextNodeId,
+    graphEdgesForUpstream,
+    nodes,
+    workflow.variables,
+    telegramVarArgKeys,
+  ]);
 
   const handleVariablesChange = useCallback(
     (variables: Record<string, unknown>) => {
@@ -1300,6 +1344,7 @@ export function WorkflowEditor({
                   workflowActive={workflow.isActive !== false}
                   workflowId={workflow.id}
                   workflowVariables={workflow.variables}
+                  workflowVarKeys={workflowVarKeys}
                   onWorkflowVariablesChange={handleVariablesChange}
                   onChange={patchEntryTrigger}
                 />

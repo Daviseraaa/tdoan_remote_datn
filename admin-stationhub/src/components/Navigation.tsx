@@ -45,7 +45,7 @@ export function Sidebar() {
   const { navOpen, closeNav } = useNavLayout();
   
   const navItems = [
-    { icon: LayoutDashboard, label: t('nav.dashboard'), path: '/', adminOnly: false },
+    { icon: LayoutDashboard, label: t('nav.dashboard'), path: '/dashboard', adminOnly: false },
     { icon: Users, label: t('nav.agents'), path: '/agents', adminOnly: false },
     { icon: ListTodo, label: t('nav.tasks'), path: '/tasks', adminOnly: false },
     { icon: FileJson, label: t('nav.chromeScripts'), path: '/chrome-scripts', adminOnly: false },
@@ -105,7 +105,7 @@ export function Sidebar() {
           {navItems.map((item) => {
             const isActive =
               location.pathname === item.path ||
-              (item.path !== '/' && location.pathname.startsWith(item.path));
+              (item.path !== '/dashboard' && location.pathname.startsWith(item.path));
             return (
               <Link
                 key={item.path}

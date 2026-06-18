@@ -12,7 +12,9 @@ import { randomBytes } from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
 import { computeNextRunAt } from './schedule.util';
 import { CreateTelegramBotDto, CreateWorkflowTriggerDto } from './dto/create-trigger.dto';
+import { UpdateTelegramBotDto } from './dto/update-telegram-bot.dto';
 import { TelegramApiService } from './telegram/telegram-api.service';
+import { parseTelegramIdListText } from './telegram/telegram-bot-access';
 
 @Injectable()
 export class TriggersService {
@@ -52,6 +54,47 @@ export class TriggersService {
 
   private buildWebhookUrl(base: string, botId: string, secret: string): string {
     return `${base}/webhooks/telegram/${botId}/${secret}`;
+  }
+
+  private botPublicView(
+    bot: {
+      id: string;
+      name: string;
+      botUsername: string | null;
+      mode: string;
+      enabled: boolean;
+      webhookSecret: string | null;
+      allowedChatIds: unknown;
+      allowedUserIds: unknown;
+      createdAt: Date;
+      updatedAt: Date;
+    },
+    base?: string,
+  ) {
+    const webhookUrl =
+      base && bot.webhookSecret
+        ? this.buildWebhookUrl(base, bot.id, bot.webhookSecret)
+        : null;
+    return {
+      id: bot.id,
+      name: bot.name,
+      botUsername: bot.botUsername,
+      mode: bot.mode,
+      enabled: bot.enabled,
+      allowedChatIds: bot.allowedChatIds ?? null,
+      allowedUserIds: bot.allowedUserIds ?? null,
+      webhookUrl,
+      createdAt: bot.createdAt,
+      updatedAt: bot.updatedAt,
+    };
+  }
+
+  private webhookBaseOrNull(): string | null {
+    try {
+      return this.assertWebhookBaseUrl();
+    } catch {
+      return null;
+    }
   }
 
   async listTriggers(userId: string, workflowId?: string) {
@@ -193,10 +236,12 @@ export class TriggersService {
   }
 
   async listBots(userId: string) {
-    return this.prisma.telegramBot.findMany({
+    const base = this.webhookBaseOrNull();
+    const bots = await this.prisma.telegramBot.findMany({
       where: { userId },
       orderBy: { createdAt: 'desc' },
     });
+    return bots.map((b) => this.botPublicView(b, base ?? undefined));
   }
 
   async createBot(userId: string, dto: CreateTelegramBotDto) {
@@ -228,7 +273,31 @@ export class TriggersService {
       );
     }
 
-    return { ...bot, webhookUrl };
+    return this.botPublicView({ ...bot, webhookSecret: secret }, base);
+  }
+
+  async updateBot(userId: string, id: string, dto: UpdateTelegramBotDto) {
+    const existing = await this.prisma.telegramBot.findFirst({
+      where: { id, userId },
+    });
+    if (!existing) throw new NotFoundException('Bot not found');
+
+    const bot = await this.prisma.telegramBot.update({
+      where: { id },
+      data: {
+        ...(dto.name !== undefined ? { name: dto.name.trim() || existing.name } : {}),
+        ...(dto.enabled !== undefined ? { enabled: dto.enabled } : {}),
+        ...(dto.allowedChatIds !== undefined
+          ? { allowedChatIds: parseTelegramIdListText(dto.allowedChatIds) }
+          : {}),
+        ...(dto.allowedUserIds !== undefined
+          ? { allowedUserIds: parseTelegramIdListText(dto.allowedUserIds) }
+          : {}),
+      },
+    });
+
+    const base = this.webhookBaseOrNull();
+    return this.botPublicView(bot, base ?? undefined);
   }
 
   async deleteBot(userId: string, id: string) {

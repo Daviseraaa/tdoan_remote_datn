@@ -14,7 +14,7 @@ export default function Register() {
   const { register, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const from = (location.state as { from?: { pathname: string } })?.from?.pathname ?? '/';
+  const from = (location.state as { from?: { pathname: string } })?.from?.pathname ?? '/dashboard';
 
   const [step, setStep] = useState<RegisterStep>('form');
   const [name, setName] = useState('');

@@ -1,4 +1,4 @@
-import { useCallback, useId, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useState } from 'react';
 import { Braces, Plus, Trash2 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { t } from '@/src/i18n/t';
@@ -51,6 +51,22 @@ type Props = {
 export function WorkflowVariablesEditor({ variables, onChange, className }: Props) {
   const listId = useId();
   const [rows, setRows] = useState<VarRow[]>(() => toRows(variables));
+
+  const externalKeySig = useMemo(
+    () => JSON.stringify(Object.keys(variables ?? {}).sort()),
+    [variables],
+  );
+
+  useEffect(() => {
+    setRows((prev) => {
+      const rowKeys = prev.map((r) => r.key.trim()).filter(Boolean).sort();
+      const extKeys = Object.keys(variables ?? {}).sort();
+      if (JSON.stringify(rowKeys) === JSON.stringify(extKeys)) return prev;
+      const extOnly = extKeys.some((k) => !rowKeys.includes(k));
+      if (extOnly) return toRows(variables);
+      return prev;
+    });
+  }, [externalKeySig, variables]);
 
   const commit = useCallback(
     (next: VarRow[]) => {

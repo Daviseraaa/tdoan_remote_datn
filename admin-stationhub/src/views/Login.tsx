@@ -13,7 +13,7 @@ export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
-  const from = (location.state as { from?: { pathname: string } })?.from?.pathname ?? '/';
+  const from = (location.state as { from?: { pathname: string } })?.from?.pathname ?? '/dashboard';
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -27,7 +27,7 @@ export default function Login() {
   }, [searchParams]);
 
   if (!authLoading && isAuthenticated()) {
-    const dest = isAdmin ? '/admin' : from.startsWith('/admin') ? '/' : from;
+    const dest = isAdmin ? '/admin' : from.startsWith('/admin') ? '/dashboard' : from;
     return <Navigate to={dest} replace />;
   }
 
@@ -39,7 +39,7 @@ export default function Login() {
       const dest = checkAdmin(user)
         ? '/admin'
         : from.startsWith('/admin')
-          ? '/'
+          ? '/dashboard'
           : from;
       navigate(dest, { replace: true });
     } catch (err) {
@@ -58,7 +58,7 @@ export default function Login() {
       const dest = checkAdmin(user)
         ? '/admin'
         : from.startsWith('/admin')
-          ? '/'
+          ? '/dashboard'
           : from;
       navigate(dest, { replace: true });
     } catch (err) {

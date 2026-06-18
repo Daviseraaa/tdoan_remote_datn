@@ -5,7 +5,7 @@ import {
   type EntryTriggerDraft,
   entryTriggerTypeSubtitle,
 } from '@/src/lib/workflowEntryTrigger';
-import { SCHEDULE_KINDS, TELEGRAM_EVENTS } from '@/src/lib/triggerForm';
+import { SCHEDULE_KINDS, TELEGRAM_EVENTS, parseTelegramVariableArgNames } from '@/src/lib/triggerForm';
 import { cn } from '@/src/lib/utils';
 import { t } from '@/src/i18n/t';
 import { WfTelegramBotSelect } from './WfTelegramBotSelect';
@@ -23,6 +23,7 @@ type Props = {
   workflowActive: boolean;
   workflowId?: string;
   workflowVariables?: Record<string, unknown>;
+  workflowVarKeys?: string[];
   onWorkflowVariablesChange?: (variables: Record<string, unknown>) => void;
   onChange: (patch: Partial<EntryTriggerDraft>) => void;
 };
@@ -65,6 +66,18 @@ function TypeOption({
 
 function FieldLabel({ children }: { children: ReactNode }) {
   return <label className={labelCls}>{children}</label>;
+}
+
+function buildTelegramRunExample(commandsText: string, variableArgsText: string): string {
+  const firstCmd = commandsText.split(',')[0]?.trim() || '/run';
+  const base = firstCmd.startsWith('/') ? firstCmd : `/${firstCmd}`;
+  const cmd = base.split('@')[0] ?? base;
+  const argNames = parseTelegramVariableArgNames(variableArgsText);
+  const samples =
+    argNames.length > 0
+      ? argNames.map((_, i) => `bien${i + 1}`)
+      : ['bien1', 'bien2'];
+  return `${cmd} ${samples.join(' ')}`.trim();
 }
 
 function ScheduleConfig({
@@ -319,6 +332,11 @@ function TelegramConfig({
           value={draft.variableArgsText}
           onChange={(variableArgsText) => onChange({ variableArgsText })}
         />
+        <p className="text-[10px] font-mono text-cyan-300/75 pt-0.5">
+          {t('workflows.triggerTelegramRunExample', {
+            example: buildTelegramRunExample(draft.commandsText, draft.variableArgsText),
+          })}
+        </p>
       </div>
     </div>
   );
@@ -329,10 +347,12 @@ export function WorkflowTriggerInspector({
   workflowActive,
   workflowId,
   workflowVariables,
+  workflowVarKeys: workflowVarKeysProp,
   onWorkflowVariablesChange,
   onChange,
 }: Props) {
-  const workflowVarKeys = Object.keys(workflowVariables ?? {});
+  const workflowVarKeys =
+    workflowVarKeysProp ?? Object.keys(workflowVariables ?? {});
 
   return (
     <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-3 custom-scrollbar min-w-0 w-full">

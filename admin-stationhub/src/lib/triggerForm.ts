@@ -27,11 +27,15 @@ export function parseMatchConfig(raw: unknown): TelegramMatchConfig {
   };
 }
 
-function parseVariableArgsText(text: string): string[] | undefined {
-  const names = text
+export function parseTelegramVariableArgNames(text: string): string[] {
+  return text
     .split(',')
     .map((s) => s.trim())
     .filter(Boolean);
+}
+
+function parseVariableArgsText(text: string): string[] | undefined {
+  const names = parseTelegramVariableArgNames(text);
   return names.length ? names : undefined;
 }
 

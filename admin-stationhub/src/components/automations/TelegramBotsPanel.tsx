@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Loader2, Plus, Trash2 } from 'lucide-react';
+import { Loader2, Pencil, Plus, Trash2 } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import * as triggersApi from '@/src/api/triggers';
+import type { TelegramBot } from '@/src/api/triggers';
 import { ConfirmDialog } from './ConfirmDialog';
 import { apiErrorMessage } from '@/src/lib/api';
 import { cn } from '@/src/lib/utils';
@@ -16,6 +17,36 @@ function shortenUrl(url: string, max = 36) {
   return `${url.slice(0, max)}…`;
 }
 
+function idsToText(raw: unknown): string {
+  if (!Array.isArray(raw)) return '';
+  return raw.map(String).filter(Boolean).join(', ');
+}
+
+function formatAccessCell(raw: unknown): string {
+  const text = idsToText(raw);
+  return text || t('triggers.botAccessAll');
+}
+
+function AccessCell({ label, value }: { label: string; value: string }) {
+  const isAll = value === t('triggers.botAccessAll');
+  return (
+    <div className="min-w-0">
+      <span className="sm:hidden text-[10px] font-mono font-bold uppercase text-on-surface-variant/60 block mb-0.5">
+        {label}
+      </span>
+      <span
+        className={cn(
+          'text-[10px] font-mono truncate block',
+          isAll ? 'text-on-surface-variant/50 italic' : 'text-on-surface-variant',
+        )}
+        title={isAll ? undefined : value}
+      >
+        {value}
+      </span>
+    </div>
+  );
+}
+
 type Props = {
   /** Ẩn tiêu đề khi nhúng trong trang /bots */
   hideTitle?: boolean;
@@ -24,9 +55,14 @@ type Props = {
 export function TelegramBotsPanel({ hideTitle = false }: Props) {
   const qc = useQueryClient();
   const [addOpen, setAddOpen] = useState(false);
+  const [editBot, setEditBot] = useState<TelegramBot | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [botToken, setBotToken] = useState('');
+  const [editName, setEditName] = useState('');
+  const [editEnabled, setEditEnabled] = useState(true);
+  const [editAllowedChatIds, setEditAllowedChatIds] = useState('');
+  const [editAllowedUserIds, setEditAllowedUserIds] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [createdWebhookUrl, setCreatedWebhookUrl] = useState<string | null>(null);
 
@@ -35,6 +71,15 @@ export function TelegramBotsPanel({ hideTitle = false }: Props) {
     queryFn: () => triggersApi.listTelegramBots(),
     refetchInterval: 30_000,
   });
+
+  const openEdit = (bot: TelegramBot) => {
+    setEditBot(bot);
+    setEditName(bot.name);
+    setEditEnabled(bot.enabled);
+    setEditAllowedChatIds(idsToText(bot.allowedChatIds));
+    setEditAllowedUserIds(idsToText(bot.allowedUserIds));
+    setError(null);
+  };
 
   const createMut = useMutation({
     mutationFn: () =>
@@ -47,6 +92,22 @@ export function TelegramBotsPanel({ hideTitle = false }: Props) {
       setCreatedWebhookUrl(bot.webhookUrl ?? null);
       setName('');
       setBotToken('');
+      setError(null);
+    },
+    onError: (err: unknown) => setError(apiErrorMessage(err)),
+  });
+
+  const updateMut = useMutation({
+    mutationFn: () =>
+      triggersApi.patchTelegramBot(editBot!.id, {
+        name: editName.trim(),
+        enabled: editEnabled,
+        allowedChatIds: editAllowedChatIds,
+        allowedUserIds: editAllowedUserIds,
+      }),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ['telegram-bots'] });
+      setEditBot(null);
       setError(null);
     },
     onError: (err: unknown) => setError(apiErrorMessage(err)),
@@ -86,10 +147,12 @@ export function TelegramBotsPanel({ hideTitle = false }: Props) {
         </button>
       </div>
 
-      <div className="glass-panel rounded-2xl border border-white/5 overflow-hidden">
-        <div className="hidden sm:grid sm:grid-cols-[1fr_1.2fr_0.6fr_0.4fr] gap-2 px-5 py-3 text-[10px] font-mono font-bold uppercase text-on-surface-variant/70 border-b border-white/5">
+      <div className="glass-panel rounded-2xl border border-white/5 overflow-x-auto">
+        <div className="hidden lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)_minmax(0,1fr)_minmax(0,1fr)_0.55fr_0.45fr] gap-2 px-5 py-3 text-[10px] font-mono font-bold uppercase text-on-surface-variant/70 border-b border-white/5 min-w-[720px]">
           <span>{t('triggers.botName')}</span>
           <span>{t('triggers.webhookUrl')}</span>
+          <span>{t('triggers.botAllowedChatIds')}</span>
+          <span>{t('triggers.botAllowedUserIds')}</span>
           <span>{t('triggers.colStatus')}</span>
           <span className="text-right">{t('triggers.colActions')}</span>
         </div>
@@ -99,19 +162,30 @@ export function TelegramBotsPanel({ hideTitle = false }: Props) {
         {!isLoading && (bots?.length ?? 0) === 0 ? (
           <p className="p-5 text-sm text-on-surface-variant">{t('triggers.botsEmpty')}</p>
         ) : null}
-        {(bots ?? []).map((b) => (
+        {(bots ?? []).map((b) => {
+          const chatIds = formatAccessCell(b.allowedChatIds);
+          const userIds = formatAccessCell(b.allowedUserIds);
+          return (
           <div
             key={b.id}
-            className="px-4 py-4 sm:px-5 sm:py-3 text-sm border-b border-white/5 last:border-0 hover:bg-white/[0.03] space-y-2 sm:space-y-0 sm:grid sm:grid-cols-[1fr_1.2fr_0.6fr_0.4fr] sm:gap-2 sm:items-center"
+            className="px-4 py-4 lg:px-5 lg:py-3 text-sm border-b border-white/5 last:border-0 hover:bg-white/[0.03] space-y-2 lg:space-y-0 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)_minmax(0,1fr)_minmax(0,1fr)_0.55fr_0.45fr] lg:gap-2 lg:items-center lg:min-w-[720px]"
           >
-            <div className="min-w-0 flex items-start justify-between gap-2 sm:block">
+            <div className="min-w-0 flex items-start justify-between gap-2 lg:block">
               <div className="min-w-0">
                 <span className="font-medium block truncate">{b.name}</span>
                 {b.botUsername ? (
                   <span className="text-[10px] text-on-surface-variant">@{b.botUsername}</span>
                 ) : null}
               </div>
-              <div className="flex gap-1 sm:hidden shrink-0">
+              <div className="flex gap-1 lg:hidden shrink-0">
+                <button
+                  type="button"
+                  title={t('triggers.editBot')}
+                  onClick={() => openEdit(b)}
+                  className="w-8 h-8 flex items-center justify-center rounded-lg bg-white/5 hover:bg-primary/20 text-primary"
+                >
+                  <Pencil size={14} />
+                </button>
                 <button
                   type="button"
                   title={t('triggers.delete')}
@@ -123,21 +197,31 @@ export function TelegramBotsPanel({ hideTitle = false }: Props) {
               </div>
             </div>
             <span
-              className="text-[10px] font-mono text-on-surface-variant truncate block"
+              className="text-[10px] font-mono text-on-surface-variant truncate block min-w-0"
               title={b.webhookUrl ?? t('triggers.webhookOnCreate')}
             >
-              <span className="sm:hidden text-on-surface-variant/60 uppercase font-bold mr-1">
+              <span className="lg:hidden text-on-surface-variant/60 uppercase font-bold mr-1">
                 {t('triggers.webhookUrl')}:
               </span>
               {b.webhookUrl ? shortenUrl(b.webhookUrl) : t('triggers.webhookOnCreate')}
             </span>
+            <AccessCell label={t('triggers.botAllowedChatIds')} value={chatIds} />
+            <AccessCell label={t('triggers.botAllowedUserIds')} value={userIds} />
             <span className={b.enabled ? 'text-tertiary text-xs' : 'text-on-surface-variant text-xs'}>
-              <span className="sm:hidden text-on-surface-variant/60 uppercase font-bold mr-1">
+              <span className="lg:hidden text-on-surface-variant/60 uppercase font-bold mr-1">
                 {t('triggers.colStatus')}:
               </span>
               {b.enabled ? t('triggers.enabled') : t('triggers.disabled')}
             </span>
-            <div className="hidden sm:flex gap-1 justify-end">
+            <div className="hidden lg:flex gap-1 justify-end">
+              <button
+                type="button"
+                title={t('triggers.editBot')}
+                onClick={() => openEdit(b)}
+                className="w-8 h-8 flex items-center justify-center rounded-lg bg-white/5 hover:bg-primary/20 text-primary"
+              >
+                <Pencil size={14} />
+              </button>
               <button
                 type="button"
                 title={t('triggers.delete')}
@@ -148,7 +232,8 @@ export function TelegramBotsPanel({ hideTitle = false }: Props) {
               </button>
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
 
       <AnimatePresence>
@@ -226,6 +311,98 @@ export function TelegramBotsPanel({ hideTitle = false }: Props) {
                   </div>
                 </>
               )}
+            </motion.div>
+          </div>
+        ) : null}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {editBot ? (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setEditBot(null)}
+              className="absolute inset-0 bg-black/80 backdrop-blur-md"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.96 }}
+              className="relative w-full max-w-md glass-card rounded-3xl p-8 border border-white/10 max-h-[90vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-xl font-bold mb-1">{t('triggers.editBot')}</h3>
+              {editBot.botUsername ? (
+                <p className="text-xs text-on-surface-variant mb-5">@{editBot.botUsername}</p>
+              ) : (
+                <div className="mb-5" />
+              )}
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-[10px] font-mono font-bold uppercase text-on-surface-variant">
+                    {t('triggers.botName')}
+                  </label>
+                  <input
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    className={inputCls}
+                  />
+                </div>
+                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={editEnabled}
+                    onChange={(e) => setEditEnabled(e.target.checked)}
+                  />
+                  {t('triggers.enabled')}
+                </label>
+                <div>
+                  <label className="block text-[10px] font-mono font-bold uppercase text-on-surface-variant">
+                    {t('triggers.botAllowedChatIds')}
+                  </label>
+                  <input
+                    value={editAllowedChatIds}
+                    onChange={(e) => setEditAllowedChatIds(e.target.value)}
+                    placeholder={t('triggers.botAllowedChatIdsPlaceholder')}
+                    className={cn(inputCls, 'font-mono')}
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-mono font-bold uppercase text-on-surface-variant">
+                    {t('triggers.botAllowedUserIds')}
+                  </label>
+                  <input
+                    value={editAllowedUserIds}
+                    onChange={(e) => setEditAllowedUserIds(e.target.value)}
+                    placeholder={t('triggers.botAllowedUserIdsPlaceholder')}
+                    className={cn(inputCls, 'font-mono')}
+                  />
+                </div>
+                <p className="text-[10px] text-on-surface-variant/70 leading-relaxed">
+                  {t('triggers.botAccessListHint')}
+                </p>
+                {error ? <p className="text-sm text-error">{error}</p> : null}
+              </div>
+              <div className="flex gap-3 mt-8">
+                <button
+                  type="button"
+                  onClick={() => setEditBot(null)}
+                  className="flex-1 py-3 rounded-xl border border-white/10 font-bold text-sm"
+                >
+                  {t('common.cancel')}
+                </button>
+                <button
+                  type="button"
+                  disabled={updateMut.isPending}
+                  onClick={() => updateMut.mutate()}
+                  className="flex-1 py-3 rounded-xl bg-primary text-on-primary font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  {updateMut.isPending ? <Loader2 size={16} className="animate-spin" /> : null}
+                  {t('triggers.botsSave')}
+                </button>
+              </div>
             </motion.div>
           </div>
         ) : null}

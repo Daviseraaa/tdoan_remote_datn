@@ -209,7 +209,8 @@ function AppContent() {
               )}
             >
               <Routes location={location}>
-                <Route path="/" element={<Dashboard />} />
+                <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/agents" element={<Agents />} />
                 <Route path="/agents/:id/files" element={<AgentFilesBrowser />} />
                 <Route path="/tasks" element={<Tasks />} />
