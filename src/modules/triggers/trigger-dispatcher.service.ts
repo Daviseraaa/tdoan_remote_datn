@@ -6,8 +6,12 @@ import {
 import { PrismaService } from '../../prisma/prisma.service';
 import { SubscriptionService } from '../billing/subscription.service';
 import { WorkflowRuntimeService } from '../automation/workflow-runtime.service';
-import { parseWorkflowVariables } from '../automation/workflow-variables';
+import {
+  parseWorkflowVariables,
+  applyTelegramVariableBindings,
+} from '../automation/workflow-variables';
 import { computeNextRunAt } from './schedule.util';
+import type { TelegramMatchConfig } from './telegram/telegram.types';
 
 export type TriggerDispatchPayload = Record<string, unknown>;
 
@@ -87,7 +91,19 @@ export class TriggerDispatcherService {
 
     try {
       const wfVars = parseWorkflowVariables(trigger.workflow.variables);
-      const mergedVars = { ...wfVars, ...payload };
+      const mc = (trigger.matchConfig ?? null) as TelegramMatchConfig | null;
+      let mergedVars: Record<string, unknown> = { ...wfVars, ...payload };
+      if (
+        trigger.type === WorkflowTriggerType.TELEGRAM &&
+        payload.telegram &&
+        typeof payload.telegram === 'object'
+      ) {
+        mergedVars = applyTelegramVariableBindings(
+          mergedVars,
+          mc?.variableArgs,
+          payload.telegram as Record<string, unknown>,
+        );
+      }
 
       const started = await this.workflowRuntime.startRunFromTrigger(
         trigger.workflowId,

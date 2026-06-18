@@ -72,6 +72,7 @@ import {
   WF_HANDLE_TRUE,
   wfChainSourceHandle,
   getUpstreamStepKeys,
+  getUpstreamWorkflowVarKeys,
   type UpstreamOutputKey,
   type WfNodeData,
   type WfRunStatus,
@@ -740,36 +741,42 @@ export function WorkflowEditor({
     [edges],
   );
 
+  const varsContextNodeId = useMemo(() => {
+    if (selectedNodeId && selectedNodeId !== WF_TRIGGER_ID) return selectedNodeId;
+    if (selectedEdgeId) {
+      const edge = edges.find((e) => e.id === selectedEdgeId);
+      return edge?.target ?? null;
+    }
+    return null;
+  }, [selectedNodeId, selectedEdgeId, edges]);
+
   const upstreamOutputKeys: UpstreamOutputKey[] = useMemo(() => {
-    if (!selectedNodeId) return [];
+    if (!varsContextNodeId) return [];
     return getUpstreamStepKeys(
-      selectedNodeId,
+      varsContextNodeId,
       graphEdgesForUpstream,
       nodes.map((n) => ({ id: n.id, data: n.data as WfNodeData })),
     );
-  }, [selectedNodeId, graphEdgesForUpstream, nodes]);
+  }, [varsContextNodeId, graphEdgesForUpstream, nodes]);
+
+  const showTelegramVars = entryTrigger.type === 'TELEGRAM';
 
   const workflowVarKeys = useMemo(() => {
-    const keys = new Set(Object.keys(workflow.variables ?? {}));
-    for (const n of nodes) {
-      if (n.id === WF_TRIGGER_ID) continue;
-      const d = n.data as WfNodeData;
-      if (d.kind === 'variable') {
-        const name = d.config.variableName?.trim();
-        if (name) keys.add(name);
-        continue;
-      }
-      if (d.kind === 'excel' && (d.config.excelMode ?? 'read') === 'read') {
-        const name = d.config.variableName?.trim();
-        if (name) keys.add(name);
-      }
-    }
-    return [...keys];
-  }, [workflow.variables, nodes]);
+    if (!varsContextNodeId) return Object.keys(workflow.variables ?? {});
+    return getUpstreamWorkflowVarKeys(
+      varsContextNodeId,
+      graphEdgesForUpstream,
+      nodes.map((n) => ({ id: n.id, data: n.data as WfNodeData })),
+      workflow.variables,
+    );
+  }, [varsContextNodeId, graphEdgesForUpstream, nodes, workflow.variables]);
 
-  const variablesJson = useMemo(
-    () => JSON.stringify(workflow.variables ?? {}, null, 2),
-    [workflow.variables],
+  const handleVariablesChange = useCallback(
+    (variables: Record<string, unknown>) => {
+      onMetaChange({ variables });
+      onDirty();
+    },
+    [onMetaChange, onDirty],
   );
 
   const selectedEdge = useMemo(
@@ -1273,35 +1280,17 @@ export function WorkflowEditor({
                   <X size={16} />
                 </button>
               </div>
-              <details className="border-b border-white/5 shrink-0 group">
-                <summary className="px-4 py-3 cursor-pointer text-[10px] font-mono font-bold uppercase text-on-surface-variant hover:bg-white/5">
-                  {t('workflows.workflowVariables')}
-                </summary>
-                <div className="px-4 pb-4 space-y-2">
-                  <p className="text-[10px] text-on-surface-variant">{t('workflows.workflowVariablesHint')}</p>
-                  <textarea
-                    value={variablesJson}
-                    onChange={(e) => {
-                      try {
-                        const parsed = JSON.parse(e.target.value) as Record<string, unknown>;
-                        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-                          onMetaChange({ variables: parsed });
-                          onDirty();
-                        }
-                      } catch {
-                        /* ignore while typing */
-                      }
-                    }}
-                    rows={5}
-                    placeholder={t('workflows.workflowVariablesPlaceholder')}
-                    className="w-full px-3 py-2 rounded-xl bg-surface-container-low border border-white/10 font-mono text-xs"
-                  />
-                </div>
-              </details>
+              <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
               {selectedEdgeId ? (
                 <WorkflowEdgeInspector
                   edge={selectedEdge}
                   nodes={nodes as Node<WfNodeData>[]}
+                  workflowId={workflow.id}
+                  workflowVariables={workflow.variables}
+                  onWorkflowVariablesChange={handleVariablesChange}
+                  upstreamOutputKeys={upstreamOutputKeys}
+                  workflowVarKeys={workflowVarKeys}
+                  showTelegramVars={showTelegramVars}
                   onUpdateBranch={updateSelectedEdgeBranch}
                   onDelete={deleteSelectedEdge}
                 />
@@ -1309,6 +1298,9 @@ export function WorkflowEditor({
                 <WorkflowTriggerInspector
                   draft={entryTrigger}
                   workflowActive={workflow.isActive !== false}
+                  workflowId={workflow.id}
+                  workflowVariables={workflow.variables}
+                  onWorkflowVariablesChange={handleVariablesChange}
                   onChange={patchEntryTrigger}
                 />
               ) : (
@@ -1316,9 +1308,13 @@ export function WorkflowEditor({
                   nodeId={selectedNodeId}
                   data={selectedData ?? null}
                   agents={agents}
+                  workflowId={workflow.id}
+                  workflowVariables={workflow.variables}
+                  onWorkflowVariablesChange={handleVariablesChange}
                   workflowStepDelayMs={workflow.stepDelayMs ?? 0}
                   upstreamOutputKeys={upstreamOutputKeys}
                   workflowVarKeys={workflowVarKeys}
+                  showTelegramVars={showTelegramVars}
                   onUpdate={updateSelectedNode}
                   onAgentChange={handleStepAgentChange}
                 onImportChromeScript={(script) =>
@@ -1346,6 +1342,7 @@ export function WorkflowEditor({
                 }
                 />
               )}
+              </div>
             </aside>
             </>
           ) : null}

@@ -14,6 +14,7 @@ export const SCHEDULE_KINDS: ScheduleKind[] = ['DAILY', 'CRON', 'INTERVAL', 'HOU
 export type TelegramMatchConfig = {
   events?: string[];
   commands?: string[];
+  variableArgs?: string[];
 };
 
 export function parseMatchConfig(raw: unknown): TelegramMatchConfig {
@@ -22,6 +23,32 @@ export function parseMatchConfig(raw: unknown): TelegramMatchConfig {
   return {
     events: Array.isArray(o.events) ? o.events : undefined,
     commands: Array.isArray(o.commands) ? o.commands : undefined,
+    variableArgs: Array.isArray(o.variableArgs) ? o.variableArgs : undefined,
+  };
+}
+
+function parseVariableArgsText(text: string): string[] | undefined {
+  const names = text
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  return names.length ? names : undefined;
+}
+
+function telegramMatchConfig(opts: {
+  telegramEvents: string[];
+  commandsText: string;
+  variableArgsText: string;
+}): TelegramMatchConfig {
+  const commands = opts.commandsText
+    .split(',')
+    .map((c) => c.trim())
+    .filter(Boolean);
+  const variableArgs = parseVariableArgsText(opts.variableArgsText);
+  return {
+    events: opts.telegramEvents,
+    ...(commands.length ? { commands } : {}),
+    ...(variableArgs ? { variableArgs } : {}),
   };
 }
 
@@ -40,6 +67,7 @@ export function buildTriggerPayload(opts: {
   telegramBotId: string;
   commandsText: string;
   telegramEvents: string[];
+  variableArgsText: string;
 }): Record<string, unknown> {
   const body: Record<string, unknown> = {
     type: opts.type,
@@ -66,14 +94,7 @@ export function buildTriggerPayload(opts: {
 
   if (opts.type === 'TELEGRAM') {
     body.telegramBotId = opts.telegramBotId;
-    const commands = opts.commandsText
-      .split(',')
-      .map((c) => c.trim())
-      .filter(Boolean);
-    body.matchConfig = {
-      events: opts.telegramEvents,
-      ...(commands.length ? { commands } : {}),
-    };
+    body.matchConfig = telegramMatchConfig(opts);
   }
 
   return body;
@@ -93,6 +114,7 @@ export function buildPatchPayload(opts: {
   telegramBotId: string;
   commandsText: string;
   telegramEvents: string[];
+  variableArgsText: string;
 }): Record<string, unknown> {
   const patch: Record<string, unknown> = {
     name: opts.name.trim() || undefined,
@@ -117,14 +139,7 @@ export function buildPatchPayload(opts: {
 
   if (opts.type === 'TELEGRAM') {
     patch.telegramBotId = opts.telegramBotId || undefined;
-    const commands = opts.commandsText
-      .split(',')
-      .map((c) => c.trim())
-      .filter(Boolean);
-    patch.matchConfig = {
-      events: opts.telegramEvents,
-      ...(commands.length ? { commands } : {}),
-    };
+    patch.matchConfig = telegramMatchConfig(opts);
   }
 
   return patch;

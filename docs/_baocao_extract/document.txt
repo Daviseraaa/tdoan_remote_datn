@@ -1,0 +1,462 @@
+﻿
+ ĐẠI HỌC BÁCH KHOA HÀ NỘI
+                                         
+
+ĐỒ ÁN TỐT NGHIỆP
+Hệ thống quản lý và thực thi tác vụ tự động trên máy trạm Windows qua mô hình agent–server
+Trần Tuấn Đoàn
+Doan.tt225283@sis.hust.edu.vn
+Ngành Kỹ Thuật Máy Tính
+Chuyên ngành An toàn Thông tin
+
+Giảng viên hướng dẫn:
+PGS. TS. 19812001651001981200165100Trịnh Tuấn Đạt
+
+Bộ môn:
+
+Đồ án tốt nghiệp
+Trường:
+Công nghệ thông tin – Truyền thông
+
+
+
+HÀ NỘI, 6/2026
+
+Lời cam kết
+Họ và tên sinh viên: Trần Tuấn Đoàn
+Điện thoại liên lạc: 0369775065      Email: doan.tt225283@sis.hust.edu.vn 
+Lớp: Kỹ thuật Máy tính - 04            Hệ đào tạo: Cử nhân 
+
+Tôi – Trần Tuấn Đoàn – cam kết Đồ án tốt nghiệp (ĐATN) là công trình nghiên cứu của bản thân tôi dưới sự hướng dẫn của PGS. TS. Trịnh Tuấn Đạt. Các kết quả nêu trong ĐATN là trung thực, là thành quả của riêng tôi, không sao chép từ bất kỳ công trình nào khác. Tất cả những tham khảo trong ĐATN – bao gồm hình ảnh, bảng biểu, số liệu và các câu từ trích dẫn – đều được ghi rõ ràng, đầy đủ nguồn gốc trong danh mục tài liệu tham khảo. Nếu phát hiện có bất kỳ sự sao chép nào vi phạm quy chế của nhà trường, tôi xin hoàn toàn chịu trách nhiệm.
+					
+Hà Nội, ngày    tháng    năm
+Tác giả ĐATN
+
+
+Trần Tuấn Đoàn
+Lời cảm ơn
+Để hoàn thành được đồ án tốt nghiệp này, em đã nhận được rất nhiều sự giúp đỡ, động viên và đồng hành từ thầy cô, gia đình cùng những người thân yêu.
+Trước hết, em xin gửi lời cảm ơn chân thành và sâu sắc nhất đến thầy giáo Trịnh Tuấn Đạt — người đã trực tiếp hướng dẫn em trong suốt quá trình thực hiện đồ án. Những định hướng, góp ý tận tình và sự nghiêm túc về chuyên môn của thầy chính là kim chỉ nam giúp em đi đúng hướng và hoàn thiện đề tài một cách tốt nhất.
+Em cũng xin cảm ơn các thầy, cô giáo của Trường Công nghệ Thông tin và Truyền thông, Đại học Bách khoa Hà Nội. Những kiến thức chuyên môn cùng tinh thần học thuật mà các thầy cô đã truyền dạy trong suốt những năm qua là nền tảng vững chắc để em có thể thực hiện và bảo vệ đồ án này.
+Em xin gửi lời biết ơn sâu sắc đến gia đình — bố mẹ và những người thân — đã luôn là chỗ dựa vững chắc, tin tưởng và tạo mọi điều kiện tốt nhất cho em trên suốt chặng đường học tập.
+Em cũng muốn cảm ơn những người bạn đã cùng đồng hành, sẻ chia, giúp đỡ em trong cả học tập lẫn cuộc sống và luôn kiên nhẫn, động viên và tiếp thêm động lực cho em trong những lúc khó khăn nhất.
+Và cuối cùng, em xin cảm ơn chính bản thân mình vì đã kiên trì, chăm chỉ và quyết tâm theo đuổi đến cùng để hoàn thành đồ án với kết quả tốt nhất.
+Em xin chân thành cảm ơn!
+Hà Nội, ngày ... tháng ... năm 2026 Sinh viên thực hiện
+Trần Tuấn Đoàn
+Tóm tắt
+Quản lý và tự động hóa tác vụ trên máy trạm theo mô hình truyền thống còn nhiều hạn chế: kịch bản thường được triển khai rời rạc trên từng máy nên thiếu điểm điều phối tập trung, khó mở rộng khi số lượng máy trạm tăng; trạng thái thực thi, lỗi và kết quả task không được cập nhật đồng bộ theo thời gian thực, khiến giám sát và xử lý sự cố chậm trễ; việc phân phối task, lên lịch chạy và kích hoạt theo sự kiện thường phải dùng nhiều công cụ khác nhau, gây phức tạp trong vận hành và bảo trì. Một số giải pháp RPA hoặc remote execution hiện có tập trung vào thực thi cục bộ nhưng thiếu lớp quản trị tập trung cho fleet agent, hàng đợi task, workflow đồ thị và phân quyền người dùng trong cùng một hệ thống thống nhất.
+Trước thực trạng đó, đồ án lựa chọn hướng tiếp cận xây dựng nền tảng quản lý tập trung theo mô hình agent–server: server đóng vai trò trung tâm điều phối, lưu trữ và phân phối task; agent cài trên máy trạm Windows thực thi tại chỗ và báo cáo kết quả về server; console quản trị web cho phép quản lý fleet agent, thiết kế workflow, theo dõi trạng thái và điều khiển vận hành theo thời gian thực. Hướng đi này hướng tới giải quyết bài toán điều phối phân tán, minh bạch hóa trạng thái thực thi và chuẩn hóa quy trình tạo–phân phối–giám sát task trên nhiều máy trạm, phù hợp với quy mô triển khai thực nghiệm của đồ án.
+Hệ thống được xây dựng gồm backend NestJS với PostgreSQL (Prisma) để quản lý người dùng, agent, task template và workflow; hàng đợi BullMQ trên Redis để xếp hàng và xử lý task bất đồng bộ; gateway WebSocket (Socket.IO) duy trì kết nối với agent và đẩy cập nhật realtime tới giao diện quản trị. Frontend React (Vite) cung cấp dashboard, quản lý fleet agent, trình soạn workflow đồ thị (React Flow), phân quyền JWT/RBAC và giám sát tiến trình thực thi. Agent máy trạm triển khai bằng Rust kết hợp ứng dụng desktop (system tray, cài đặt dịch vụ Windows), nhận lệnh từ server và thực thi các loại task như chạy lệnh, tự động hóa desktop, mở ứng dụng, gọi HTTP và chụp màn hình. Mô-đun trigger hỗ trợ kích hoạt workflow theo lịch cron, webhook và bot Telegram.
+Kết quả, đồ án đã xây dựng thành công một nguyên mẫu quản lý tập trung fleet agent và tự động hóa quy trình trên máy trạm, bao gồm server điều phối, agent Windows và console quản trị web. Hệ thống đã chạy thử nghiệm thành công trên môi trường cục bộ (Docker cho PostgreSQL và Redis, agent trên Windows), qua đó chứng minh tính khả thi của mô hình điều phối tập trung, giám sát thời gian thực và khả năng mở rộng trong tương lai.
+
+
+Abstract
+Traditional workstation task management and automation still has significant limitations: scripts are often deployed in isolation on individual machines, lacking a centralized coordination point and making scale-out difficult as the fleet grows; execution status, errors, and task results are not updated in real time, slowing monitoring and incident response; distributing tasks, scheduling runs, and event-driven triggers typically require multiple disjoint tools, increasing operational and maintenance complexity. Some existing RPA or remote-execution solutions focus on local execution but lack a unified centralized management layer for agent fleets, task queues, graph-based workflows, and user access control within one cohesive system.
+Given this context, the thesis adopts a centralized agent–server platform: the server acts as the coordination hub for storing and distributing tasks; agents installed on Windows workstations execute locally and report results back; a web admin console enables fleet management, workflow design, status monitoring, and real-time operational control. This approach addresses distributed orchestration, transparent execution visibility, and a standardized create–dispatch–monitor pipeline across many workstations, aligned with the thesis’s experimental deployment scope.
+The system consists of a NestJS backend with PostgreSQL (Prisma) for users, agents, task templates, and workflows; BullMQ on Redis for asynchronous task queuing and processing; and a WebSocket gateway (Socket.IO) to maintain agent connections and push real-time updates to the admin UI. The React (Vite) frontend provides a dashboard, agent fleet management, a graph workflow editor (React Flow), JWT/RBAC authorization, and execution monitoring. Workstation agents are built in Rust with a desktop shell (system tray, Windows service installation), receiving commands from the server and executing tasks such as running commands, desktop automation, launching applications, HTTP requests, and screen capture. A trigger module supports workflow activation via cron schedules, webhooks, and Telegram bots.
+As a result, the thesis delivers a working prototype for centralized agent fleet management and workstation process automation, comprising an orchestration server, Windows agents, and a web admin console. The system was successfully tested in a local environment (Docker for PostgreSQL and Redis, agents on Windows), demonstrating the feasibility of centralized orchestration, real-time monitoring, and future scalability.
+
+Mục lục
+ TOC \h \u \z \t "Heading 1,1,Heading 2,2,Heading 3,3,Heading 4,4,Heading 5,5,Heading 6,6,"Lời cam kết	 PAGEREF _Toc232240303 \h 2
+Lời cảm ơn	 PAGEREF _Toc232240304 \h 3
+Tóm tắt	 PAGEREF _Toc232240305 \h 4
+Abstract	 PAGEREF _Toc232240306 \h 5
+Mục lục	 PAGEREF _Toc232240307 \h 6
+Danh mục hình vẽ	 PAGEREF _Toc232240308 \h 10
+Danh mục bảng	 PAGEREF _Toc232240309 \h 11
+Danh mục công thức	 PAGEREF _Toc232240310 \h 12
+Danh mục các từ viết tắt	 PAGEREF _Toc232240311 \h 13
+Danh mục thuật ngữ	 PAGEREF _Toc232240312 \h 14
+	Chương 1	Giới thiệu đề tài	 PAGEREF _Toc232240313 \h 1
+	1.1	Đặt vấn đề	 PAGEREF _Toc232240314 \h 1
+	1.2	Mục tiêu và phạm vi đề tài	 PAGEREF _Toc232240315 \h 2
+	1.3	Định hướng giải pháp	 PAGEREF _Toc232240316 \h 3
+	1.4	Bố cục đồ án	 PAGEREF _Toc232240317 \h 5
+	Chương 2	Khảo sát và phân tích yêu cầu	 PAGEREF _Toc232240318 \h 6
+	2.1	Khảo sát hiện trạng	 PAGEREF _Toc232240319 \h 6
+	2.2	Tổng quan chức năng	 PAGEREF _Toc232240320 \h 7
+		2.2.1	Biểu đồ use case tổng quan	 PAGEREF _Toc232240321 \h 7
+		2.2.2	Phân rã use case Xử lý yêu cầu bồi thường	 PAGEREF _Toc232240322 \h 9
+		2.2.3	Quy trình nghiệp vụ	 PAGEREF _Toc232240323 \h 10
+	2.3	Đặc tả chức năng	 PAGEREF _Toc232240324 \h 10
+		2.3.1	Đặc tả use case A	 PAGEREF _Toc232240325 \h 10
+		2.3.2	Đặc tả use case B	 PAGEREF _Toc232240326 \h 10
+	2.4	Yêu cầu phi chức năng	 PAGEREF _Toc232240327 \h 11
+	Chương 3	Công nghệ sử dụng	 PAGEREF _Toc232240328 \h 12
+	3.1	Nền tảng Blockchain Ethereum và hợp đồng thông minh	 PAGEREF _Toc232240329 \h 12
+		3.1.1	Ethereum và máy ảo EVM	 PAGEREF _Toc232240330 \h 12
+		3.1.2	Solidity và Hardhat	 PAGEREF _Toc232240331 \h 12
+		3.1.3	Thư viện OpenZeppelin	 PAGEREF _Toc232240332 \h 13
+	3.2	Lưu trữ phi tập trung IPFS	 PAGEREF _Toc232240333 \h 13
+	3.3	Công nghệ phát triển ứng dụng web và kết nối ví	 PAGEREF _Toc232240334 \h 13
+		3.3.1	Next.js và React	 PAGEREF _Toc232240335 \h 13
+		3.3.2	Thư viện kết nối Blockchain và ví MetaMask	 PAGEREF _Toc232240336 \h 14
+	3.4	Công nghệ xây dựng trợ lý AI theo mô hình RAG	 PAGEREF _Toc232240337 \h 14
+		3.4.1	Kiến trúc dịch vụ AI với FastAPI	 PAGEREF _Toc232240338 \h 14
+		3.4.2	Xử lý tài liệu và sinh embedding	 PAGEREF _Toc232240339 \h 14
+		3.4.3	Cơ sở dữ liệu vector ChromaDB	 PAGEREF _Toc232240340 \h 15
+		3.4.4	Mô hình ngôn ngữ Gemini và pipeline RAG	 PAGEREF _Toc232240341 \h 15
+	Chương 4	Phát triển và triển khai ứng dụng	 PAGEREF _Toc232240342 \h 17
+	4.1	Thiết kế kiến trúc	 PAGEREF _Toc232240343 \h 17
+		4.1.1	Lựa chọn kiến trúc phần mềm	 PAGEREF _Toc232240344 \h 17
+		4.1.2	Thiết kế tổng quan	 PAGEREF _Toc232240345 \h 17
+		4.1.3	Thiết kế chi tiết gói	 PAGEREF _Toc232240346 \h 18
+	4.2	Thiết kế chi tiết	 PAGEREF _Toc232240347 \h 19
+		4.2.1	Thiết kế giao diện	 PAGEREF _Toc232240348 \h 19
+		4.2.2	Thiết kế lớp	 PAGEREF _Toc232240349 \h 19
+		4.2.3	Thiết kế cơ sở dữ liệu	 PAGEREF _Toc232240350 \h 20
+	4.3	Xây dựng ứng dụng	 PAGEREF _Toc232240351 \h 20
+		4.3.1	Thư viện và công cụ sử dụng	 PAGEREF _Toc232240352 \h 20
+		4.3.2	Kết quả đạt được	 PAGEREF _Toc232240353 \h 20
+		4.3.3	Minh hoạ các chức năng chính	 PAGEREF _Toc232240354 \h 20
+	4.4	Kiểm thử	 PAGEREF _Toc232240355 \h 21
+	4.5	Triển khai	 PAGEREF _Toc232240356 \h 21
+	Chương 5	Các giải pháp và đóng góp nổi bật	 PAGEREF _Toc232240357 \h 22
+	5.1	Mô hình hóa quy trình bồi thường bằng máy trạng thái trên hợp đồng thông minh	 PAGEREF _Toc232240358 \h 22
+		5.1.1	Thách thức trong quy trình bồi thường nhiều bên	 PAGEREF _Toc232240359 \h 22
+		5.1.2	Mô hình máy trạng thái và phân vai xử lý trên hợp đồng thông minh	 PAGEREF _Toc232240360 \h 22
+		5.1.3	Quy trình minh bạch và có thể truy vết	 PAGEREF _Toc232240361 \h 23
+	5.2	Thiết kế phân quyền đa vai trò và bảo mật cho hợp đồng thông minh	 PAGEREF _Toc232240362 \h 23
+		5.2.1	Yêu cầu kiểm soát thẩm quyền và an toàn cho hợp đồng	 PAGEREF _Toc232240363 \h 23
+		5.2.2	Phân quyền theo vai trò kết hợp thư viện bảo mật đã kiểm toán	 PAGEREF _Toc232240364 \h 24
+		5.2.3	Giảm rủi ro bảo mật và bảo vệ luồng nghiệp vụ	 PAGEREF _Toc232240365 \h 24
+	5.3	Cơ chế tính phí và mức bồi thường tự động theo loại xe và loại bảo hiểm	 PAGEREF _Toc232240366 \h 25
+		5.3.1	Sự phụ thuộc của phí và mức bồi thường vào loại xe và loại bảo hiểm	 PAGEREF _Toc232240367 \h 25
+		5.3.2	Hàm tính phí và mức bồi thường xác định trên chuỗi	 PAGEREF _Toc232240368 \h 25
+		5.3.3	Kết quả tính toán nhất quán và minh bạch	 PAGEREF _Toc232240369 \h 25
+	5.4	Bảo đảm toàn vẹn hồ sơ bằng mô hình lưu trữ kết hợp on-chain/off-chain	 PAGEREF _Toc232240370 \h 26
+		5.4.1	Mâu thuẫn giữa chi phí lưu trữ và yêu cầu toàn vẹn dữ liệu	 PAGEREF _Toc232240371 \h 26
+		5.4.2	Lưu trữ ngoài chuỗi bằng IPFS và neo định danh trên chuỗi	 PAGEREF _Toc232240372 \h 26
+		5.4.3	Phát hiện chỉnh sửa và tối ưu chi phí lưu trữ	 PAGEREF _Toc232240373 \h 26
+	5.5	Trợ lý AI tư vấn tin cậy theo RAG và xác thực quản trị bằng chữ ký ví	 PAGEREF _Toc232240374 \h 27
+		5.5.1	Rủi ro "ảo giác" của mô hình ngôn ngữ trong tư vấn bảo hiểm	 PAGEREF _Toc232240375 \h 27
+		5.5.2	Kiến trúc RAG bám tài liệu và xác thực quản trị bằng chữ ký ví	 PAGEREF _Toc232240376 \h 27
+		5.5.3	Độ tin cậy của câu trả lời và an toàn trong quản trị tài liệu	 PAGEREF _Toc232240377 \h 27
+	Chương 6	Kết luận và hướng phát triển	 PAGEREF _Toc232240378 \h 29
+	6.1	Kết luận	 PAGEREF _Toc232240379 \h 29
+	6.2	Hướng phát triển	 PAGEREF _Toc232240380 \h 29
+Tài liệu tham khảo	 PAGEREF _Toc232240381 \h 31
+
+Danh mục hình vẽ
+	 TOC \h \u \z \t "Heading 1,1,Heading 2,2,Heading 3,3,Heading 4,4,Heading 5,5,Heading 6,6,"Hình 1 Ví dụ biểu đồ phụ thuộc gói	7
+	Hình 2 Ví dụ thiết kế gói	8
+	Hình 3 Ví dụ hình vẽ	A-4
+	Hình 4 Quy cách đóng quyển	A-6
+	Hình 5 Quy cách ghi chữ phần gáy	A-7
+	Hình 6 Hướng dẫn thiết lập in hai mặt	A-8
+
+Danh mục bảng
+	 TOC \h \u \z \t "Heading 1,1,Heading 2,2,Heading 3,3,Heading 4,4,Heading 5,5,Heading 6,6,"Bảng 1 Danh sách thư viện và công cụ sử dụng	9
+	Bảng 2 Ví dụ sử dụng bảng	A-3
+Danh mục công thức 
+	 TOC \h \u \z \t "Heading 1,1,Heading 2,2,Heading 3,3,Heading 4,4,Heading 5,5,Heading 6,6,"Công thức 1 Khai triển Newton	A-5
+Lưu ý: Nếu ĐATN có ít hơn ba công thức toán học, sinh viên có thể xóa bỏ mục này.
+
+Danh mục các từ viết tắt
+
+
+AI
+Artificial Intelligence – Trí tuệ nhân tạo
+API
+Application Programming Interface – Giao diện lập trình ứng dụng
+CID
+Content Identifier – Định danh nội dung
+CSDL
+Cơ sở dữ liệu
+DApp
+Decentralized Application – Ứng dụng phi tập trung
+E-R
+Entity–Relationship – Thực thể – liên kết
+EVM
+Ethereum Virtual Machine – Máy ảo Ethereum
+IPFS
+InterPlanetary File System – Hệ thống tệp liên hành tinh
+LLM
+Large Language Model – Mô hình ngôn ngữ lớn
+NĐ
+Nghị định
+RAG
+Retrieval-Augmented Generation – Sinh có tăng cường truy xuất
+UML
+Unified Modeling Language – Ngôn ngữ mô hình hóa thống nhất
+Danh mục thuật ngữ
+
+
+Blockchain (chuỗi khối)
+Sổ cái phân tán lưu dữ liệu thành các khối liên kết, bất biến
+Smart contract (hợp đồng thông minh)
+Chương trình chạy trên blockchain, tự động thực thi điều khoản đã lập trình
+On-chain / Off-chain
+Dữ liệu lưu trực tiếp trên chuỗi / lưu ngoài chuỗi
+Gas
+Đơn vị đo chi phí tính toán cho mỗi giao dịch trên Ethereum
+Embedding
+Vector số biểu diễn ngữ nghĩa của một đoạn văn bản
+Chunking
+Việc chia tài liệu thành các đoạn nhỏ trước khi xử lý
+Pinning (ghim)
+Cơ chế duy trì tệp luôn sẵn sàng trên mạng IPFS
+Hallucination (ảo giác)
+Hiện tượng mô hình ngôn ngữ sinh thông tin nghe hợp lý nhưng sai hoặc không có căn cứ
+Prompt (lời nhắc)
+Chuỗi đầu vào hướng dẫn mô hình ngôn ngữ sinh câu trả lời
+Modifier
+Bộ điều kiện gắn vào hàm trong Solidity để kiểm soát quyền truy cập
+Oracle
+Cầu nối đưa dữ liệu từ bên ngoài vào hợp đồng thông minh
+Testnet / Mainnet
+Mạng thử nghiệm / mạng chính của blockchain
+
+Giới thiệu đề tài
+Đặt vấn đề
+Phương tiện cơ giới là loại hình giao thông chủ đạo tại Việt Nam và đang gia tăng nhanh về số lượng. Theo Bộ Giao thông Vận tải, đến cuối năm 2023 cả nước có hơn 73 triệu xe máy đăng ký lưu hành, chiếm khoảng 95% tổng số phương tiện [1]; số ô tô đăng ký lưu hành đạt khoảng 6,3 triệu chiếc và ước tính tăng lên gần 6,8 triệu chiếc vào cuối năm 2024 [2]. Riêng trong năm 2025, cả nước đăng ký mới 624.300 ô tô, tăng 27% so với năm trước, cùng với hơn 3,2 triệu xe máy [3]. Quy mô lớn và tốc độ tăng trưởng cao kéo theo rủi ro tai nạn và tổn thất tài sản tương ứng, khiến bảo hiểm xe cơ giới trở thành nhu cầu thiết yếu nhằm bảo vệ tài chính cho chủ xe và bảo đảm quyền lợi cho bên thứ ba. Trên phương diện pháp lý, Nghị định 67/2023/NĐ-CP quy định bảo hiểm bắt buộc trách nhiệm dân sự của chủ xe cơ giới bên cạnh các loại hình tự nguyện, cho thấy tính bắt buộc và tầm quan trọng của nghiệp vụ này.
+Với quy mô đó, hoạt động quản lý hợp đồng và xử lý bồi thường đặt ra yêu cầu cao về hiệu quả vận hành. Tuy nhiên, các nghiệp vụ này hiện chủ yếu được thực hiện theo phương thức truyền thống và bộc lộ hạn chế trên bốn khía cạnh: tính minh bạch, khả năng kiểm soát gian lận, tốc độ xử lý và khả năng tra cứu thông tin của người dùng.
+Hạn chế đầu tiên nằm ở tính minh bạch và khả năng truy vết. Dữ liệu hợp đồng cùng hồ sơ bồi thường được lưu trữ tập trung trong hệ thống nội bộ của doanh nghiệp bảo hiểm, nên người mua không có công cụ độc lập để kiểm chứng tình trạng hợp đồng hay tiến độ xử lý yêu cầu của mình. Dữ liệu tập trung cũng tiềm ẩn nguy cơ bị chỉnh sửa, và khi phát sinh tranh chấp, việc đối chiếu thông tin giữa các bên trở nên khó khăn.
+Hạn chế thứ hai là gian lận và trục lợi trong bồi thường, một vấn đề có quy mô lớn trên phạm vi toàn cầu. Theo Coalition Against Insurance Fraud, gian lận bảo hiểm gây thiệt hại khoảng 308,6 tỷ USD mỗi năm tại Hoa Kỳ trên tất cả các loại hình, trong đó bảo hiểm tài sản và thiệt hại — nhóm bao gồm bảo hiểm xe cơ giới — chiếm một phần đáng kể [4]. Các hành vi phổ biến gồm khai khống chi phí, sử dụng chứng từ giả mạo hoặc gửi trùng một yêu cầu tới nhiều doanh nghiệp. Nguyên nhân chủ yếu là dữ liệu phân tán và thiếu một nguồn dữ liệu dùng chung cho phép đối chiếu tức thời, dẫn đến chi phí bồi thường tăng và làm tăng phí đối với những người tham gia trung thực.
+Hạn chế thứ ba liên quan đến tốc độ và thủ tục xử lý. Quy trình bồi thường phụ thuộc nhiều vào giấy tờ và thao tác thủ công, trải qua nhiều khâu trung gian từ tiếp nhận hồ sơ, giám định, thẩm định đến phê duyệt. Mỗi khâu đều có thể trở thành điểm tắc nghẽn, khiến thời gian giải quyết kéo dài và chi phí quản lý hành chính chiếm tỷ trọng đáng kể.
+Hạn chế thứ tư xuất phát từ phía người dùng trong việc tra cứu và hiểu thông tin bảo hiểm. Hợp đồng bảo hiểm thường dài và chứa nhiều thuật ngữ chuyên ngành, khiến người tham gia khó nắm rõ quyền lợi, các trường hợp loại trừ hay hồ sơ cần chuẩn bị khi yêu cầu bồi thường. Việc tư vấn chủ yếu dựa vào tổng đài hoặc nhân viên nên dễ quá tải, thiếu nhất quán và không sẵn sàng phục vụ liên tục.
+Bốn hạn chế nêu trên ảnh hưởng trực tiếp đến chi phí vận hành của doanh nghiệp, thời gian xử lý và mức độ tin tưởng của khách hàng. Giải quyết được những hạn chế này sẽ góp phần nâng cao tính minh bạch, rút ngắn thời gian xử lý, hạn chế gian lận và cải thiện trải nghiệm người dùng trong lĩnh vực bảo hiểm xe cơ giới, đồng thời tạo tiền đề mở rộng sang các loại hình bảo hiểm khác.
+
+Mục tiêu và phạm vi đề tài
+Để xác định mục tiêu của đề tài, trước hết cần xem xét các giải pháp hiện có cho việc quản lý bảo hiểm xe cơ giới cùng nhu cầu thực tế của người dùng. Các giải pháp này có thể chia thành ba nhóm chính, mỗi nhóm giải quyết một phần của bài toán nhưng vẫn còn hạn chế.
+Nhóm thứ nhất là các hệ thống quản lý bảo hiểm tập trung, bao gồm cổng thông tin và ứng dụng của các doanh nghiệp bảo hiểm. Các hệ thống này đã số hóa nhiều nghiệp vụ như tra cứu gói bảo hiểm, mua hợp đồng và gửi yêu cầu bồi thường, mang lại sự thuận tiện cho người dùng. Tuy nhiên, do dữ liệu được lưu trữ và kiểm soát hoàn toàn bởi doanh nghiệp, người dùng khó kiểm chứng độc lập tình trạng hợp đồng và tiến độ xử lý, đồng thời hệ thống chưa giải quyết triệt để vấn đề minh bạch và chống gian lận.
+Nhóm thứ hai là các nền tảng bảo hiểm ứng dụng công nghệ Blockchain, tiêu biểu như Etherisc, cùng nhiều nghiên cứu học thuật khác. Hướng tiếp cận này tận dụng tính bất biến và khả năng truy vết của Blockchain để tăng minh bạch và tự động hóa quy trình thông qua hợp đồng thông minh. Hạn chế của nhóm này là phần lớn tập trung vào logic hợp đồng và bồi thường, ít chú trọng hỗ trợ người dùng tra cứu thông tin, và thường chưa được thiết kế bám sát đặc thù nghiệp vụ cũng như quy định pháp lý về bảo hiểm xe cơ giới tại Việt Nam.
+Nhóm thứ ba là các trợ lý ảo và chatbot tư vấn bảo hiểm. Các công cụ này giúp người dùng tiếp cận thông tin nhanh hơn, nhưng phần lớn hoạt động dựa trên kịch bản cố định hoặc mô hình ngôn ngữ tự do. Cách tiếp cận theo kịch bản kém linh hoạt, trong khi mô hình ngôn ngữ tự do dễ đưa ra câu trả lời sai lệch do không dựa trên tài liệu cụ thể, làm giảm độ tin cậy trong một lĩnh vực đòi hỏi tính chính xác cao.
+Từ phân tích trên có thể khái quát hạn chế chung: các giải pháp hiện tại mới giải quyết riêng lẻ từng khía cạnh, hoặc minh bạch hóa nghiệp vụ, hoặc hỗ trợ tra cứu thông tin, mà chưa kết hợp đồng thời quản lý hợp đồng minh bạch trên Blockchain với khả năng tư vấn tin cậy dựa trên tài liệu, đặc biệt cho bài toán bảo hiểm xe cơ giới theo bối cảnh Việt Nam.
+Trên cơ sở đó, mục tiêu của đề tài là xây dựng một website quản lý hợp đồng bảo hiểm xe cơ giới trên nền tảng Blockchain, tích hợp trợ lý trí tuệ nhân tạo tư vấn theo mô hình Sinh có tăng cường truy xuất (RAG). Hệ thống hướng tới đồng thời nâng cao tính minh bạch và khả năng truy vết, hạn chế gian lận, rút ngắn thời gian xử lý và cải thiện khả năng tra cứu thông tin cho người dùng.
+Về phạm vi, đề tài tập trung vào bảo hiểm xe cơ giới theo Nghị định 67/2023/NĐ-CP, bao gồm bảo hiểm trách nhiệm dân sự bắt buộc và các loại hình tự nguyện, áp dụng cho các nhóm phương tiện phổ biến như xe máy, ô tô con, ô tô kinh doanh và xe tải. Hệ thống phục vụ ba tác nhân chính gồm khách hàng, gara hoặc đơn vị giám định và công ty bảo hiểm, và được triển khai ở quy mô đồ án trên môi trường thử nghiệm với định hướng chi phí thấp, sử dụng công nghệ mã nguồn mở.
+Trong phạm vi đó, hệ thống cung cấp các chức năng chính gồm kết nối ví và xác thực người dùng theo vai trò, quản lý và mua các gói bảo hiểm thông qua ví, quản lý hợp đồng cùng việc gia hạn, hủy và theo dõi lịch sử, tạo và xử lý yêu cầu bồi thường qua các bước giám định, thẩm định và chi trả, lưu trữ hồ sơ và tài liệu ngoài chuỗi với định danh được neo trên Blockchain, cùng trợ lý AI hỏi đáp dựa trên tài liệu do quản trị viên cung cấp. Các nội dung chi tiết về thiết kế và giải pháp cho từng chức năng sẽ được trình bày trong các chương tiếp theo, đặc biệt là Chương 5.
+Định hướng giải pháp
+Để giải quyết các hạn chế đã nêu, đồ án lựa chọn hướng tiếp cận kết hợp ba nhóm công nghệ trong một hệ thống thống nhất. Nhóm thứ nhất là công nghệ chuỗi khối Ethereum cùng hợp đồng thông minh, được phát triển bằng ngôn ngữ Solidity và bộ công cụ Hardhat, đóng vai trò số hóa và minh bạch hóa nghiệp vụ. Nhóm thứ hai là cơ chế lưu trữ ngoài chuỗi IPFS, dùng để lưu các tài liệu dung lượng lớn với chi phí thấp. Nhóm thứ ba là trí tuệ nhân tạo theo mô hình Sinh có tăng cường truy xuất (RAG), xây dựng dựa trên thư viện LangChain, cơ sở dữ liệu vector Chroma và mô hình ngôn ngữ Gemini, phục vụ tư vấn thông tin cho người dùng.
+Trên cơ sở các định hướng đó, giải pháp của đồ án là một website phi tập trung, trong đó khách hàng, gara hoặc đơn vị giám định và công ty bảo hiểm cùng tương tác. Các nghiệp vụ quan trọng như mua bảo hiểm, quản lý hợp đồng và xử lý yêu cầu bồi thường được thực hiện qua hợp đồng thông minh; hồ sơ và tài liệu được lưu trên IPFS; trong khi trợ lý AI hỗ trợ người dùng tra cứu thông tin bảo hiểm ngay trên website.
+Mỗi định hướng được lựa chọn nhằm trực tiếp khắc phục các thách thức đã trình bày ở mục 1.1. Đối với hạn chế về minh bạch và truy vết, hệ thống lưu trạng thái hợp đồng và yêu cầu bồi thường trực tiếp trên chuỗi và phát sinh sự kiện cho mỗi thay đổi, tạo nên một dòng lịch sử công khai và có thể kiểm chứng. Đối với vấn đề gian lận, tính bất biến của chuỗi khối cùng việc neo định danh hồ sơ lưu trên IPFS giúp hình thành một nguồn dữ liệu dùng chung, khó làm giả và dễ phát hiện yêu cầu trùng lặp, kết hợp với cơ chế phân quyền theo vai trò. Đối với tốc độ và thủ tục xử lý, hợp đồng thông minh tự động hóa vòng đời hợp đồng và bồi thường, giảm bớt thao tác thủ công và khâu trung gian.
+Đối với hạn chế trong việc tra cứu thông tin, đồ án sử dụng mô hình RAG để sinh câu trả lời bám sát tập tài liệu do quản trị viên cung cấp. Cách tiếp cận này hạn chế hiện tượng đưa ra thông tin sai lệch của mô hình ngôn ngữ, qua đó nâng cao độ tin cậy của tư vấn trong một lĩnh vực đòi hỏi tính chính xác cao.
+Đóng góp chính của đồ án là kết hợp đồng thời ba nhóm công nghệ nêu trên trong một hệ thống quản lý bảo hiểm xe cơ giới thống nhất, điều mà các giải pháp hiện có thường chưa đáp ứng. Kết quả đạt được là một nguyên mẫu hoàn chỉnh hiện thực đầy đủ vòng đời hợp đồng và bồi thường cùng trợ lý AI tư vấn theo tài liệu, được triển khai và kiểm thử trên môi trường thử nghiệm, qua đó chứng minh tính khả thi của hướng tiếp cận.
+
+Bố cục đồ án
+Phần còn lại của báo cáo đồ án tốt nghiệp được tổ chức thành năm chương. Chương 2 trình bày kết quả khảo sát hiện trạng và phân tích yêu cầu của hệ thống, trong đó xác định các tác nhân, xây dựng biểu đồ use case, đặc tả các chức năng chính và làm rõ các yêu cầu phi chức năng. Chương 3 giới thiệu các công nghệ được sử dụng trong đồ án, bao gồm nền tảng Ethereum cùng hợp đồng thông minh, các công cụ phát triển ứng dụng web, cơ chế lưu trữ ngoài chuỗi với IPFS và các thành phần phục vụ xây dựng trợ lý trí tuệ nhân tạo theo mô hình RAG. Chương 4 trình bày quá trình phát triển và triển khai ứng dụng, đi từ thiết kế kiến trúc tổng thể và thiết kế chi tiết các thành phần đến việc xây dựng, kiểm thử và triển khai hệ thống. Chương 5 tập trung vào các giải pháp và đóng góp nổi bật của đồ án, đó là việc kết hợp quản lý hợp đồng bảo hiểm minh bạch trên Blockchain với trợ lý AI tư vấn dựa trên tài liệu nhằm nâng cao độ tin cậy và cải thiện trải nghiệm người dùng. Chương 6 đưa ra một số kết luận về kết quả đạt được và đề xuất các hướng phát triển trong tương lai.
+Khảo sát và phân tích yêu cầu
+Khảo sát hiện trạng
+Việc khảo sát hiện trạng được thực hiện trên ba nguồn thông tin chính: nhu cầu của người dùng, các hệ thống quản lý bảo hiểm đã có và các ứng dụng tương tự. Kết quả khảo sát là cơ sở để xác định những tính năng quan trọng mà hệ thống cần phát triển.
+Về nhu cầu người dùng, hệ thống phục vụ ba nhóm với các kỳ vọng khác nhau. Khách hàng mong muốn lựa chọn và mua gói bảo hiểm thuận tiện, theo dõi minh bạch tình trạng hợp đồng, gửi yêu cầu bồi thường dễ dàng và tra cứu nhanh các thông tin về quyền lợi cũng như điều khoản. Gara hoặc đơn vị giám định cần một quy trình rõ ràng để xác thực tổn thất và cập nhật kết quả đánh giá. Công ty bảo hiểm cần công cụ quản lý gói bảo hiểm, hợp đồng và yêu cầu bồi thường một cách minh bạch, đồng thời hạn chế gian lận và theo dõi được hoạt động của hệ thống.
+Về các hệ thống đã có, các doanh nghiệp bảo hiểm hiện cung cấp cổng thông tin và ứng dụng quản lý bảo hiểm tập trung. Các hệ thống này đã số hóa nhiều nghiệp vụ và mang lại sự thuận tiện, song toàn bộ dữ liệu do doanh nghiệp lưu trữ và kiểm soát. Người dùng vì vậy khó kiểm chứng độc lập tình trạng hợp đồng hay tiến độ xử lý, và bản thân hệ thống chưa giải quyết triệt để vấn đề minh bạch cũng như chống gian lận.
+Về các ứng dụng tương tự, có hai hướng đáng chú ý. Hướng thứ nhất là các nền tảng bảo hiểm ứng dụng Blockchain như Etherisc, tận dụng tính bất biến và khả năng truy vết để tăng minh bạch, nhưng phần lớn tập trung vào logic hợp đồng và bồi thường, ít hỗ trợ người dùng tra cứu thông tin và thường chưa bám sát quy định về bảo hiểm xe cơ giới tại Việt Nam. Hướng thứ hai là các chatbot tư vấn bảo hiểm, giúp tiếp cận thông tin nhanh nhưng dễ trả lời sai lệch do hoạt động theo kịch bản cứng hoặc theo mô hình ngôn ngữ tự do không dựa trên tài liệu cụ thể.
+Bảng 2.1 tổng hợp và so sánh các nhóm giải pháp hiện có với hệ thống đề xuất trên một số tiêu chí cốt lõi.
+Tiêu chí
+
+Hệ thống tập trung truyền thống
+Nền tảng bảo hiểm Blockchain hiện có
+Chatbot tư vấn bảo hiểm
+Hệ thống đề xuất
+Minh bạch & truy vết
+Thấp
+Cao 
+Không áp dụng
+Cao
+Chống gian lận
+Hạn chế
+Tốt
+Không áp dụng
+Tốt
+Tự động hóa nghiệp vụ
+Một phần
+Tốt
+Không
+Tốt
+Tư vấn thông tin cho người dung
+Hạn chế 
+Hầu như không
+Có nhưng dễ sai lệch
+Có , bám sát tài liệu
+Bám sát bảo hiểm xe cơ giới VN (NĐ 67/2023)
+Có
+Thường không
+Tùy
+Có
+Chi phí triển khai
+Trung bình - cao
+Cao
+Thấp
+Thấp
+
+Từ kết quả khảo sát, có thể thấy chưa có giải pháp nào đồng thời đáp ứng cả yêu cầu minh bạch nghiệp vụ và tư vấn tin cậy cho bài toán bảo hiểm xe cơ giới. Trên cơ sở đó, hệ thống cần phát triển các tính năng quan trọng gồm quản lý và mua gói bảo hiểm qua ví, quản lý hợp đồng cùng yêu cầu bồi thường một cách minh bạch và có thể truy vết, phân quyền cho ba nhóm tác nhân, lưu trữ hồ sơ ngoài chuỗi gắn với định danh trên Blockchain, và trợ lý AI hỏi đáp dựa trên tài liệu. Các tính năng này sẽ được phân tích chi tiết qua biểu đồ use case và phần đặc tả ở các mục tiếp theo.
+Tổng quan chức năng
+Dựa trên kết quả khảo sát ở mục 2.1, phần này mô tả các chức năng của hệ thống ở mức tổng quan thông qua biểu đồ use case, trong đó xác định các tác nhân và những trường hợp sử dụng chính. Phần đặc tả chi tiết cho từng use case quan trọng được trình bày ở mục 2.3.
+Biểu đồ use case tổng quan
+Hệ thống phục vụ ba tác nhân chính, mỗi tác nhân tương ứng với một nhóm vai trò và tập chức năng riêng. Hình 2.1 thể hiện quan hệ giữa ba tác nhân và các trường hợp sử dụng của hệ thống.
+
+                                             Hình  SEQ Hình \* ARABIC 1 Biểu đồ use case tổng quan
+
+Khách hàng là chủ phương tiện tham gia bảo hiểm. Sau khi kết nối ví và được xác thực theo vai trò, khách hàng có thể xem và mua các gói bảo hiểm bằng giao dịch qua ví, quản lý các hợp đồng của mình bao gồm gia hạn, hủy và xem lịch sử, tạo yêu cầu bồi thường kèm hồ sơ khi xảy ra sự cố và theo dõi tiến độ xử lý. Ngoài ra, khách hàng có thể đặt câu hỏi cho trợ lý AI để tra cứu thông tin về quyền lợi, điều khoản và thủ tục bảo hiểm.
+Gara hoặc đơn vị giám định là bên được công ty bảo hiểm ủy quyền tham gia khâu giám định. Tác nhân này tiếp nhận các yêu cầu bồi thường được chuyển đến, kiểm tra thực tế mức độ tổn thất và cập nhật kết quả giám định lên hệ thống, làm cơ sở cho bước thẩm định tiếp theo.
+Công ty bảo hiểm giữ vai trò quản trị hệ thống. Tác nhân này quản lý danh mục gói bảo hiểm, ủy quyền cho các gara tham gia giám định, thẩm định và quyết định phê duyệt hoặc từ chối yêu cầu bồi thường, thực hiện chi trả cho các yêu cầu hợp lệ, đồng thời quản lý kho tài liệu phục vụ trợ lý AI. Để bảo đảm an toàn vận hành, công ty bảo hiểm cũng có thể tạm dừng và khôi phục các nghiệp vụ quan trọng của hệ thống khi cần.
+Phân rã use case Xử lý yêu cầu bồi thường
+Trong các trường hợp sử dụng ở Hình 2.1, xử lý yêu cầu bồi thường là use case phức tạp nhất vì có sự tham gia của cả ba tác nhân và trải qua nhiều bước. Do đó, use case này được phân rã chi tiết hơn thành các use case con.
+
+Hình  SEQ Hình \* ARABIC 2 Biểu đồ phân rã use case Xử lý yêu cầu bồi thường
+
+Khách hàng thực hiện Tạo yêu cầu bồi thường và Theo dõi trạng thái yêu cầu. Gara hoặc đơn vị giám định thực hiện Cập nhật kết quả giám định và Yêu cầu bổ sung hồ sơ khi hồ sơ chưa đầy đủ. Công ty bảo hiểm thực hiện Thẩm định hồ sơ, Phê duyệt hoặc Từ chối yêu cầu, và Chi trả bồi thường cho các yêu cầu hợp lệ. Các use case con này hợp thành toàn bộ quy trình xử lý một yêu cầu bồi thường.
+Quy trình nghiệp vụ
+Hệ thống có một quy trình nghiệp vụ xuyên suốt, kết hợp nhiều trường hợp sử dụng của các tác nhân khác nhau, đó là vòng đời từ khi tham gia bảo hiểm đến khi được bồi thường. [chèn Hình 2.3 — Biểu đồ hoạt động quy trình bồi thường] mô tả quy trình này.
+Quy trình bắt đầu khi khách hàng lựa chọn và mua một gói bảo hiểm phù hợp với phương tiện của mình, hình thành một hợp đồng được ghi nhận trên hệ thống. Khi xảy ra sự cố, khách hàng tạo yêu cầu bồi thường kèm hồ sơ. Gara hoặc đơn vị giám định tiếp nhận, kiểm tra tổn thất và cập nhật kết quả; nếu hồ sơ chưa đầy đủ, yêu cầu được trả lại để khách hàng bổ sung. Sau khi giám định hoàn tất, công ty bảo hiểm thẩm định hồ sơ và quyết định phê duyệt hoặc từ chối; với các yêu cầu được phê duyệt, hệ thống thực hiện chi trả và khép lại quy trình. Toàn bộ các bước đều được ghi nhận, cho phép các bên theo dõi và kiểm chứng.
+Đặc tả chức năng
+Sinh viên lựa chọn từ 4 đến 7 use case quan trọng nhất của đồ án để đặc tả chi tiết. Mỗi đặc tả bao gồm ít nhất các thông tin sau: (i) Tên use case, (ii) Luồng sự kiện (chính và phát sinh), (iii) Tiền điều kiện, và (iv) Hậu điều kiện. Sinh viên chỉ vẽ bổ sung biểu đồ hoạt động khi đặc tả use case phức tạp.
+Đặc tả use case A
+Đặc tả use case B
+Yêu cầu phi chức năng
+Trong phần này, sinh viên đưa ra các yêu cầu khác nếu có, bao gồm các yêu cầu phi chức năng như hiệu năng, độ tin cậy, tính dễ dùng, tính dễ bảo trì, hoặc các yêu cầu về mặt kỹ thuật như về CSDL, công nghệ sử dụng, v.v.
+Công nghệ sử dụng 
+Tổng quan:
+Chương này trình bày các công nghệ được sử dụng trong đồ án, tổ chức thành bốn nhóm tương ứng với kiến trúc hệ thống: nền tảng Blockchain và hợp đồng thông minh, cơ chế lưu trữ phi tập trung, công nghệ phát triển ứng dụng web cùng kết nối ví, và công nghệ xây dựng trợ lý trí tuệ nhân tạo theo mô hình RAG. Với mỗi công nghệ, chương phân tích vai trò trong việc đáp ứng các yêu cầu đã nêu ở Chương 2 và lý do lựa chọn so với các phương án thay thế.
+Nền tảng Blockchain Ethereum và hợp đồng thông minh
+Ethereum và máy ảo EVM
+Ethereum là nền tảng chuỗi khối mã nguồn mở hỗ trợ hợp đồng thông minh, được lựa chọn làm hạ tầng cho hệ thống. Mọi hợp đồng được thực thi trên máy ảo Ethereum (EVM), một môi trường cô lập chạy đồng nhất trên các nút của mạng, trong khi cơ chế Gas giới hạn tài nguyên tính toán cho mỗi giao dịch. Nhờ tính phi tập trung, bất biến và khả năng truy vết, Ethereum trực tiếp đáp ứng các yêu cầu về minh bạch, chống gian lận và tự động hóa nghiệp vụ đã xác định ở Chương 2. So với Hyperledger Fabric là chuỗi riêng phù hợp với doanh nghiệp nhưng cấu hình và vận hành phức tạp, hoặc các chuỗi tương thích EVM như Polygon và BNB Chain, Ethereum cùng mạng thử nghiệm cục bộ cho phép phát triển và kiểm thử miễn phí với hệ sinh thái công cụ trưởng thành, phù hợp với định hướng chi phí thấp ở quy mô đồ án [5].
+Solidity và Hardhat
+Hợp đồng thông minh của hệ thống được viết bằng Solidity, ngôn ngữ kiểu tĩnh được biên dịch thành bytecode chạy trên EVM. Solidity là ngôn ngữ phổ biến nhất cho hợp đồng thông minh trên Ethereum, có tài liệu phong phú và được hỗ trợ tốt bởi các thư viện chuẩn; so với Vyper, Solidity có cộng đồng và hệ sinh thái lớn hơn nên thuận lợi cho phát triển và bảo trì [6]. Quá trình phát triển sử dụng bộ công cụ Hardhat, hỗ trợ biên dịch, kiểm thử, gỡ lỗi và cung cấp một mạng Ethereum cục bộ kèm các tài khoản thử nghiệm. So với Truffle và Foundry, Hardhat dựa trên JavaScript nên đồng bộ với phần còn lại của hệ thống và thuận tiện khi tích hợp, đồng thời mạng cục bộ cho phép kiểm thử toàn bộ nghiệp vụ mà không phát sinh chi phí giao dịch [7].
+Thư viện OpenZeppelin
+Để bảo đảm an toàn cho hợp đồng thông minh, hệ thống kế thừa các thành phần đã được kiểm toán của thư viện OpenZeppelin thay vì tự hiện thực. Cụ thể, Ownable phục vụ quản lý quyền sở hữu và giới hạn các thao tác quản trị, Pausable cho phép tạm dừng và khôi phục hoạt động của hệ thống khi cần, còn ReentrancyGuard ngăn chặn tấn công gọi lại trong các hàm liên quan đến chuyển tiền. Việc sử dụng thư viện chuẩn đã được cộng đồng kiểm chứng giúp giảm rủi ro lỗ hổng bảo mật, qua đó đáp ứng yêu cầu phi chức năng về an toàn của hệ thống [8].
+Lưu trữ phi tập trung IPFS
+Hệ thống cần lưu trữ các tài liệu dung lượng lớn như ảnh hiện trường tai nạn, giấy tờ xe, biên bản giám định và file hợp đồng. Việc lưu trực tiếp các dữ liệu này trên chuỗi là không khả thi vì mỗi byte đều tiêu tốn Gas và được nhân bản trên toàn bộ các nút. Do đó, đồ án sử dụng IPFS (InterPlanetary File System) làm cơ chế lưu trữ ngoài chuỗi. IPFS là giao thức lưu trữ phân tán định địa chỉ theo nội dung, trong đó mỗi tệp được truy cập thông qua một định danh nội dung (CID) sinh ra từ chính nội dung của tệp.
+Trong hệ thống, các tệp được lưu trên IPFS, còn định danh CID tương ứng được ghi vào hợp đồng thông minh. Cách tổ chức này vừa giảm chi phí lưu trữ trên chuỗi, vừa bảo đảm tính toàn vẹn: do CID phụ thuộc vào nội dung, bất kỳ thay đổi nào trên tệp gốc cũng làm CID thay đổi và lập tức bị phát hiện khi đối chiếu với giá trị đã neo bất biến trên Blockchain. Để dữ liệu luôn sẵn sàng, hệ thống sử dụng dịch vụ ghim (pinning) như Pinata nhằm duy trì các tệp trên mạng IPFS.
+So với các phương án thay thế, dịch vụ lưu trữ tập trung như Amazon S3 có chi phí và độ trễ thấp nhưng dữ liệu do một bên kiểm soát và có thể bị chỉnh sửa, đi ngược định hướng phi tập trung của đồ án; trong khi các giải pháp lưu trữ vĩnh viễn như Filecoin hay Arweave phức tạp và tốn kém hơn. IPFS được lựa chọn vì kết hợp được khả năng bảo đảm toàn vẹn theo nội dung, tính mở và chi phí thấp, phù hợp với mô hình neo định danh trên chuỗi của hệ thống [9][10].
+Công nghệ phát triển ứng dụng web và kết nối ví
+Next.js và React
+Giao diện người dùng của hệ thống được xây dựng bằng Next.js, một framework dựa trên thư viện React. React tổ chức giao diện theo các thành phần (component) có thể tái sử dụng, còn Next.js bổ sung khả năng định tuyến, kết xuất và tối ưu hiệu năng cho ứng dụng web. Nhờ đó, hệ thống xây dựng được giao diện riêng cho ba nhóm tác nhân là khách hàng, gara hoặc đơn vị giám định và công ty bảo hiểm, đáp ứng yêu cầu về phân quyền và trải nghiệm người dùng đã nêu ở Chương 2. Giao diện được hỗ trợ thêm bởi TailwindCSS cho việc định kiểu, thư viện i18next cho đa ngôn ngữ và Recharts cho hiển thị thống kê. So với các framework khác như Angular hay Vue, React và Next.js có hệ sinh thái lớn và đặc biệt được hỗ trợ tốt bởi các thư viện kết nối Blockchain, nên thuận lợi cho việc tích hợp với phần chuỗi khối [11][12].
+Thư viện kết nối Blockchain và ví MetaMask
+Để giao diện web tương tác được với hợp đồng thông minh, hệ thống sử dụng thư viện ethers.js cùng wagmi và RainbowKit. Ethers.js cung cấp các hàm gọi và đọc dữ liệu từ hợp đồng, wagmi đóng gói các thao tác này thành các hook tiện dụng cho React, còn RainbowKit cung cấp giao diện kết nối ví trực quan. Người dùng kết nối thông qua ví MetaMask, một tiện ích trình duyệt quản lý khóa và ký các giao dịch. Ví không chỉ dùng để ký các giao dịch nghiệp vụ như mua bảo hiểm hay gửi yêu cầu bồi thường, mà còn dùng để xác thực danh tính theo vai trò thông qua chữ ký, thay cho cơ chế tên đăng nhập và mật khẩu. So với thư viện web3.js xuất hiện sớm hơn, ethers.js cùng wagmi có thiết kế hiện đại, gọn nhẹ và tích hợp tự nhiên với React; trong khi MetaMask là ví trình duyệt phổ biến nhất, phù hợp cho cả phát triển lẫn thử nghiệm [13][14].
+Công nghệ xây dựng trợ lý AI theo mô hình RAG
+Kiến trúc dịch vụ AI với FastAPI
+Mô-đun trợ lý AI được triển khai như một dịch vụ độc lập bằng FastAPI, một framework web cho Python. Dịch vụ cung cấp các API phục vụ hỏi đáp, quản lý tài liệu và xác thực, tách biệt với phần giao diện web nhằm dễ phát triển, bảo trì và mở rộng riêng cho thành phần AI. Quyền quản trị tài liệu được bảo vệ bằng cơ chế xác thực dựa trên chữ ký ví, theo đó chỉ ví quản trị mới đăng nhập được, và dịch vụ áp dụng giới hạn tần suất truy cập để tránh quá tải. So với Flask hay Django, FastAPI hỗ trợ xử lý bất đồng bộ, có hiệu năng cao và tự sinh tài liệu API, đồng thời nằm trong hệ sinh thái Python thuận lợi cho các thư viện trí tuệ nhân tạo [15].
+Xử lý tài liệu và sinh embedding
+Để xây dựng kho tri thức cho trợ lý, các tài liệu bảo hiểm do quản trị viên cung cấp được xử lý qua nhiều bước. Trước hết, nội dung văn bản được trích xuất từ tệp PDF bằng thư viện pdfplumber và từ tệp Word bằng python-docx. Sau đó, văn bản được chia thành các đoạn nhỏ có phần chồng lấp nhằm giữ ngữ cảnh tại ranh giới cắt. Mỗi đoạn được chuyển thành một vector ngữ nghĩa bằng mô hình gemini-embedding-001, với toàn bộ quy trình được điều phối qua thư viện LangChain. Cách tiếp cận này biến tài liệu thành dạng có thể tìm kiếm theo ngữ nghĩa, phục vụ cho việc truy xuất ở bước sau [16][17].
+Cơ sở dữ liệu vector ChromaDB
+Các vector embedding được lưu trữ trong ChromaDB, một cơ sở dữ liệu vector dạng nhúng. Khi người dùng đặt câu hỏi, câu hỏi cũng được chuyển thành vector và ChromaDB thực hiện tìm kiếm tương đồng để trả về các đoạn tài liệu liên quan nhất. So với các giải pháp như Pinecone vốn là dịch vụ đám mây tính phí, hay FAISS là thư viện thuần túy không quản lý lưu trữ, ChromaDB là mã nguồn mở, chạy nhúng ngay trong dịch vụ và lưu dữ liệu cục bộ, nên dễ tích hợp và phù hợp với quy mô chi phí thấp của đồ án [18].
+Mô hình ngôn ngữ Gemini và pipeline RAG
+Thành phần sinh câu trả lời sử dụng mô hình ngôn ngữ Gemini, cụ thể là gemini-2.5-flash. Pipeline RAG hoạt động theo trình tự: tạo embedding cho câu hỏi, truy xuất các đoạn tài liệu liên quan nhất từ ChromaDB, ghép các đoạn này vào lời nhắc làm ngữ cảnh, rồi để mô hình sinh câu trả lời dựa trên ngữ cảnh đó. Một lời nhắc hệ thống được thiết kế nghiêm ngặt buộc mô hình chỉ trả lời dựa trên tài liệu được cung cấp và từ chối khi không tìm thấy thông tin, kết hợp với tham số nhiệt độ thấp để tăng tính ổn định, nhờ đó hạn chế hiện tượng đưa ra thông tin sai lệch. So với việc tinh chỉnh lại mô hình vốn tốn chi phí huấn luyện và khó cập nhật, mô hình RAG cho phép cập nhật tri thức chỉ bằng cách thay đổi tài liệu và bảo đảm câu trả lời bám sát nguồn; mô hình Gemini được lựa chọn nhờ có gói sử dụng miễn phí ở mức thử nghiệm và hỗ trợ tốt tiếng Việt [17][19].
+
+Kết chương
+Chương này đã trình bày các công nghệ được sử dụng trong đồ án theo bốn nhóm tương ứng với kiến trúc hệ thống. Nền tảng Ethereum cùng Solidity, Hardhat và OpenZeppelin cung cấp hạ tầng hợp đồng thông minh minh bạch và an toàn; IPFS đảm nhận lưu trữ tài liệu ngoài chuỗi với khả năng bảo đảm toàn vẹn; Next.js cùng các thư viện kết nối Blockchain và ví MetaMask tạo nên giao diện và cầu nối với chuỗi khối; còn FastAPI, LangChain, ChromaDB và mô hình Gemini hình thành trợ lý AI theo mô hình RAG. Với mỗi công nghệ, chương đã làm rõ vai trò trong việc đáp ứng yêu cầu ở Chương 2 và lý do lựa chọn so với các phương án thay thế.
+Các công nghệ này đều là mã nguồn mở hoặc có gói sử dụng miễn phí, phù hợp với định hướng triển khai chi phí thấp ở quy mô đồ án, đồng thời nhất quán với định hướng giải pháp đã nêu ở mục 1.3. Trên cơ sở các công nghệ đã lựa chọn, Chương 4 trình bày quá trình thiết kế, xây dựng, kiểm thử và triển khai hệ thống.
+Phát triển và triển khai ứng dụng
+Thiết kế kiến trúc
+Lựa chọn kiến trúc phần mềm
+Mục này có độ dài từ một đến ba trang. Sinh viên cần lựa chọn kiến trúc phần mềm cho ứng dụng của mình như: kiến trúc ba lớp MVC, MVP, SOA, Microservice, v.v. rồi giải thích sơ bộ về kiến trúc đó (không giải thích chi tiết/dài dòng).
+Sử dụng kiến trúc phần mềm đã chọn ở trên, sinh viên mô tả kiến trúc cụ thể cho ứng dụng của mình. Gợi ý: sinh viên áp dụng lý thuyết chung vào hệ thống/sản phẩm của mình như thế nào, có thay đổi, bổ sung hoặc cải tiến gì không. Ví dụ, thành phần M trong kiến trúc lý thuyết MVC sẽ là những thành phần cụ thể nào (ví dụ: là interface I + class C1 + class C2, v.v.) trong kiến trúc phần mềm của sinh viên.
+Thiết kế tổng quan
+Sinh viên vẽ biểu đồ gói UML (UML package diagram), nêu rõ sự phụ thuộc giữa các gói (package). SV cần vẽ các gói sao cho chúng được phân theo các tầng rõ ràng, không được sắp đặt package lộn xộn trong hình vẽ. Sinh viên chú ý các quy tắc thiết kế (Các gói không phụ thuộc lẫn nhau, gói tầng dưới không phụ thuộc gói tầng trên, không phụ thuộc bỏ qua tầng, v.v.) và cần giải thích sơ lược về mục đích/nhiệm vụ của từng package. SV tham khảo ví dụ minh họa trong Hình 1.
+
+Hình 1 Ví dụ biểu đồ phụ thuộc gói
+Thiết kế chi tiết gói
+Sinh viên thiết kế và lần lượt vẽ biểu đồ thiết kế cho từng package, hoặc một nhóm các package liên quan để giải quyết một vấn đề gì đó. Khi vẽ thiết kế gói, sinh viên chỉ cần đưa tên lớp, không cần chỉ ra các thành viên phương thức và thuộc tính. SV tham khảo ví dụ minh họa trong Hình 2.
+Sinh viên cần vẽ rõ ràng quan hệ giữa các lớp trong biểu đồ. Các quan hệ bao gồm: phụ thuộc (dependency), kết hợp (association), kết tập (aggregation), hợp thành (composition), kế thừa (inheritance), và thực thi (implementation). Các quan hệ này đều đã được minh họa trong Hình 2.
+Sau khi vẽ hình minh họa, sinh viên cần giải thích ngắn gọn về thiết kế của mình. 
+
+Hình 2 Ví dụ thiết kế gói
+Thiết kế chi tiết
+Thiết kế giao diện
+Phần này có độ dài từ hai đến ba trang. Sinh viên đặc tả thông tin về màn hình mà ứng dụng của mình hướng tới, bao gồm độ phân giải màn hình, kích thước màn hình, số lượng màu sắc hỗ trợ, v.v. Tiếp đến, sinh viên đưa ra các thống nhất/chuẩn hóa của mình khi thiết kế giao diện như thiết kế nút, điều khiển, vị trí hiển thị thông điệp phản hồi, phối màu, v.v. Sau cùng sinh viên đưa ra một số hình ảnh minh họa thiết kế giao diện cho các chức năng quan trọng nhất. Lưu ý, sinh viên không nhầm lẫn giao diện thiết kế với giao diện của sản phẩm sau cùng.
+Thiết kế lớp
+Phần này có độ dài từ ba đến bốn trang. Sinh viên trình bày thiết kế chi tiết các thuộc tính và phương thức cho một số lớp chủ đạo/quan trọng nhất của ứng dụng (từ 2-4 lớp). Thiết kế chi tiết cho các lớp khác, nếu muốn trình bày, sinh viên đưa vào phần phụ lục.
+Để minh họa thiết kế lớp, sinh viên thiết kế luồng truyền thông điệp giữa các đối tượng tham gia cho 2 đến 3 use case quan trọng nào đó bằng biểu đồ trình tự (hoặc biểu đồ giao tiếp).
+Thiết kế cơ sở dữ liệu
+Phần này có độ dài từ hai đến bốn trang. Sinh viên thiết kế, vẽ và giải thích biểu đồ thực thể liên kết (E-R diagram). Từ đó, sinh viên thiết kế cơ sở dữ liệu tùy theo hệ quản trị cơ sở dữ liệu mà mình sử dụng (SQL, NoSQL, Firebase, v.v.)
+Xây dựng ứng dụng
+Thư viện và công cụ sử dụng
+Sinh viên liệt kê các công cụ, ngôn ngữ lập trình, API, thư viện, IDE, công cụ kiểm thử, v.v. mà mình sử dụng để phát triển ứng dụng. Mỗi công cụ phải được chỉ rõ phiên bản sử dụng. SV nên kẻ bảng mô tả tương tự như Bảng 1. Nếu có nhiều nội dung trình bày, sinh viên cần xoay ngang bảng.
+Bảng 1 Danh sách thư viện và công cụ sử dụng
+Mục đích
+Công cụ
+Địa chỉ URL
+IDE lập trình
+Eclipse Oxygen 64 bit
+http://www.eclipse.org/
+v.v.
+v.v.
+v.v.
+Kết quả đạt được
+Sinh viên trước tiên mô tả kết quả đạt được của mình là gì, ví dụ như các sản phẩm được đóng gói là gì, bao gồm những thành phần nào, ý nghĩa, vai trò?
+Sinh viên cần thống kê các thông tin về ứng dụng của mình như: số dòng code, số lớp, số gói, dung lượng toàn bộ mã nguồn, dung lượng của từng sản phẩm đóng gói, v.v. Tương tự như phần liệt kê về công cụ sử dụng, sinh viên cũng nên dùng bảng để mô tả phần thông tin thống kê này.
+Minh hoạ các chức năng chính
+Sinh viên lựa chọn và đưa ra màn hình cho các chức năng chính, quan trọng, và thú vị nhất. Mỗi giao diện cần phải có lời giải thích ngắn gọn. Khi giải thích, sinh viên có thể kết hợp với các chú thích ở trong hình ảnh giao diện.
+Kiểm thử
+Phần này có độ dài từ hai đến ba trang. Sinh viên thiết kế các trường hợp kiểm thử cho hai đến ba chức năng quan trọng nhất. Sinh viên cần chỉ rõ các kỹ thuật kiểm thử đã sử dụng. Chi tiết các trường hợp kiểm thử khác, nếu muốn trình bày, sinh viên đưa vào phần phụ lục.
+Sinh viên sau cùng tổng kết về số lượng các trường hợp kiểm thử và kết quả kiểm thử. Sinh viên cần phân tích lý do nếu kết quả kiểm thử không đạt.
+Triển khai
+Sinh viên trình bày mô hình và/hoặc cách thức triển khai thử nghiệm/thực tế. Ứng dụng của sinh viên được triển khai trên server/thiết bị gì, cấu hình như thế nào. Kết quả triển khai thử nghiệm nếu có (số lượng người dùng, số lượng truy cập, thời gian phản hồi, phản hồi người dùng, khả năng chịu tải, các thống kê, v.v.)
+Các giải pháp và đóng góp nổi bật
+Tổng quan
+Chương 4 đã trình bày quá trình thiết kế, xây dựng và triển khai hệ thống. Trên cơ sở đó, chương này đi sâu vào những giải pháp và đóng góp nổi bật nhất của đồ án. Năm đóng góp được trình bày lần lượt: mô hình hóa quy trình bồi thường bằng máy trạng thái trên hợp đồng thông minh, thiết kế phân quyền và bảo mật cho hợp đồng, cơ chế tính phí và mức bồi thường tự động, mô hình lưu trữ kết hợp on-chain/off-chain, và trợ lý AI tư vấn tin cậy theo mô hình RAG. Mỗi đóng góp được trình bày theo trình tự từ vấn đề đặt ra, giải pháp đề xuất đến kết quả đạt được.
+Mô hình hóa quy trình bồi thường bằng máy trạng thái trên hợp đồng thông minh
+Thách thức trong quy trình bồi thường nhiều bên
+Bồi thường là nghiệp vụ phức tạp nhất trong bảo hiểm xe cơ giới. Một yêu cầu bồi thường có sự tham gia của ba bên và trải qua nhiều bước: khách hàng khởi tạo yêu cầu kèm hồ sơ khi xảy ra sự cố; gara hoặc đơn vị giám định kiểm tra và xác thực mức độ tổn thất thực tế; còn công ty bảo hiểm thẩm định hồ sơ và quyết định chi trả. Trong mô hình truyền thống, các bước này được xử lý thủ công và dữ liệu nằm rải rác ở nhiều nơi, dẫn đến quy trình thiếu minh bạch, khó truy vết và tiềm ẩn tranh chấp về trạng thái của hồ sơ. Bài toán đặt ra là mô hình hóa quy trình nhiều bên này sao cho rõ ràng, có kiểm soát chặt chẽ về thẩm quyền và có thể kiểm chứng được ở mọi thời điểm.
+Mô hình máy trạng thái và phân vai xử lý trên hợp đồng thông minh
+Đồ án mô hình hóa quy trình bồi thường thành một máy trạng thái được hiện thực trực tiếp trong hợp đồng thông minh. Mỗi yêu cầu bồi thường mang một trạng thái phản ánh đúng giai đoạn xử lý hiện tại, và chỉ có thể chuyển sang trạng thái kế tiếp theo các bước hợp lệ đã định nghĩa trước. Khi khách hàng khởi tạo, yêu cầu ở trạng thái chờ xử lý. Gara hoặc đơn vị giám định tiếp nhận và chuyển yêu cầu sang trạng thái đang giám định; trong trường hợp hồ sơ chưa đầy đủ, yêu cầu được chuyển sang trạng thái chờ bổ sung hồ sơ. Sau khi giám định xong, yêu cầu chuyển sang trạng thái chờ thẩm định để công ty bảo hiểm xử lý. Cuối cùng, công ty bảo hiểm phê duyệt hoặc từ chối, và nếu được phê duyệt thì yêu cầu chuyển sang trạng thái đã chi trả sau khi hoàn tất thanh toán.
+Điểm cốt lõi của giải pháp là gắn mỗi bước chuyển trạng thái với đúng vai trò có thẩm quyền. Hợp đồng thông minh kiểm tra vai trò của người gọi trước khi cho phép chuyển trạng thái, nhờ đó khách hàng chỉ có thể tạo yêu cầu, gara hoặc đơn vị giám định chỉ cập nhật kết quả xác thực, còn việc phê duyệt và chi trả thuộc về công ty bảo hiểm. Mỗi lần chuyển trạng thái đều phát sinh một sự kiện được ghi lại trên chuỗi, tạo thành nhật ký xử lý đầy đủ cho từng hồ sơ.
+
+Quy trình minh bạch và có thể truy vết
+Cách tiếp cận này biến quy trình bồi thường vốn rời rạc thành một luồng xử lý chặt chẽ và minh bạch. Toàn bộ vòng đời của một yêu cầu được ghi nhận trên chuỗi và không thể chối bỏ, mỗi bên chỉ thực hiện được đúng thao tác thuộc thẩm quyền của mình, và mọi bên liên quan đều có thể kiểm chứng trạng thái hồ sơ tại bất kỳ thời điểm nào. Nhờ đó, quy trình vừa bám sát thực tế nghiệp vụ bảo hiểm xe cơ giới, vừa hạn chế tranh chấp và rủi ro gian lận liên quan đến việc thay đổi trạng thái hồ sơ.
+Thiết kế phân quyền đa vai trò và bảo mật cho hợp đồng thông minh
+Yêu cầu kiểm soát thẩm quyền và an toàn cho hợp đồng
+Hệ thống quản lý bảo hiểm có nhiều thao tác nhạy cảm, từ tạo và cập nhật gói bảo hiểm, phê duyệt yêu cầu bồi thường, đến chi trả tiền và quản lý quỹ của hợp đồng. Mỗi thao tác chỉ được phép thực hiện bởi một số vai trò nhất định: chủ hợp đồng, gara hoặc đơn vị giám định được ủy quyền, và công ty bảo hiểm với vai trò quản trị. Đồng thời, do hợp đồng thông minh trực tiếp nắm giữ và chuyển tiền, nó trở thành mục tiêu của nhiều dạng tấn công và lỗi lập trình có thể gây thiệt hại tài chính. Bài toán đặt ra là thiết kế một cơ chế phân quyền chặt chẽ cho nhiều vai trò, đồng thời bảo vệ hợp đồng trước các rủi ro bảo mật phổ biến và cho phép can thiệp kịp thời khi phát sinh sự cố.
+Phân quyền theo vai trò kết hợp thư viện bảo mật đã kiểm toán
+Đồ án thiết kế cơ chế phân quyền theo vai trò ngay trong hợp đồng thông minh. Hệ thống phân biệt ba nhóm quyền chính: quản trị viên là chủ sở hữu hợp đồng, có quyền tạo và cập nhật gói bảo hiểm, ủy quyền cho gara, phê duyệt và chi trả bồi thường; gara hoặc đơn vị giám định được ủy quyền, chỉ có quyền cập nhật kết quả giám định cho các yêu cầu bồi thường; và chủ hợp đồng, chỉ thao tác trên các hợp đồng và yêu cầu của chính mình. Việc kiểm soát được hiện thực bằng các bộ điều kiện (modifier) gắn vào từng hàm, kiểm tra vai trò và quyền sở hữu của người gọi trước khi cho phép thực thi. Danh sách gara được ủy quyền do quản trị viên quản lý tường minh, bảo đảm chỉ những đơn vị hợp lệ mới tham gia được vào quy trình giám định.
+Để bảo vệ hợp đồng trước các rủi ro bảo mật, đồ án kế thừa các thành phần đã được kiểm toán của thư viện OpenZeppelin thay vì tự hiện thực. Thành phần Ownable quản lý quyền sở hữu và giới hạn các thao tác quản trị cho duy nhất chủ sở hữu. Thành phần ReentrancyGuard được áp dụng cho các hàm liên quan đến chuyển tiền như chi trả bồi thường và rút quỹ, ngăn chặn tấn công gọi lại vốn là một trong những lỗ hổng nguy hiểm nhất của hợp đồng thông minh. Thành phần Pausable đóng vai trò như một công tắc khẩn cấp, cho phép quản trị viên tạm dừng các nghiệp vụ quan trọng khi phát hiện sự cố và khôi phục lại khi đã xử lý xong.
+Giảm rủi ro bảo mật và bảo vệ luồng nghiệp vụ
+Nhờ thiết kế này, mỗi vai trò trong hệ thống chỉ thực hiện được đúng những thao tác thuộc thẩm quyền, loại bỏ khả năng một bên can thiệp trái phép vào nghiệp vụ của bên khác. Việc sử dụng thư viện đã được kiểm chứng giúp giảm đáng kể bề mặt tấn công và rủi ro lỗ hổng, trong khi cơ chế tạm dừng khẩn cấp tăng khả năng kiểm soát khi vận hành. Tổng thể, hợp đồng thông minh vừa bảo đảm an toàn cho luồng tiền và dữ liệu nghiệp vụ, vừa đáp ứng yêu cầu phi chức năng về bảo mật của hệ thống.
+Cơ chế tính phí và mức bồi thường tự động theo loại xe và loại bảo hiểm
+Sự phụ thuộc của phí và mức bồi thường vào loại xe và loại bảo hiểm
+Mức phí và mức bồi thường trong bảo hiểm xe cơ giới không cố định mà phụ thuộc vào nhiều yếu tố, đặc biệt là loại phương tiện và loại hình bảo hiểm. Một chiếc xe tải có mức rủi ro và mức phí khác với một chiếc xe máy, trong khi bảo hiểm vật chất xe lại được tính khác với bảo hiểm trách nhiệm dân sự bắt buộc. Trong cách làm thủ công, việc tính phí và xác định mức chi trả dễ thiếu nhất quán, khó kiểm chứng và làm giảm niềm tin của người mua. Bài toán đặt ra là xây dựng một cơ chế tính phí và mức bồi thường tự động, nhất quán và minh bạch theo từng loại xe và loại bảo hiểm.
+Hàm tính phí và mức bồi thường xác định trên chuỗi
+Đồ án hiện thực các quy tắc tính phí trực tiếp trong hợp đồng thông minh dưới dạng các hàm xác định, nhận đầu vào là loại phương tiện, loại bảo hiểm, hình thức đóng phí và giá trị xe. Hệ thống phân biệt bốn nhóm phương tiện là xe máy, ô tô con, ô tô kinh doanh và xe tải, cùng bốn loại hình bảo hiểm gồm trách nhiệm dân sự bắt buộc, vật chất xe, tai nạn người ngồi trên xe và tai nạn lái xe. Phí bảo hiểm trách nhiệm dân sự bắt buộc được quy định theo từng nhóm phương tiện phản ánh mức rủi ro tương ứng, trong đó xe máy chịu mức thấp nhất và xe tải chịu mức cao nhất. Bảo hiểm vật chất xe được tính theo một tỷ lệ phần trăm trên giá trị xe cho mỗi năm, còn các loại hình tai nạn áp dụng mức cố định. Hệ thống cũng hỗ trợ hai hình thức đóng phí là đóng một lần và đóng theo tháng.
+Tương tự, mức bồi thường được tính tự động theo loại hình bảo hiểm. Đối với trách nhiệm dân sự bắt buộc, mức chi trả tuân theo giới hạn trách nhiệm quy định trong Nghị định 67/2023; đối với bảo hiểm vật chất xe, mức bồi thường được giới hạn theo giá trị xe được bảo hiểm. Toàn bộ quá trình tính toán diễn ra trên chuỗi nên kết quả là xác định và công khai: với cùng một đầu vào, hệ thống luôn cho ra cùng một mức phí và mức bồi thường.
+Kết quả tính toán nhất quán và minh bạch
+Nhờ cơ chế này, việc tính phí và xác định mức bồi thường trở nên tự động, nhất quán và minh bạch. Người mua có thể biết trước và kiểm chứng mức phí cũng như mức chi trả tương ứng với phương tiện và gói bảo hiểm của mình, thay vì phụ thuộc vào tính toán thủ công của bên bán. Cách tiếp cận này giảm sai sót, hạn chế tranh chấp về số tiền và tăng tính minh bạch cho toàn bộ nghiệp vụ.
+Bảo đảm toàn vẹn hồ sơ bằng mô hình lưu trữ kết hợp on-chain/off-chain
+Mâu thuẫn giữa chi phí lưu trữ và yêu cầu toàn vẹn dữ liệu
+Hệ thống quản lý nhiều loại hồ sơ và tài liệu có dung lượng lớn, bao gồm ảnh hiện trường tai nạn, giấy tờ xe, biên bản giám định, báo giá sửa chữa, hóa đơn và file hợp đồng. Những dữ liệu này cần được lưu trữ sao cho không thể bị chỉnh sửa nhằm phục vụ mục tiêu chống gian lận và bảo đảm khả năng kiểm chứng. Tuy nhiên, việc lưu trực tiếp các tài liệu này trên Blockchain là không khả thi, bởi mỗi byte dữ liệu đều tiêu tốn chi phí và được nhân bản trên toàn bộ các nút của mạng. Ngược lại, nếu lưu trên một máy chủ tập trung thông thường, dữ liệu lại có thể bị chỉnh sửa và mất đi tính bất biến mà Blockchain mang lại. Mâu thuẫn giữa chi phí lưu trữ và yêu cầu về tính toàn vẹn đặt ra nhu cầu về một mô hình vừa tiết kiệm, vừa bảo đảm dữ liệu không thể bị thay đổi mà không bị phát hiện.
+Lưu trữ ngoài chuỗi bằng IPFS và neo định danh trên chuỗi
+Đồ án giải quyết mâu thuẫn trên bằng mô hình lưu trữ kết hợp giữa on-chain và off-chain. Các tài liệu dung lượng lớn được lưu trên IPFS, một hệ thống lưu trữ phân tán định địa chỉ theo nội dung, trong đó mỗi tệp được gắn với một định danh nội dung (CID) sinh ra từ chính nội dung của tệp. Thay vì lưu toàn bộ tệp trên Blockchain, hệ thống chỉ ghi CID tương ứng vào hợp đồng thông minh, gắn với hồ sơ hợp đồng hoặc yêu cầu bồi thường liên quan. Do CID có kích thước nhỏ, việc lưu nó trên chuỗi gần như không phát sinh chi phí đáng kể, trong khi vẫn tạo ra một liên kết bền vững giữa dữ liệu trên chuỗi và tệp ngoài chuỗi. Để bảo đảm các tệp luôn sẵn sàng truy cập, hệ thống sử dụng dịch vụ ghim nhằm duy trì chúng trên mạng IPFS.
+Phát hiện chỉnh sửa và tối ưu chi phí lưu trữ
+Mô hình này mang lại hai giá trị quan trọng. Thứ nhất, do CID phụ thuộc hoàn toàn vào nội dung tệp, bất kỳ thay đổi nào trên tệp gốc, dù nhỏ, cũng làm CID thay đổi và lập tức bị phát hiện khi đối chiếu với giá trị đã được neo bất biến trên Blockchain. Nhờ đó, các hành vi như sửa đổi ảnh hiện trường, thay thế biên bản giám định hay chỉnh sửa hóa đơn đều không thể thực hiện một cách âm thầm, góp phần trực tiếp vào mục tiêu chống gian lận. Thứ hai, việc chỉ lưu định danh trên chuỗi và đẩy dữ liệu lớn ra ngoài chuỗi giúp tối ưu chi phí so với phương án lưu toàn bộ trên Blockchain. Như vậy, mô hình kết hợp on-chain/off-chain đạt được đồng thời tính toàn vẹn, khả năng truy vết và hiệu quả về chi phí.
+Trợ lý AI tư vấn tin cậy theo RAG và xác thực quản trị bằng chữ ký ví
+Rủi ro "ảo giác" của mô hình ngôn ngữ trong tư vấn bảo hiểm
+Một mục tiêu của đồ án là hỗ trợ người dùng tra cứu thông tin bảo hiểm ngay trên website thông qua một trợ lý hỏi đáp. Tuy nhiên, các mô hình ngôn ngữ lớn có một hạn chế cố hữu là hiện tượng "ảo giác", tức sinh ra những câu trả lời nghe hợp lý nhưng sai sự thật hoặc không có căn cứ. Trong lĩnh vực bảo hiểm, nơi mỗi câu trả lời về quyền lợi, điều khoản loại trừ hay hồ sơ bồi thường đều có thể ảnh hưởng đến quyết định của người dùng, một thông tin sai lệch có thể gây hậu quả nghiêm trọng. Bên cạnh đó, kho tài liệu làm cơ sở cho trợ lý cần được quản lý chặt chẽ, chỉ quản trị viên mới được thêm, cập nhật hay xóa; trong khi hệ thống vận hành theo mô hình Web3 dựa trên ví, việc áp dụng cơ chế đăng nhập bằng tên và mật khẩu truyền thống lại không phù hợp. Yêu cầu đặt ra là vừa bảo đảm trợ lý trả lời tin cậy, vừa kiểm soát an toàn quyền quản trị tài liệu theo đúng mô hình của hệ thống.
+Kiến trúc RAG bám tài liệu và xác thực quản trị bằng chữ ký ví
+Để bảo đảm độ tin cậy, trợ lý được xây dựng theo mô hình Sinh có tăng cường truy xuất. Các tài liệu bảo hiểm do quản trị viên cung cấp được trích xuất nội dung, chia thành các đoạn nhỏ có phần chồng lấp để giữ ngữ cảnh, chuyển thành các vector embedding và lưu trong cơ sở dữ liệu vector. Khi người dùng đặt câu hỏi, hệ thống truy xuất những đoạn tài liệu liên quan nhất rồi cung cấp cho mô hình ngôn ngữ làm ngữ cảnh để sinh câu trả lời. Điểm mấu chốt là một lời nhắc hệ thống được thiết kế nghiêm ngặt, buộc mô hình chỉ trả lời dựa trên tài liệu được cung cấp và từ chối khi không tìm thấy thông tin, kết hợp với tham số nhiệt độ thấp nhằm tăng tính ổn định của câu trả lời.
+Đối với việc quản trị tài liệu, đồ án thiết kế cơ chế xác thực dựa trên chữ ký ví phù hợp với mô hình Web3. Thay vì dùng mật khẩu, quản trị viên chứng minh quyền kiểm soát ví của mình bằng cách ký một thông điệp; dịch vụ AI xác minh chữ ký và cấp một mã thông báo truy cập có thời hạn, qua đó chỉ ví quản trị mới có quyền thêm, cập nhật hoặc xóa tài liệu. Toàn bộ trợ lý được triển khai như một dịch vụ độc lập, tách biệt với ứng dụng web, kèm cơ chế giới hạn tần suất truy cập để tránh quá tải và lạm dụng.
+Độ tin cậy của câu trả lời và an toàn trong quản trị tài liệu
+Nhờ cách tiếp cận này, trợ lý đưa ra câu trả lời bám sát tập tài liệu thay vì suy diễn tự do, và chủ động từ chối khi không có đủ căn cứ, qua đó hạn chế đáng kể hiện tượng "ảo giác" và phù hợp với yêu cầu chính xác của lĩnh vực bảo hiểm. Tri thức của trợ lý cũng dễ dàng cập nhật chỉ bằng cách thay đổi tài liệu mà không cần huấn luyện lại mô hình. Về mặt quản trị, việc xác thực bằng chữ ký ví bảo đảm chỉ đúng người có thẩm quyền mới thay đổi được kho tài liệu, đồng thời thống nhất với mô hình định danh phi tập trung của toàn hệ thống.
+Kết chương
+Chương này đã trình bày năm giải pháp và đóng góp nổi bật của đồ án, trải trên cả ba trụ cột công nghệ. Về Blockchain, đồ án mô hình hóa quy trình bồi thường bằng máy trạng thái, thiết kế cơ chế phân quyền và bảo mật, cùng cách tính phí và mức bồi thường tự động. Về lưu trữ, mô hình kết hợp on-chain/off-chain bảo đảm toàn vẹn hồ sơ với chi phí thấp. Về trí tuệ nhân tạo, trợ lý theo mô hình RAG cung cấp tư vấn tin cậy kèm cơ chế quản trị an toàn. Những đóng góp này tạo nên giá trị cốt lõi của hệ thống và là cơ sở cho phần kết luận, đánh giá kết quả cùng hướng phát triển được trình bày trong Chương 6.
+Kết luận và hướng phát triển
+Kết luận
+Đồ án đã hoàn thành mục tiêu xây dựng website quản lý hợp đồng bảo hiểm xe cơ giới trên nền tảng Blockchain, tích hợp trợ lý AI tư vấn theo mô hình RAG. Hệ thống số hóa các nghiệp vụ chính gồm quản lý gói bảo hiểm, mua bảo hiểm, quản lý hợp đồng và xử lý yêu cầu bồi thường với ba tác nhân, đồng thời bảo đảm minh bạch, truy vết và hạn chế gian lận nhờ hợp đồng thông minh kết hợp lưu trữ ngoài chuỗi. So với các sản phẩm tương tự vốn chỉ tập trung vào quản lý hợp đồng trên Blockchain hoặc tư vấn bằng chatbot, hệ thống của đồ án kết hợp được cả hai trong một nền tảng và bám sát quy định bảo hiểm xe cơ giới tại Việt Nam.
+Đóng góp nổi bật của đồ án là tích hợp đồng thời ba thành phần Web, Blockchain và AI trong một hệ thống thống nhất, cùng trợ lý tư vấn dựa trên tài liệu giúp hạn chế thông tin sai lệch. Bên cạnh đó, hệ thống vẫn còn một số điểm chưa hoàn thiện: mới được kiểm thử ở quy mô đồ án trên môi trường thử nghiệm, chưa vận hành với dữ liệu và người dùng thực tế; phạm vi nghiệp vụ tập trung vào các chức năng cốt lõi, chưa bao phủ toàn bộ nghiệp vụ phức tạp của doanh nghiệp bảo hiểm; và chất lượng tư vấn của trợ lý AI phụ thuộc vào tập tài liệu được cung cấp.
+Quá trình thực hiện đồ án cũng để lại một số bài học kinh nghiệm. Việc thiết kế hệ thống kết hợp nhiều công nghệ đòi hỏi xác định rõ ranh giới giữa dữ liệu on-chain và off-chain ngay từ đầu để bảo đảm nhất quán và tối ưu chi phí. Ngoài ra, để mô hình ngôn ngữ trả lời tin cậy, việc kiểm soát nguồn tri thức và thiết kế lời nhắc hệ thống quan trọng không kém việc lựa chọn mô hình.
+Hướng phát triển
+Trước hết, một số công việc cần được thực hiện để hoàn thiện các chức năng hiện có. Hệ thống có thể được triển khai trên mạng thử nghiệm công khai hoặc mạng chính của Ethereum nhằm kiểm chứng trong điều kiện gần với thực tế, thay vì chỉ chạy trên môi trường cục bộ. Trợ lý AI có thể được nâng cao bằng cách mở rộng và cập nhật kho tài liệu, đồng thời cải thiện cơ chế truy xuất để tăng độ chính xác của câu trả lời. Bên cạnh đó, việc bổ sung kiểm thử toàn diện và rà soát an toàn cho hợp đồng thông minh sẽ giúp hệ thống ổn định và đáng tin cậy hơn.
+Về lâu dài, hệ thống có thể được phát triển theo một số hướng mới. Phạm vi nghiệp vụ có thể mở rộng sang các loại hình bảo hiểm khác ngoài bảo hiểm xe cơ giới, đồng thời bổ sung các chức năng như quản lý mạng lưới gara liên kết hay phân tích dữ liệu nghiệp vụ phục vụ ra quyết định. Hệ thống cũng có thể tích hợp thêm các nguồn dữ liệu bên ngoài thông qua oracle và phát triển ứng dụng di động nhằm mở rộng khả năng tiếp cận của người dùng.
+Tài liệu tham khảo
+[1] Bộ Giao thông Vận tải, Số liệu thống kê phương tiện giao thông cơ giới đường bộ năm 2023, [URL — bổ sung], truy cập lần cuối tháng [..]/2026.
+[2] Cục Đăng kiểm Việt Nam, Thống kê số lượng ô tô đang lưu hành, [URL — bổ sung], truy cập lần cuối tháng [..]/2026.
+[3] Cục Cảnh sát giao thông, Thống kê đăng ký phương tiện cơ giới năm 2025, [URL — bổ sung], truy cập lần cuối tháng [..]/2026.
+[4] Coalition Against Insurance Fraud, The Impact of Insurance Fraud on the U.S. Economy, https://insurancefraud.org, truy cập lần cuối tháng [..]/2026.
+[5] Ethereum Foundation, Ethereum Developer Documentation, https://ethereum.org/developers/docs, truy cập lần cuối tháng [..]/2026.
+[6] Solidity, Solidity Documentation, https://docs.soliditylang.org, truy cập lần cuối tháng [..]/2026.
+[7] Nomic Foundation, Hardhat Documentation, https://hardhat.org/docs, truy cập lần cuối tháng [..]/2026.
+[8] OpenZeppelin, OpenZeppelin Contracts Documentation, https://docs.openzeppelin.com/contracts, truy cập lần cuối tháng [..]/2026.
+[9] Protocol Labs, IPFS Documentation, https://docs.ipfs.tech, truy cập lần cuối tháng [..]/2026.
+[10] Pinata, Pinata Documentation, https://docs.pinata.cloud, truy cập lần cuối tháng [..]/2026.
+[11] Vercel, Next.js Documentation, https://nextjs.org/docs, truy cập lần cuối tháng [..]/2026.
+[12] Meta, React Documentation, https://react.dev, truy cập lần cuối tháng [..]/2026.
+[13] ethers.js, Ethers Documentation, https://docs.ethers.org, truy cập lần cuối tháng [..]/2026.
+[14] MetaMask, MetaMask Developer Documentation, https://docs.metamask.io, truy cập lần cuối tháng [..]/2026.
+[15] FastAPI, FastAPI Documentation, https://fastapi.tiangolo.com, truy cập lần cuối tháng [..]/2026.
+[16] LangChain, LangChain Documentation, https://python.langchain.com, truy cập lần cuối tháng [..]/2026.
+[17] Google, Gemini API Documentation, https://ai.google.dev, truy cập lần cuối tháng [..]/2026.
+[18] Chroma, Chroma Documentation, https://docs.trychroma.com, truy cập lần cu底i tháng [..]/2026.
+[19] Lewis P. và cộng sự, Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks, In Proc. of the 34th Conference on Neural Information Processing Systems (NeurIPS), 2020.
+
+
+

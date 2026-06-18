@@ -1,0 +1,40 @@
+@startuml Hinh_2_6_Phan_Ra_Chay_Task_Workflow
+' Hình 2.6 — Phân rã use case Chạy task / workflow
+
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 13
+skinparam usecase {
+  BackgroundColor #FFFACD
+  BorderColor #333333
+}
+skinparam rectangle {
+  BorderColor #333333
+}
+
+left to right direction
+
+actor "Người dùng\n(USER)" as USER
+actor "Hệ thống\n(Trigger)" as TRG <<actor>>
+
+rectangle " <<use case>>\nChạy task / workflow" as SYS {
+
+  usecase "Gửi yêu cầu\nchạy" as UC1
+  usecase "Xếp hàng\n(BullMQ)" as UC2
+  usecase "Phân phối\n(WebSocket)" as UC3
+  usecase "Thực thi\ntại agent" as UC4
+  usecase "Cập nhật kết quả\nvà trạng thái" as UC5
+  usecase "Thông báo\nrealtime" as UC6
+}
+
+USER --> UC1
+TRG --> UC1
+
+UC1 ..> UC2 : <<include>>
+UC2 ..> UC3 : <<include>>
+UC3 ..> UC4 : <<include>>
+UC4 ..> UC5 : <<include>>
+UC5 ..> UC6 : <<include>>
+
+@enduml

@@ -48,8 +48,10 @@ export function PlanCard({ plan, onEdit, onDelete, onToggleActive }: Props) {
     <article className="rounded-2xl border border-white/10 bg-surface-container-low/30 p-4 space-y-3">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <h3 className="font-bold text-base leading-snug">{plan.name}</h3>
+          <div className="flex flex-wrap items-center gap-2 min-w-0">
+            <h3 className="font-bold text-base truncate min-w-0" title={plan.name}>
+              {plan.name}
+            </h3>
             {plan.isTrial ? (
               <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide bg-secondary-container/40 text-secondary border border-white/10 shrink-0">
                 {t('adminPortal.trialPlan')}
@@ -57,7 +59,10 @@ export function PlanCard({ plan, onEdit, onDelete, onToggleActive }: Props) {
             ) : null}
           </div>
           {plan.description ? (
-            <p className="text-xs text-on-surface-variant/80 mt-1 line-clamp-3 break-words">
+            <p
+              className="text-xs text-on-surface-variant/80 mt-1 truncate"
+              title={plan.description}
+            >
               {plan.description}
             </p>
           ) : null}

@@ -139,7 +139,6 @@ export function newVariableNodeData(
     stepType: 'VARIABLE',
     config: {
       variableMode: mode,
-      variableName: 'my_var',
       variableValue: mode === 'read' ? undefined : '',
       stepKey,
       ui: position,
@@ -166,9 +165,7 @@ export function newExcelNodeData(
     stepType: 'EXCEL',
     config: {
       excelMode: mode,
-      variableName: 'excel_data',
-      filePath: 'C:\\\\data\\\\report.xlsx',
-      sheetName: 'Sheet1',
+      sheetName: undefined,
       hasHeader: true,
       agentId: defaultAgentId,
       timeout: 120000,

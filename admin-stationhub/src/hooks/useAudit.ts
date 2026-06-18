@@ -8,6 +8,10 @@ export function useAuditLogs(params: {
   limit?: number;
   actor?: string;
   action?: string;
+  resource?: string;
+  resourceIn?: string;
+  from?: string;
+  to?: string;
 }) {
   const adminEnabled = useAdminQueryEnabled();
   return useQuery({

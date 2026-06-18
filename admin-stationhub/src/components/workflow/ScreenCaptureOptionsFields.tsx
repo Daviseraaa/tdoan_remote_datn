@@ -23,6 +23,7 @@ type Props = {
   command?: string;
   onChange: (next: ScreenCapturePayload, command?: string) => void;
   className?: string;
+  compact?: boolean;
 };
 
 const inputCls =
@@ -33,6 +34,7 @@ export function ScreenCaptureOptionsFields({
   command,
   onChange,
   className,
+  compact,
 }: Props) {
   const onlySend = p.onlySendTelegram === true || p.saveToFile === false;
   const sendTg = p.sendTelegram === true;
@@ -43,7 +45,9 @@ export function ScreenCaptureOptionsFields({
 
   return (
     <div className={cn('space-y-3', className)}>
-      <p className="text-xs text-amber-400/90">{t('screenCapture.banner')}</p>
+      {!compact ? (
+        <p className="text-xs text-amber-400/90">{t('screenCapture.banner')}</p>
+      ) : null}
       <div>
         <label className="text-[10px] font-mono font-bold uppercase text-on-surface-variant">
           {t('screenCapture.monitor')}
@@ -170,7 +174,7 @@ export function ScreenCaptureOptionsFields({
             {t('screenCapture.includeBase64')}
           </label>
         </>
-      ) : (
+      ) : compact ? null : (
         <p className="text-[10px] text-on-surface-variant">{t('screenCapture.onlySendHint')}</p>
       )}
     </div>

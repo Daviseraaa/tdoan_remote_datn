@@ -238,16 +238,16 @@ export default function AdminPlans() {
           {/* Desktop: table */}
           <div className="hidden lg:block glass-card rounded-2xl border border-white/10 overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full text-sm table-auto">
                 <thead>
                   <tr className="border-b border-white/10 text-left text-[10px] uppercase tracking-widest text-on-surface-variant">
-                    <th className="p-4 min-w-[180px]">{t('common.name')}</th>
-                    <th className="p-4">{t('adminPortal.price')}</th>
-                    <th className="p-4">{t('adminPortal.duration')}</th>
-                    <th className="p-4">{t('adminPortal.maxAgents')}</th>
-                    <th className="p-4 min-w-[140px]">{t('adminPortal.benefitsColumn')}</th>
-                    <th className="p-4">{t('common.status')}</th>
-                    <th className="p-4 w-28" />
+                    <th className="w-0 px-3 py-2.5 whitespace-nowrap">{t('common.name')}</th>
+                    <th className="px-3 py-2.5">{t('adminPortal.price')}</th>
+                    <th className="px-3 py-2.5">{t('adminPortal.duration')}</th>
+                    <th className="px-3 py-2.5">{t('adminPortal.maxAgents')}</th>
+                    <th className="px-3 py-2.5 min-w-[140px]">{t('adminPortal.benefitsColumn')}</th>
+                    <th className="px-3 py-2.5">{t('common.status')}</th>
+                    <th className="px-3 py-2.5 w-0" />
                   </tr>
                 </thead>
                 <tbody>
@@ -267,34 +267,39 @@ export default function AdminPlans() {
                   ) : null}
                   {plans.map((p) => (
                     <tr key={p.id} className="border-b border-white/5 hover:bg-white/[0.02]">
-                      <td className="p-4 align-top">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <p className="font-bold">{p.name}</p>
+                      <td className="w-0 px-3 py-2.5 align-top max-w-[14rem]">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <p className="font-bold truncate" title={p.name}>
+                            {p.name}
+                          </p>
                           {p.isTrial ? (
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide bg-secondary-container/40 text-secondary border border-white/10">
+                            <span className="shrink-0 px-1.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide bg-secondary-container/40 text-secondary border border-white/10">
                               {t('adminPortal.trialPlan')}
                             </span>
                           ) : null}
                         </div>
                         {p.description ? (
-                          <p className="text-xs text-on-surface-variant/80 mt-1 line-clamp-2">
+                          <p
+                            className="text-xs text-on-surface-variant/80 mt-0.5 truncate"
+                            title={p.description}
+                          >
                             {p.description}
                           </p>
                         ) : null}
                       </td>
-                      <td className="p-4 align-top">
+                      <td className="px-3 py-2.5 align-top">
                         <PlanPriceDisplay plan={p} />
                       </td>
-                      <td className="p-4 align-top">
+                      <td className="px-3 py-2.5 align-top">
                         <PlanDurationCell days={p.durationDays} />
                       </td>
-                      <td className="p-4 align-top font-mono font-bold">
+                      <td className="px-3 py-2.5 align-top font-mono font-bold">
                         {formatMaxAgents(p.maxAgents)}
                       </td>
-                      <td className="p-4 align-top">
+                      <td className="px-3 py-2.5 align-top">
                         <PlanBenefitsPreview plan={p} />
                       </td>
-                      <td className="p-4 align-top">
+                      <td className="px-3 py-2.5 align-top">
                         {p.isTrial ? (
                           <span className="px-2 py-1 rounded-lg text-[10px] font-bold uppercase bg-primary/15 text-primary">
                             {t('adminPortal.planActive')}
@@ -316,8 +321,8 @@ export default function AdminPlans() {
                           </button>
                         )}
                       </td>
-                      <td className="p-4 align-top">
-                        <div className="flex items-center justify-end gap-0.5">
+                      <td className="w-0 px-3 py-2.5 align-top">
+                        <div className="flex items-center justify-end gap-0.5 whitespace-nowrap">
                           <button
                             type="button"
                             onClick={() => openEdit(p)}

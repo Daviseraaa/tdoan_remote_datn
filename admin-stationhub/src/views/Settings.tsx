@@ -44,14 +44,12 @@ const MODAL_SHELL =
 const MODAL_PANEL =
   'glass-card w-full sm:max-w-md border border-white/10 rounded-t-2xl sm:rounded-2xl p-4 sm:p-8 space-y-4 max-h-[min(90dvh,640px)] overflow-y-auto custom-scrollbar pb-[max(1rem,env(safe-area-inset-bottom,0px))]';
 
-function RoleBadge({ role }: { role: string }) {
+function RoleLabel({ role }: { role: string }) {
   return (
     <span
       className={cn(
-        'inline-flex px-2 py-1 rounded-lg text-[9px] font-bold tracking-widest shrink-0',
-        role === 'ADMIN'
-          ? 'bg-primary-container/10 text-primary border border-primary/20'
-          : 'bg-white/5 text-on-surface-variant border border-white/10',
+        'text-xs font-bold shrink-0',
+        role === 'ADMIN' ? 'text-primary' : 'text-on-surface-variant',
       )}
     >
       {t(`status.${role}` as 'status.ADMIN' | 'status.USER')}
@@ -59,22 +57,45 @@ function RoleBadge({ role }: { role: string }) {
   );
 }
 
+function SubscriptionStatusLabel({
+  label,
+  raw,
+}: {
+  label: string;
+  raw?: string;
+}) {
+  return (
+    <span
+      className={cn(
+        'text-xs font-bold shrink-0',
+        raw === 'ACTIVE' || raw === 'TRIAL'
+          ? 'text-tertiary'
+          : raw === 'EXPIRED' || raw === 'CANCELLED'
+            ? 'text-error'
+            : 'text-on-surface-variant',
+      )}
+    >
+      {label}
+    </span>
+  );
+}
+
 function UserIdentity({ user }: { user: SettingsUserRow }) {
   return (
-    <div className="flex items-center gap-3 min-w-0">
+    <div className="flex items-center gap-2.5 min-w-0">
       <div className="relative shrink-0">
         <img
-          className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-surface-container-highest border border-white/10 p-0.5 object-cover"
+          className="w-9 h-9 rounded-xl bg-surface-container-highest border border-white/10 p-0.5 object-cover"
           src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${user.avatar}`}
           alt={user.name}
         />
         {user.status === 'Active' ? (
-          <div className="absolute -bottom-1 -right-1 w-3 h-3 sm:w-3.5 sm:h-3.5 bg-tertiary rounded-full border-2 border-surface shadow-[0_0_8px_#68f5b8]" />
+          <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-tertiary rounded-full border-2 border-surface" />
         ) : null}
       </div>
       <div className="min-w-0 flex-1">
-        <div className="font-bold text-sm text-on-surface truncate">{user.name}</div>
-        <div className="text-xs text-on-surface-variant font-mono lowercase truncate opacity-70">
+        <div className="font-bold text-sm text-on-surface truncate leading-tight">{user.name}</div>
+        <div className="text-[11px] text-on-surface-variant font-mono lowercase truncate opacity-70">
           {user.email}
         </div>
       </div>
@@ -110,34 +131,38 @@ function SettingsUserList({
             <li
               key={user.id}
               className={cn(
-                'p-4 space-y-3',
+                'px-3 py-3 space-y-2',
                 user.status === 'Disabled' && 'opacity-50 grayscale',
               )}
             >
               <UserIdentity user={user} />
-              <div className="flex flex-wrap items-center gap-2 pl-[52px]">
-                <RoleBadge role={user.role} />
-                <span
-                  className={cn(
-                    'text-xs font-bold',
-                    user.status === 'Active' ? 'text-tertiary' : 'text-on-surface-variant opacity-60',
-                  )}
-                >
-                  {user.status === 'Active' ? t('common.active') : t('common.disabled')}
-                </span>
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pl-11">
+                <RoleLabel role={user.role} />
+                <SubscriptionStatusLabel
+                  label={user.subscriptionStatus ?? '—'}
+                  raw={user.subscriptionStatusRaw}
+                />
+                {user.status === 'Disabled' ? (
+                  <span className="text-[11px] font-bold text-on-surface-variant opacity-60">
+                    {t('common.disabled')}
+                  </span>
+                ) : null}
               </div>
               <SettingsUserRowMenu
                 user={user}
-                className="pl-[52px] justify-start"
+                className="pl-11 justify-start"
                 onEdit={() => onEdit(user)}
                 onToggleActive={() => void onToggleActive(user.id)}
                 onDelete={() => onDelete(user.id)}
                 onExtendSubscription={() => onExtendSubscription(user)}
               />
-              <p className="text-[11px] font-mono text-on-surface-variant opacity-80 pl-[52px]">
-                {t('settings.subscription')}: {user.subscriptionLabel}
+              <p className="text-[11px] font-mono text-on-surface-variant opacity-80 pl-11">
+                {t('settings.subscription')}: {user.subscriptionPlan}
+                {user.subscriptionExpires && user.subscriptionExpires !== '—'
+                  ? ` · ${user.subscriptionExpires}`
+                  : ''}
               </p>
-              <p className="text-[11px] font-mono text-on-surface-variant opacity-80 pl-[52px]">
+              <p className="text-[11px] font-mono text-on-surface-variant opacity-80 pl-11">
                 {t('settings.lastSession')}: {user.lastSession}
               </p>
             </li>
@@ -148,22 +173,22 @@ function SettingsUserList({
         <table className="w-full text-left">
           <thead>
             <tr className="bg-white/[0.01] border-b border-white/5">
-              <th className="px-6 xl:px-8 py-4 text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-on-surface-variant opacity-60">
+              <th className="px-4 py-2.5 text-[10px] font-mono font-bold uppercase tracking-[0.15em] text-on-surface-variant opacity-60">
                 {t('settings.identity')}
               </th>
-              <th className="px-6 xl:px-8 py-4 text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-on-surface-variant opacity-60">
+              <th className="px-4 py-2.5 text-[10px] font-mono font-bold uppercase tracking-[0.15em] text-on-surface-variant opacity-60">
                 {t('settings.accessRole')}
               </th>
-              <th className="px-6 xl:px-8 py-4 text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-on-surface-variant opacity-60">
+              <th className="px-4 py-2.5 text-[10px] font-mono font-bold uppercase tracking-[0.15em] text-on-surface-variant opacity-60">
                 {t('common.status')}
               </th>
-              <th className="px-6 xl:px-8 py-4 text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-on-surface-variant opacity-60">
+              <th className="px-4 py-2.5 text-[10px] font-mono font-bold uppercase tracking-[0.15em] text-on-surface-variant opacity-60">
                 {t('settings.subscription')}
               </th>
-              <th className="px-6 xl:px-8 py-4 text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-on-surface-variant opacity-60">
+              <th className="px-4 py-2.5 text-[10px] font-mono font-bold uppercase tracking-[0.15em] text-on-surface-variant opacity-60">
                 {t('settings.lastSession')}
               </th>
-              <th className="px-6 xl:px-8 py-4 text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-on-surface-variant opacity-60 text-right">
+              <th className="px-4 py-2.5 text-[10px] font-mono font-bold uppercase tracking-[0.15em] text-on-surface-variant opacity-60 text-right">
                 {t('settings.actions')}
               </th>
             </tr>
@@ -171,7 +196,7 @@ function SettingsUserList({
           <tbody className="divide-y divide-white/5">
             {isLoading ? (
               <tr>
-                <td colSpan={6} className="px-8 py-8 text-on-surface-variant">
+                <td colSpan={6} className="px-4 py-6 text-on-surface-variant">
                   {t('settings.loadingUsers')}
                 </td>
               </tr>
@@ -184,31 +209,35 @@ function SettingsUserList({
                   user.status === 'Disabled' && 'opacity-50 grayscale',
                 )}
               >
-                <td className="px-6 xl:px-8 py-4">
+                <td className="px-4 py-2.5">
                   <UserIdentity user={user} />
                 </td>
-                <td className="px-6 xl:px-8 py-4">
-                  <RoleBadge role={user.role} />
+                <td className="px-4 py-2.5">
+                  <RoleLabel role={user.role} />
                 </td>
-                <td className="px-6 xl:px-8 py-4">
-                  <span
-                    className={cn(
-                      'text-xs font-bold',
-                      user.status === 'Active' ? 'text-tertiary' : 'text-on-surface-variant opacity-60',
-                    )}
-                  >
-                    {user.status === 'Active' ? t('common.active') : t('common.disabled')}
-                  </span>
+                <td className="px-4 py-2.5">
+                  <div className="flex flex-col gap-0.5">
+                    <SubscriptionStatusLabel
+                      label={user.subscriptionStatus}
+                      raw={user.subscriptionStatusRaw}
+                    />
+                    {user.status === 'Disabled' ? (
+                      <span className="text-[11px] font-bold text-on-surface-variant opacity-60">
+                        {t('common.disabled')}
+                      </span>
+                    ) : null}
+                  </div>
                 </td>
-                <td className="px-6 xl:px-8 py-4 font-mono text-xs text-on-surface-variant opacity-80">
-                  <p className="font-bold text-on-surface">{user.subscriptionStatus}</p>
-                  <p className="mt-0.5">{user.subscriptionPlan}</p>
-                  <p className="mt-0.5 opacity-70">{user.subscriptionExpires}</p>
+                <td className="px-4 py-2.5 font-mono text-xs text-on-surface-variant opacity-80">
+                  <p className="font-bold text-on-surface leading-tight">{user.subscriptionPlan}</p>
+                  <p className="text-[11px] opacity-70 leading-tight">
+                    {t('settings.subscriptionExpires')}: {user.subscriptionExpires}
+                  </p>
                 </td>
-                <td className="px-6 xl:px-8 py-4 font-mono text-xs text-on-surface-variant opacity-80">
+                <td className="px-4 py-2.5 font-mono text-xs text-on-surface-variant opacity-80">
                   {user.lastSession}
                 </td>
-                <td className="px-6 xl:px-8 py-4">
+                <td className="px-4 py-2.5">
                   <SettingsUserRowMenu
                     user={user}
                     onEdit={() => onEdit(user)}
@@ -388,7 +417,7 @@ export default function Settings() {
       ) : null}
 
       <div className="glass-panel rounded-2xl sm:rounded-3xl shadow-2xl min-w-0">
-        <div className="flex items-center justify-between px-4 sm:p-6 py-3 border-b border-white/5 bg-white/[0.02]">
+        <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/5 bg-white/[0.02]">
           <div className="text-[10px] sm:text-[11px] font-mono text-on-surface-variant uppercase tracking-widest font-bold opacity-60">
             {t('settings.registeredUsers', { n: total })}
           </div>
@@ -421,7 +450,7 @@ export default function Settings() {
           limit={PAGE_LIMIT}
           total={total}
           onPageChange={setPage}
-          className="p-4 sm:p-6 border-t border-white/5 bg-white/[0.01]"
+          className="p-3 sm:p-4 border-t border-white/5 bg-white/[0.01]"
         />
       </div>
 

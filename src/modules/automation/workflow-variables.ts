@@ -365,6 +365,29 @@ export function parseWorkflowVariables(raw: unknown): Record<string, unknown> {
   return {};
 }
 
+/**
+ * Gán tham số lệnh Telegram (args[0], …) vào biến workflow — giữ giá trị cấu hình nếu thiếu tham số.
+ */
+export function applyTelegramVariableBindings(
+  vars: Record<string, unknown>,
+  variableArgs: string[] | undefined,
+  telegram: Record<string, unknown> | undefined,
+): Record<string, unknown> {
+  if (!variableArgs?.length || !telegram) return vars;
+  const args = telegram.args;
+  if (!Array.isArray(args)) return vars;
+
+  const out = { ...vars };
+  for (let i = 0; i < variableArgs.length; i++) {
+    const name = variableArgs[i]?.trim();
+    if (!name || !VARIABLE_NAME_RE.test(name)) continue;
+    const raw = args[i];
+    if (raw === undefined || raw === null) continue;
+    out[name] = coerceVariableValue(String(raw));
+  }
+  return out;
+}
+
 const VARIABLE_NAME_RE = /^[a-zA-Z_][a-zA-Z0-9_]{0,63}$/;
 
 export type WorkflowVariableMode = 'create' | 'read' | 'set';

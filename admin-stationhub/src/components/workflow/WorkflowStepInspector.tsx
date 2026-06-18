@@ -14,7 +14,15 @@ import { WF_TRIGGER_ID } from '@/src/lib/workflowGraph';
 import { t } from '@/src/i18n/t';
 import { WfAgentSelect } from './WfAgentSelect';
 import { WfTelegramBotSelect } from './WfTelegramBotSelect';
-import { WfVarRefPanel } from './WfVarRefPanel';
+import { WfInspectorBlock } from './WfInspectorLayout';
+import { WfStepVarsSection } from './WfStepVarsSection';
+import { WfVarsInspectorFooter } from './WfVarsInspectorFooter';
+import { WfNodeExportFields } from './WfNodeExportFields';
+import {
+  nodeExportsStepVariables,
+  nodePublishesWorkflowVar,
+  workflowVarNameInputValue,
+} from '@/src/lib/workflowGraph';
 import {
   ScreenCaptureOptionsFields,
   type ScreenCapturePayload,
@@ -26,14 +34,6 @@ import { HttpRequestConfigFields } from './HttpRequestConfigFields';
 import { isChromeReplayCommand } from '@/src/lib/workflowGraph';
 import { WfImportMenu } from './WfImportMenu';
 import { MsNumberInput } from './MsNumberInput';
-import {
-  formatStepVar,
-  formatWorkflowVar,
-  nodeExportsStepVariables,
-  nodePublishesWorkflowVar,
-  resolveNodeOutputKey,
-  resolveWorkflowVarName,
-} from '@/src/lib/workflowGraph';
 
 const ON_FAILURE: WorkflowStepOnFailure[] = ['STOP', 'SKIP', 'RETRY'];
 
@@ -56,9 +56,13 @@ type Props = {
   nodeId: string | null;
   data: WfNodeData | null;
   agents: Agent[];
+  workflowId?: string;
+  workflowVariables?: Record<string, unknown>;
+  onWorkflowVariablesChange?: (variables: Record<string, unknown>) => void;
   workflowStepDelayMs?: number;
   upstreamOutputKeys?: { key: string; label: string; nodeId?: string }[];
   workflowVarKeys?: string[];
+  showTelegramVars?: boolean;
   onUpdate: (patch: Partial<WfNodeData> & { config?: WfNodeData['config'] }) => void;
   onAgentChange?: (agentId: string) => void;
   /** Thay node hiện tại + thêm các bước còn lại (khi đang chọn node Chrome). */
@@ -72,9 +76,13 @@ export function WorkflowStepInspector({
   nodeId: inspectorNodeId,
   data,
   agents,
+  workflowId,
+  workflowVariables,
+  onWorkflowVariablesChange,
   workflowStepDelayMs = 0,
   upstreamOutputKeys = [],
   workflowVarKeys = [],
+  showTelegramVars = false,
   onUpdate,
   onAgentChange,
   onImportChromeScript,
@@ -86,7 +94,6 @@ export function WorkflowStepInspector({
     return (
       <div className="flex-1 flex flex-col items-center justify-center p-4 sm:p-8 text-center opacity-50 min-w-0 w-full">
         <p className="text-sm font-bold">{t('workflows.selectNode')}</p>
-        <p className="text-xs mt-2 text-on-surface-variant">{t('workflows.selectNodeHint')}</p>
       </div>
     );
   }
@@ -114,27 +121,62 @@ export function WorkflowStepInspector({
     });
   };
 
-  return (
-    <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5 custom-scrollbar min-w-0 w-full">
-      <div>
-        <label className="text-[10px] font-mono font-bold uppercase text-on-surface-variant">
-          {t('workflows.nodeName')}
-        </label>
-        <input
-          value={data.label}
-          onChange={(e) =>
-            onUpdate({
-              label: e.target.value,
-              config: { ...cfg, title: e.target.value },
-            })
-          }
-          className="w-full mt-1 px-4 py-3 rounded-xl bg-surface-container-low border border-white/10 text-sm font-bold"
-        />
-      </div>
+  const hasExport = Boolean(
+    inspectorNodeId &&
+      (nodeExportsStepVariables(data.kind, cfg) || nodePublishesWorkflowVar(data.kind, cfg)),
+  );
 
+  const exportFields = hasExport ? (
+    <WfNodeExportFields
+      nodeId={inspectorNodeId!}
+      data={data}
+      onPatchOutputKey={
+        data.kind === 'task' ||
+        (data.kind === 'variable' && (cfg.variableMode ?? 'set') === 'read')
+          ? (outputKey) => patchConfig({ outputKey })
+          : undefined
+      }
+      onPatchVariableName={
+        (data.kind === 'excel' && (cfg.excelMode ?? 'read') === 'read') ||
+        (data.kind === 'variable' &&
+          ((cfg.variableMode ?? 'set') === 'create' || (cfg.variableMode ?? 'set') === 'set'))
+          ? (variableName) => patchConfig({ variableName: variableName || undefined })
+          : undefined
+      }
+    />
+  ) : null;
+
+  return (
+    <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-3 custom-scrollbar min-w-0 w-full">
+      <WfInspectorBlock tone="vars">
+        <WfStepVarsSection
+          upstream={upstreamOutputKeys}
+          workflowVarKeys={workflowVarKeys}
+          showTelegramVars={showTelegramVars}
+        />
+      </WfInspectorBlock>
+
+      <WfInspectorBlock tone="properties">
+        <div>
+          <label className="text-[10px] font-mono font-bold uppercase text-amber-300/80">
+            {t('workflows.nodeName')}
+          </label>
+          <input
+            value={data.label}
+            onChange={(e) =>
+              onUpdate({
+                label: e.target.value,
+                config: { ...cfg, title: e.target.value },
+              })
+            }
+            className="w-full mt-1 px-4 py-2.5 rounded-xl bg-black/20 border border-amber-400/15 text-sm font-bold"
+          />
+        </div>
+      </WfInspectorBlock>
+
+      <WfInspectorBlock tone="config" className="space-y-4">
       {data.kind === 'telegram' ? (
         <>
-          <WfVarRefPanel upstream={upstreamOutputKeys} workflowVarKeys={workflowVarKeys} />
           <div>
             <label className="text-[10px] font-mono font-bold uppercase text-on-surface-variant">
               {t('workflows.telegramAction')}
@@ -180,14 +222,12 @@ export function WorkflowStepInspector({
               rows={4}
               className="w-full mt-1 px-4 py-3 rounded-xl bg-surface-container-low border border-white/10 font-mono text-sm"
             />
-            <p className="text-[10px] text-on-surface-variant mt-1">{t('workflows.commandVarsHint')}</p>
           </div>
         </>
       ) : null}
 
       {data.kind === 'condition' ? (
         <>
-          <p className="text-xs text-on-surface-variant">{t('workflows.conditionHint')}</p>
           <div>
             <label className="text-[10px] font-mono font-bold uppercase text-on-surface-variant">
               {t('workflows.conditionMode')}
@@ -221,9 +261,7 @@ export function WorkflowStepInspector({
           ) : null}
         </>
       ) : data.kind === 'loop' ? (
-        <>
-          <p className="text-xs text-on-surface-variant">{t('workflows.loopHint')}</p>
-          <div>
+        <div>
             <label className="text-[10px] font-mono font-bold uppercase text-on-surface-variant">
               {t('workflows.loopCount')}
             </label>
@@ -240,28 +278,24 @@ export function WorkflowStepInspector({
               className="w-full mt-1 px-4 py-3 rounded-xl bg-surface-container-low border border-white/10"
             />
           </div>
-        </>
       ) : data.kind === 'variable' ? (
         <>
-          <p className="text-xs text-on-surface-variant">
-            {(cfg.variableMode ?? 'set') === 'create'
-              ? t('workflows.varCreateHint')
-              : (cfg.variableMode ?? 'set') === 'read'
-                ? t('workflows.varReadHint')
-                : t('workflows.varSetHint')}
-          </p>
-          <div>
-            <label className="text-[10px] font-mono font-bold uppercase text-on-surface-variant">
-              {t('workflows.variableName')}
-            </label>
-            <input
-              value={cfg.variableName ?? 'my_var'}
-              onChange={(e) => patchConfig({ variableName: e.target.value })}
-              className="w-full mt-1 px-4 py-3 rounded-xl bg-surface-container-low border border-white/10 font-mono text-sm"
-              placeholder="my_var"
-            />
-            <p className="text-[10px] text-on-surface-variant mt-1">{t('workflows.variableNameHint')}</p>
-          </div>
+          {(cfg.variableMode ?? 'set') === 'read' ? (
+            <div>
+              <label className="text-[10px] font-mono font-bold uppercase text-on-surface-variant">
+                {t('workflows.variableReadFrom')}
+              </label>
+              <input
+                value={workflowVarNameInputValue('variable', cfg.variableName)}
+                onChange={(e) => {
+                  const v = e.target.value.trim();
+                  patchConfig({ variableName: v || undefined });
+                }}
+                className="w-full mt-1 px-4 py-3 rounded-xl bg-surface-container-low border border-white/10 font-mono text-sm"
+                placeholder="my_var"
+              />
+            </div>
+          ) : null}
           {(cfg.variableMode ?? 'set') !== 'read' ? (
             <div>
               <label className="text-[10px] font-mono font-bold uppercase text-on-surface-variant">
@@ -274,34 +308,11 @@ export function WorkflowStepInspector({
                 className="w-full mt-1 px-4 py-3 rounded-xl bg-surface-container-low border border-white/10 font-mono text-sm"
                 placeholder="{{steps.prev.stdout}}"
               />
-              <p className="text-[10px] text-on-surface-variant mt-1">{t('workflows.variableValueHint')}</p>
-            </div>
-          ) : (
-            <p className="text-[10px] font-mono text-primary">
-              {formatWorkflowVar((cfg.variableName ?? 'my_var').trim() || 'my_var')}
-            </p>
-          )}
-          {nodePublishesWorkflowVar(data.kind, cfg) ? (
-            <div className="rounded-xl border border-emerald-400/25 bg-emerald-400/5 p-3">
-              <p className="text-[10px] font-mono font-bold uppercase text-emerald-400">
-                {t('workflows.publishedWorkflowVar')}
-              </p>
-              <p className="text-sm font-mono font-bold text-emerald-300 mt-1">
-                {resolveWorkflowVarName(cfg)}
-              </p>
-              <p className="text-[10px] font-mono text-on-surface-variant mt-1 truncate">
-                {formatWorkflowVar(resolveWorkflowVarName(cfg))}
-              </p>
             </div>
           ) : null}
         </>
       ) : data.kind === 'excel' ? (
         <>
-          <p className="text-xs text-on-surface-variant">
-            {(cfg.excelMode ?? 'read') === 'read'
-              ? t('workflows.excelReadHint')
-              : t('workflows.excelWriteHint')}
-          </p>
           <WfAgentSelect
             agents={agents}
             value={cfg.agentId ?? ''}
@@ -312,22 +323,14 @@ export function WorkflowStepInspector({
           />
           <div>
             <label className="text-[10px] font-mono font-bold uppercase text-on-surface-variant">
-              {t('workflows.variableName')}
-            </label>
-            <input
-              value={cfg.variableName ?? 'excel_data'}
-              onChange={(e) => patchConfig({ variableName: e.target.value })}
-              className="w-full mt-1 px-4 py-3 rounded-xl bg-surface-container-low border border-white/10 font-mono text-sm"
-            />
-            <p className="text-[10px] text-on-surface-variant mt-1">{t('workflows.variableNameHint')}</p>
-          </div>
-          <div>
-            <label className="text-[10px] font-mono font-bold uppercase text-on-surface-variant">
               {t('workflows.excelFilePath')}
             </label>
             <input
               value={cfg.filePath ?? ''}
-              onChange={(e) => patchConfig({ filePath: e.target.value })}
+              onChange={(e) => {
+                const v = e.target.value.trim();
+                patchConfig({ filePath: v || undefined });
+              }}
               className="w-full mt-1 px-4 py-3 rounded-xl bg-surface-container-low border border-white/10 font-mono text-sm"
               placeholder="C:\\data\\report.xlsx"
             />
@@ -337,8 +340,16 @@ export function WorkflowStepInspector({
               {t('workflows.excelSheet')}
             </label>
             <input
-              value={cfg.sheetName ?? 'Sheet1'}
-              onChange={(e) => patchConfig({ sheetName: e.target.value })}
+              value={
+                !cfg.sheetName?.trim() || cfg.sheetName.trim() === 'Sheet1'
+                  ? ''
+                  : cfg.sheetName
+              }
+              onChange={(e) => {
+                const v = e.target.value.trim();
+                patchConfig({ sheetName: v || undefined });
+              }}
+              placeholder="Sheet1"
               className="w-full mt-1 px-4 py-3 rounded-xl bg-surface-container-low border border-white/10 font-mono text-sm"
             />
           </div>
@@ -352,25 +363,6 @@ export function WorkflowStepInspector({
               />
               {t('workflows.excelHasHeader')}
             </label>
-          ) : (
-            <p className="text-[10px] font-mono text-primary">
-              {t('workflows.excelWriteVarHint', {
-                var: formatWorkflowVar((cfg.variableName ?? 'excel_data').trim() || 'excel_data'),
-              })}
-            </p>
-          )}
-          {nodePublishesWorkflowVar(data.kind, cfg) ? (
-            <div className="rounded-xl border border-emerald-400/25 bg-emerald-400/5 p-3">
-              <p className="text-[10px] font-mono font-bold uppercase text-emerald-400">
-                {t('workflows.publishedWorkflowVar')}
-              </p>
-              <p className="text-sm font-mono font-bold text-emerald-300 mt-1">
-                {resolveWorkflowVarName(cfg)}
-              </p>
-              <p className="text-[10px] font-mono text-on-surface-variant mt-1 truncate">
-                {formatWorkflowVar(resolveWorkflowVarName(cfg))}
-              </p>
-            </div>
           ) : null}
         </>
       ) : data.kind === 'delay' ? (
@@ -387,34 +379,6 @@ export function WorkflowStepInspector({
         </div>
       ) : data.kind === 'task' ? (
         <>
-          <WfVarRefPanel upstream={upstreamOutputKeys} workflowVarKeys={workflowVarKeys} />
-
-          {inspectorNodeId && nodeExportsStepVariables(data.kind, cfg) ? (
-            <div className="rounded-xl border border-primary/25 bg-primary/5 p-3 space-y-2">
-              <label className="text-[10px] font-mono font-bold uppercase text-primary">
-                {t('workflows.outputKey')}
-              </label>
-              <input
-                value={cfg.outputKey ?? ''}
-                onChange={(e) => patchConfig({ outputKey: e.target.value || undefined })}
-                placeholder={t('workflows.outputKeyPlaceholder')}
-                className="w-full mt-1 px-4 py-2.5 rounded-xl bg-surface-container-low border border-white/10 font-mono text-sm"
-              />
-              <p className="text-[10px] text-on-surface-variant">{t('workflows.outputKeyHint')}</p>
-              <div className="flex items-center gap-2 pt-1">
-                <span className="text-[9px] font-mono uppercase text-on-surface-variant">
-                  {t('workflows.resolvedOutputKey')}:
-                </span>
-                <code className="text-[10px] font-mono font-bold text-primary">
-                  {resolveNodeOutputKey(data, inspectorNodeId)}
-                </code>
-              </div>
-              <p className="text-[9px] font-mono text-on-surface-variant/90 truncate">
-                {formatStepVar(resolveNodeOutputKey(data, inspectorNodeId))}
-              </p>
-            </div>
-          ) : null}
-
           <div>
             <label className="text-[10px] font-mono font-bold uppercase text-on-surface-variant">
               {t('tasks.agent')}
@@ -498,14 +462,12 @@ export function WorkflowStepInspector({
                 }
                 className="w-full mt-1 px-4 py-3 rounded-xl bg-surface-container-low border border-white/10 font-mono text-sm"
               />
-              <p className="text-[10px] text-on-surface-variant mt-1">
-                {t('workflows.commandVarsHint')}
-              </p>
             </div>
           ) : null}
 
           {data.taskType === 'SCREEN_CAPTURE' ? (
             <ScreenCaptureOptionsFields
+              compact
               payload={(cfg.payload ?? {}) as ScreenCapturePayload}
               command={cfg.command}
               onChange={(next, cmd) =>
@@ -539,7 +501,6 @@ export function WorkflowStepInspector({
 
           {data.taskType === 'CHROME_EXTENSION' ? (
             <div className="space-y-3">
-              <p className="text-xs text-amber-400/90">{t('workflows.chromeExtensionBanner')}</p>
               <WfImportMenu
                 compact
                 onImportChromeScript={(script) => onImportChromeScript?.(script)}
@@ -627,17 +588,8 @@ export function WorkflowStepInspector({
                   placeholder={t('workflows.chromeExtensionStepsHint')}
                   className="w-full mt-1 px-4 py-3 rounded-xl bg-surface-container-low border border-white/10 font-mono text-xs"
                 />
-                <p className="text-[10px] text-on-surface-variant mt-1">
-                  {isChromeReplayCommand(cfg.command)
-                    ? t('workflows.chromeExtensionStepsJsonHint')
-                    : t('workflows.chromeExtensionAdvancedJsonHint')}
-                </p>
               </div>
             </div>
-          ) : null}
-
-          {data.taskType === 'DESKTOP_AUTOMATION' ? (
-            <p className="text-xs text-amber-400/90">{t('templateWizard.desktopBanner')}</p>
           ) : null}
 
           <div>
@@ -674,9 +626,6 @@ export function WorkflowStepInspector({
             }}
             className="w-full mt-1 px-4 py-2.5 rounded-xl bg-surface-container-low border border-white/10 font-mono text-sm"
           />
-          <p className="text-[10px] text-on-surface-variant mt-1">
-            {t('workflows.delayAfterStepHint', { ms: workflowStepDelayMs })}
-          </p>
         </div>
       ) : null}
 
@@ -696,6 +645,15 @@ export function WorkflowStepInspector({
           ))}
         </select>
       </div>
+      </WfInspectorBlock>
+
+      <WfVarsInspectorFooter
+        workflowId={workflowId}
+        workflowVariables={workflowVariables}
+        onWorkflowVariablesChange={onWorkflowVariablesChange}
+        exportContent={exportFields}
+        hasExport={hasExport}
+      />
     </div>
   );
 }

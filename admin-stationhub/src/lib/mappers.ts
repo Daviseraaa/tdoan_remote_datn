@@ -397,16 +397,25 @@ export function mapAuditToLogRow(log: AuditLogEntry): {
   const d = new Date(log.createdAt);
   const action = log.action ?? '';
   let status: 'CRITICAL' | 'WARNING' | 'INFO' = 'INFO';
-  if (action.includes('delete') || action.includes('revoke')) status = 'CRITICAL';
-  else if (action.includes('fail') || action.includes('cancel')) status = 'WARNING';
+  if (action.includes('delete') || action.includes('revoke')) {
+    status = 'CRITICAL';
+  } else if (action.includes('fail') || action.includes('cancel')) {
+    status = 'WARNING';
+  }
 
-  const category = action.startsWith('user.')
-    ? 'Security'
-    : action.startsWith('agent.')
-      ? 'Security'
-      : action.startsWith('task.')
+  const category = action.startsWith('auth.')
+    ? 'Auth'
+    : action.startsWith('workflow.')
+      ? 'Automation'
+      : action.startsWith('plan.') || action.startsWith('task.')
         ? 'System'
-        : 'System';
+        : action.startsWith('user.') || action.startsWith('agent.')
+          ? 'Security'
+          : 'System';
+
+  const targetLabel = log.resourceId
+    ? `${log.resource}:${log.resourceId.slice(0, 8)}`
+    : log.resource;
 
   return {
     id: log.id,
@@ -415,9 +424,10 @@ export function mapAuditToLogRow(log: AuditLogEntry): {
     status,
     title: action.replace(/\./g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
     actor: log.actorEmail ?? log.actorId ?? 'SYSTEM',
-    target: log.targetId ?? '—',
+    target: targetLabel,
     category,
     payload: log.metadata ? JSON.stringify(log.metadata, null, 2) : undefined,
+    detail: log.ip ? `IP: ${log.ip}` : undefined,
   };
 }
 
@@ -431,6 +441,7 @@ export function mapUserToTableRow(user: User): {
   avatar: string;
   subscriptionLabel: string;
   subscriptionStatus: string;
+  subscriptionStatusRaw?: User['subscriptionStatus'];
   subscriptionPlan: string;
   subscriptionExpires: string;
   _raw: User;
@@ -448,6 +459,7 @@ export function mapUserToTableRow(user: User): {
     avatar: user.name.split(' ')[0] ?? user.email,
     subscriptionLabel: `${sub} · ${plan} · ${expires}`,
     subscriptionStatus: sub,
+    subscriptionStatusRaw: user.subscriptionStatus,
     subscriptionPlan: plan,
     subscriptionExpires: expires,
     _raw: user,

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { 
   LayoutDashboard, 
   Users, 
@@ -30,7 +31,11 @@ import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@/src/lib/utils';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '@/src/hooks/useAuth';
+import { useSubscription } from '@/src/hooks/useSubscription';
 import { useNavLayout } from '@/src/hooks/useNavLayout';
+import { PlanTierChip } from '@/src/components/billing/PlanTierChip';
+import { resolvePlanTierForPlan, getPlanTierStyle } from '@/src/lib/planTier';
+import * as billingApi from '@/src/api/billing';
 import { t } from '@/src/i18n/t';
 
 export function Sidebar() {
@@ -161,8 +166,19 @@ export function TopBar() {
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState('');
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
+  const { user, logout, isAdmin } = useAuth();
+  const { plan } = useSubscription();
   const { toggleNav } = useNavLayout();
+
+  const { data: catalogPlans = [] } = useQuery({
+    queryKey: ['billing', 'plans'],
+    queryFn: billingApi.listPlans,
+    enabled: !isAdmin && Boolean(plan),
+    staleTime: 60_000,
+  });
+
+  const planTier = resolvePlanTierForPlan(plan, catalogPlans);
+  const planTierStyle = getPlanTierStyle(planTier);
 
   const searchResults = [
     { category: t('nav.searchCategoryAgents'), items: [
@@ -259,9 +275,17 @@ export function TopBar() {
           <div className="hidden sm:block h-8 w-[1px] bg-white/10 mx-2"></div>
 
           <div className="flex items-center gap-2 sm:gap-3">
-            <div className="text-right hidden xl:block">
-              <p className="text-sm font-semibold text-on-surface leading-none">{user?.name ?? t('common.user')}</p>
-              <p className="text-[10px] text-on-surface-variant font-mono mt-1">{user?.role ?? '—'}</p>
+            <div className="text-right hidden xl:block min-w-0">
+              <p className="text-sm font-semibold text-on-surface leading-none truncate">
+                {user?.name ?? t('common.user')}
+              </p>
+              {!isAdmin && plan ? (
+                <div className="mt-1.5 flex justify-end">
+                  <PlanTierChip tier={planTier} planName={plan.name} showTierLabel={false} />
+                </div>
+              ) : (
+                <p className="text-[10px] text-on-surface-variant font-mono mt-1">{user?.role ?? '—'}</p>
+              )}
             </div>
             <button
               type="button"
@@ -271,8 +295,13 @@ export function TopBar() {
             >
               <LogOut size={18} />
             </button>
-            <div className="w-10 h-10 rounded-full border-2 border-primary/20 p-0.5 overflow-hidden ring-2 ring-transparent hover:ring-primary/20 transition-all cursor-pointer">
-              <img 
+            <div
+              className={cn(
+                'w-10 h-10 rounded-full border-2 p-0.5 overflow-hidden ring-2 ring-transparent hover:ring-primary/20 transition-all cursor-pointer shrink-0',
+                !isAdmin && plan ? planTierStyle.border : 'border-primary/20',
+              )}
+            >
+              <img
                 src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.name ?? t('common.user')}`}
                 alt={user?.name ?? t('common.user')}
                 className="w-full h-full rounded-full object-cover bg-surface-container-high"

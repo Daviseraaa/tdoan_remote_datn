@@ -41,6 +41,14 @@ describe('workflow-variables', () => {
     expect(resolveTemplateString('{{steps.missing.stdout}}', baseScope)).toBe('');
   });
 
+  it('resolves telegram scope', () => {
+    const scope = {
+      ...baseScope,
+      telegram: { chatId: '99', text: 'hi' },
+    };
+    expect(resolveTemplateString('chat {{telegram.chatId}}', scope)).toBe('chat 99');
+  });
+
   it('parses task result json', () => {
     const p = parseTaskResult(
       JSON.stringify({ stdout: 'out', stderr: 'err', exitCode: 0 }),

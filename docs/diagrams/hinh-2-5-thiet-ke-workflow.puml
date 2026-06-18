@@ -1,0 +1,35 @@
+@startuml Hinh_2_5_Phan_Ra_Thiet_Ke_Workflow
+' Hình 2.5 — Phân rã use case Thiết kế workflow
+
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 13
+skinparam usecase {
+  BackgroundColor #FFFACD
+  BorderColor #333333
+}
+skinparam rectangle {
+  BorderColor #333333
+}
+
+left to right direction
+
+actor "Người dùng\n(USER)" as USER
+
+rectangle " <<use case>>\nThiết kế workflow" as SYS {
+
+  usecase "Tạo workflow\nmới" as UC1
+  usecase "Thiết kế đồ thị\nbước" as UC2
+  usecase "Cấu hình biến\nworkflow" as UC3
+  usecase "Lưu workflow" as UC4
+  usecase "Bật / tắt\nworkflow" as UC5
+}
+
+USER --> UC1
+USER --> UC2
+USER --> UC3
+USER --> UC4
+USER --> UC5
+
+@enduml

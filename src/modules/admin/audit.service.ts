@@ -43,12 +43,34 @@ export class AuditService {
     limit: number;
     actor?: string;
     action?: string;
+    resource?: string;
+    resourceIn?: string;
+    from?: string;
+    to?: string;
   }) {
+    const resources = params.resourceIn
+      ?.split(',')
+      .map((r) => r.trim())
+      .filter(Boolean);
+
+    const createdAt: Prisma.DateTimeFilter | undefined =
+      params.from || params.to
+        ? {
+            ...(params.from && { gte: new Date(params.from) }),
+            ...(params.to && {
+              lte: new Date(`${params.to.slice(0, 10)}T23:59:59.999Z`),
+            }),
+          }
+        : undefined;
+
     const where: Prisma.AuditLogWhereInput = {
       ...(params.actor && {
         actorEmail: { contains: params.actor, mode: 'insensitive' },
       }),
       ...(params.action && { action: params.action }),
+      ...(params.resource && { resource: params.resource }),
+      ...(resources?.length && { resource: { in: resources } }),
+      ...(createdAt && { createdAt }),
     };
 
     const [data, total] = await Promise.all([

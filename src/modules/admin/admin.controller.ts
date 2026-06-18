@@ -76,22 +76,64 @@ export class AdminController {
   @Post('plans')
   @Throttle({ default: { limit: 30, ttl: 60_000 } })
   @ApiOperation({ summary: 'Create subscription plan' })
-  createPlan(@Body() dto: CreateAdminPlanDto) {
-    return this.admin.createPlan(dto);
+  async createPlan(
+    @CurrentUser() actor: JwtPayload,
+    @Body() dto: CreateAdminPlanDto,
+    @Ip() ip: string,
+  ) {
+    const plan = await this.admin.createPlan(dto);
+    await this.audit.record({
+      actorId: actor.sub,
+      actorEmail: actor.email,
+      action: 'plan.create',
+      resource: 'plan',
+      resourceId: plan.id,
+      metadata: { name: plan.name },
+      ip,
+    });
+    return plan;
   }
 
   @Patch('plans/:id')
   @Throttle({ default: { limit: 30, ttl: 60_000 } })
   @ApiOperation({ summary: 'Update subscription plan' })
-  updatePlan(@Param('id') id: string, @Body() dto: UpdateAdminPlanDto) {
-    return this.admin.updatePlan(id, dto);
+  async updatePlan(
+    @CurrentUser() actor: JwtPayload,
+    @Param('id') id: string,
+    @Body() dto: UpdateAdminPlanDto,
+    @Ip() ip: string,
+  ) {
+    const plan = await this.admin.updatePlan(id, dto);
+    await this.audit.record({
+      actorId: actor.sub,
+      actorEmail: actor.email,
+      action: 'plan.update',
+      resource: 'plan',
+      resourceId: plan.id,
+      metadata: { fields: Object.keys(dto) },
+      ip,
+    });
+    return plan;
   }
 
   @Delete('plans/:id')
   @Throttle({ default: { limit: 30, ttl: 60_000 } })
   @ApiOperation({ summary: 'Delete subscription plan' })
-  deletePlan(@Param('id') id: string) {
-    return this.admin.deletePlan(id);
+  async deletePlan(
+    @CurrentUser() actor: JwtPayload,
+    @Param('id') id: string,
+    @Ip() ip: string,
+  ) {
+    const res = await this.admin.deletePlan(id);
+    await this.audit.record({
+      actorId: actor.sub,
+      actorEmail: actor.email,
+      action: 'plan.delete',
+      resource: 'plan',
+      resourceId: id,
+      ip,
+    });
+    return res;
   }
 
   @Get('workflow-runs')
@@ -438,6 +480,10 @@ export class AdminController {
       limit: query.limit,
       actor: query.actor,
       action: query.action,
+      resource: query.resource,
+      resourceIn: query.resourceIn,
+      from: query.from,
+      to: query.to,
     });
   }
 }

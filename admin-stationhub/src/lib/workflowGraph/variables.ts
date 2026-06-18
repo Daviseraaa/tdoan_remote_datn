@@ -18,10 +18,27 @@ export function nodeExportsStepVariables(
   return false;
 }
 
-/** Badge trên node tạo/gán biến — tên biến workflow. */
-export function resolveWorkflowVarName(config?: { variableName?: string }): string {
+/** Giá trị hiển thị ô tên biến — để trống nếu chưa đặt hoặc trùng default (placeholder). */
+export function workflowVarNameInputValue(
+  kind: WfNodeKind,
+  variableName?: string,
+): string {
+  const trimmed = variableName?.trim() ?? '';
+  if (!trimmed) return '';
+  const def = kind === 'excel' ? 'excel_data' : 'my_var';
+  if (trimmed === def) return '';
+  return trimmed;
+}
+
+/** Tên biến workflow khi node publish — default theo loại node. */
+export function resolveWorkflowVarName(
+  kind: WfNodeKind,
+  config?: { variableName?: string; excelMode?: WorkflowExcelMode },
+): string {
   const name = config?.variableName?.trim();
-  return name || 'my_var';
+  if (name) return name;
+  if (kind === 'excel') return 'excel_data';
+  return 'my_var';
 }
 
 export function nodePublishesWorkflowVar(
@@ -59,6 +76,24 @@ export function resolveStepOutputKey(
   }
   return slugOutputKey(nodeId) || nodeId.slice(0, 48);
 }
+
+export function formatTelegramVar(path: string): string {
+  return `{{telegram.${path}}}`;
+}
+
+/** Biến từ payload Telegram khi trigger loại TELEGRAM. */
+export const TELEGRAM_TRIGGER_VAR_KEYS = [
+  'chatId',
+  'userId',
+  'username',
+  'text',
+  'messageId',
+  'command',
+  'callbackData',
+  'event',
+  'argsText',
+  'args.0',
+] as const;
 
 export function stepVarRefs(key: string): { stdout: string; exitCode: string } {
   return {

@@ -1,5 +1,5 @@
+import type { ReactNode } from 'react';
 import { CalendarClock, MessageCircle, PlayCircle } from 'lucide-react';
-import { Link } from 'react-router-dom';
 import type { ScheduleKind, WorkflowTriggerType } from '@/src/api/triggers';
 import {
   type EntryTriggerDraft,
@@ -9,17 +9,31 @@ import { SCHEDULE_KINDS, TELEGRAM_EVENTS } from '@/src/lib/triggerForm';
 import { cn } from '@/src/lib/utils';
 import { t } from '@/src/i18n/t';
 import { WfTelegramBotSelect } from './WfTelegramBotSelect';
+import { WfInspectorBlock, WfInspectorSubsection } from './WfInspectorLayout';
+import { WorkflowVariablesEditor } from './WorkflowVariablesEditor';
 
 const inputCls =
-  'w-full mt-1 px-4 py-3 rounded-xl bg-surface-container-low border border-white/10 text-sm';
+  'w-full mt-1 px-3 py-2.5 rounded-xl bg-surface-container-low border border-white/10 text-sm';
+
+const labelCls =
+  'text-[10px] font-mono font-bold uppercase text-on-surface-variant block';
 
 type Props = {
   draft: EntryTriggerDraft;
   workflowActive: boolean;
+  workflowId?: string;
+  workflowVariables?: Record<string, unknown>;
+  onWorkflowVariablesChange?: (variables: Record<string, unknown>) => void;
   onChange: (patch: Partial<EntryTriggerDraft>) => void;
 };
 
 const TRIGGER_TYPES: WorkflowTriggerType[] = ['MANUAL', 'SCHEDULE', 'TELEGRAM'];
+
+const TELEGRAM_EVENT_PRESETS: { id: string; events: string[] }[] = [
+  { id: 'command', events: ['command', 'callback_query'] },
+  { id: 'message', events: ['message', 'command', 'callback_query'] },
+  { id: 'all', events: [...TELEGRAM_EVENTS] },
+];
 
 function TypeOption({
   type,
@@ -37,23 +51,179 @@ function TypeOption({
       type="button"
       onClick={onSelect}
       className={cn(
-        'flex-1 min-w-[72px] sm:min-w-[100px] flex flex-col items-center gap-2 p-3 sm:p-4 rounded-xl border text-center transition-all',
+        'flex-1 min-w-[88px] flex flex-col items-center gap-1.5 p-3 rounded-xl border text-center transition-all',
         active
           ? 'border-primary bg-primary/15 text-primary shadow-lg shadow-primary/10'
           : 'border-white/10 bg-white/[0.02] text-on-surface-variant hover:bg-white/5',
       )}
     >
-      <Icon size={22} />
-      <span className="text-xs font-bold">{entryTriggerTypeSubtitle(type)}</span>
+      <Icon size={20} />
+      <span className="text-[11px] font-bold leading-tight">{entryTriggerTypeSubtitle(type)}</span>
     </button>
   );
 }
 
-export function WorkflowTriggerInspector({
+function FieldLabel({ children }: { children: ReactNode }) {
+  return <label className={labelCls}>{children}</label>;
+}
+
+function ScheduleConfig({
   draft,
-  workflowActive,
   onChange,
-}: Props) {
+}: {
+  draft: EntryTriggerDraft;
+  onChange: (patch: Partial<EntryTriggerDraft>) => void;
+}) {
+  return (
+    <div className="space-y-4">
+      <div>
+        <FieldLabel>{t('triggers.fieldScheduleKind')}</FieldLabel>
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {SCHEDULE_KINDS.map((k) => (
+            <button
+              key={k}
+              type="button"
+              onClick={() => onChange({ scheduleKind: k })}
+              className={cn(
+                'px-2.5 py-1.5 rounded-lg border text-[11px] font-bold transition-colors',
+                draft.scheduleKind === k
+                  ? 'border-primary bg-primary/15 text-primary'
+                  : 'border-white/10 text-on-surface-variant hover:bg-white/5',
+              )}
+            >
+              {t(`triggers.scheduleKind_${k}` as 'triggers.scheduleKind_DAILY')}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {draft.scheduleKind === 'CRON' ? (
+        <div>
+          <FieldLabel>{t('workflows.cronExpression')}</FieldLabel>
+          <input
+            value={draft.cronExpression}
+            onChange={(e) => onChange({ cronExpression: e.target.value })}
+            placeholder="0 8 * * *"
+            className={cn(inputCls, 'font-mono')}
+          />
+        </div>
+      ) : null}
+
+      {draft.scheduleKind === 'INTERVAL' ? (
+        <div>
+          <FieldLabel>{t('triggers.fieldIntervalMinutes')}</FieldLabel>
+          <input
+            type="number"
+            min={1}
+            value={draft.intervalMinutes}
+            onChange={(e) => onChange({ intervalMinutes: Number(e.target.value) })}
+            className={inputCls}
+          />
+        </div>
+      ) : null}
+
+      {draft.scheduleKind === 'DAILY' ? (
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <FieldLabel>{t('triggers.fieldHour')}</FieldLabel>
+            <input
+              type="number"
+              min={0}
+              max={23}
+              value={draft.dailyHour}
+              onChange={(e) => onChange({ dailyHour: Number(e.target.value) })}
+              className={inputCls}
+            />
+          </div>
+          <div>
+            <FieldLabel>{t('triggers.fieldMinute')}</FieldLabel>
+            <input
+              type="number"
+              min={0}
+              max={59}
+              value={draft.dailyMinute}
+              onChange={(e) => onChange({ dailyMinute: Number(e.target.value) })}
+              className={inputCls}
+            />
+          </div>
+        </div>
+      ) : null}
+
+      {draft.scheduleKind === 'ONCE' ? (
+        <div>
+          <FieldLabel>{t('triggers.fieldRunAt')}</FieldLabel>
+          <input
+            type="datetime-local"
+            value={draft.runAtLocal}
+            onChange={(e) => onChange({ runAtLocal: e.target.value })}
+            className={inputCls}
+          />
+        </div>
+      ) : null}
+
+      <div>
+        <FieldLabel>{t('triggers.fieldTimezone')}</FieldLabel>
+        <input
+          value={draft.timezone}
+          onChange={(e) => onChange({ timezone: e.target.value })}
+          className={cn(inputCls, 'font-mono')}
+        />
+      </div>
+    </div>
+  );
+}
+
+function VarArgQuickPick({
+  keys,
+  value,
+  onChange,
+}: {
+  keys: string[];
+  value: string;
+  onChange: (next: string) => void;
+}) {
+  if (!keys.length) return null;
+  const current = value
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  const append = (name: string) => {
+    if (current.includes(name)) return;
+    onChange([...current, name].join(', '));
+  };
+
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-1.5">
+      {keys.map((k) => (
+        <button
+          key={k}
+          type="button"
+          onClick={() => append(k)}
+          disabled={current.includes(k)}
+          className={cn(
+            'px-2 py-0.5 rounded-md border text-[10px] font-mono font-bold transition-colors',
+            current.includes(k)
+              ? 'border-sky-400/30 bg-sky-400/10 text-sky-300/50 cursor-default'
+              : 'border-sky-400/25 text-sky-200/90 hover:bg-sky-400/10',
+          )}
+        >
+          + {k}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function TelegramConfig({
+  draft,
+  workflowVarKeys,
+  onChange,
+}: {
+  draft: EntryTriggerDraft;
+  workflowVarKeys: string[];
+  onChange: (patch: Partial<EntryTriggerDraft>) => void;
+}) {
   const toggleEvent = (ev: string) => {
     const next = draft.telegramEvents.includes(ev)
       ? draft.telegramEvents.filter((x) => x !== ev)
@@ -61,45 +231,131 @@ export function WorkflowTriggerInspector({
     onChange({ telegramEvents: next });
   };
 
+  const applyPreset = (events: string[]) => onChange({ telegramEvents: [...events] });
+
+  const activePreset =
+    TELEGRAM_EVENT_PRESETS.find(
+      (p) =>
+        p.events.length === draft.telegramEvents.length &&
+        p.events.every((e) => draft.telegramEvents.includes(e)),
+    )?.id ?? 'custom';
+
   return (
-    <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5 custom-scrollbar min-w-0 w-full">
+    <div className="space-y-5">
       <div>
-        <p className="text-[10px] font-mono font-bold uppercase text-on-surface-variant mb-1">
-          {t('workflows.triggerStartTitle')}
-        </p>
-        <p className="text-xs text-on-surface-variant leading-relaxed">
-          {t('workflows.triggerStartHint')}
-        </p>
+        <FieldLabel>{t('triggers.selectBot')}</FieldLabel>
+        <WfTelegramBotSelect
+          value={draft.telegramBotId}
+          onChange={(id) => onChange({ telegramBotId: id })}
+          autoSelectFirst={!draft.telegramBotId}
+        />
       </div>
 
-      {!workflowActive ? (
-        <p className="text-xs text-error rounded-xl border border-error/30 bg-error/10 p-3">
-          {t('triggers.workflowInactiveHint')}
-        </p>
-      ) : null}
-
-      <div>
-        <label className="text-[10px] font-mono font-bold uppercase text-on-surface-variant block mb-2">
-          {t('workflows.triggerType')}
-        </label>
-        <div className="flex flex-wrap gap-2">
-          {TRIGGER_TYPES.map((type) => (
-            <TypeOption
-              key={type}
-              type={type}
-              active={draft.type === type}
-              onSelect={() => onChange({ type })}
-            />
-          ))}
+      <div className="rounded-xl border border-white/10 bg-black/15 p-3 space-y-3">
+        <div>
+          <FieldLabel>{t('triggers.fieldCommands')}</FieldLabel>
+          <input
+            value={draft.commandsText}
+            onChange={(e) => onChange({ commandsText: e.target.value })}
+            placeholder="/run, /start"
+            className={cn(inputCls, 'font-mono')}
+          />
+        </div>
+        <div>
+          <span className={labelCls}>{t('triggers.fieldEvents')}</span>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {TELEGRAM_EVENT_PRESETS.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => applyPreset(p.events)}
+                className={cn(
+                  'px-2.5 py-1 rounded-lg border text-[10px] font-bold transition-colors',
+                  activePreset === p.id
+                    ? 'border-cyan-400/40 bg-cyan-400/15 text-cyan-200'
+                    : 'border-white/10 text-on-surface-variant hover:bg-white/5',
+                )}
+              >
+                {t(`workflows.triggerEventPreset_${p.id}` as 'workflows.triggerEventPreset_command')}
+              </button>
+            ))}
+          </div>
+          {activePreset === 'custom' ? (
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {TELEGRAM_EVENTS.map((ev) => (
+                <label
+                  key={ev}
+                  className={cn(
+                    'flex items-center gap-1.5 px-2 py-1 rounded-lg border text-[10px] cursor-pointer',
+                    draft.telegramEvents.includes(ev)
+                      ? 'border-cyan-400/30 bg-cyan-400/10'
+                      : 'border-white/10',
+                  )}
+                >
+                  <input
+                    type="checkbox"
+                    checked={draft.telegramEvents.includes(ev)}
+                    onChange={() => toggleEvent(ev)}
+                    className="sr-only"
+                  />
+                  {ev}
+                </label>
+              ))}
+            </div>
+          ) : null}
         </div>
       </div>
 
-      {draft.type !== 'MANUAL' ? (
-        <>
+      <div className="rounded-xl border border-sky-400/15 bg-sky-950/20 p-3 space-y-2">
+        <FieldLabel>{t('workflows.triggerTelegramVarArgs')}</FieldLabel>
+        <input
+          value={draft.variableArgsText}
+          onChange={(e) => onChange({ variableArgsText: e.target.value })}
+          placeholder={t('triggers.fieldVariableArgsPlaceholder')}
+          className={cn(inputCls, 'font-mono bg-black/20')}
+        />
+        <VarArgQuickPick
+          keys={workflowVarKeys}
+          value={draft.variableArgsText}
+          onChange={(variableArgsText) => onChange({ variableArgsText })}
+        />
+      </div>
+    </div>
+  );
+}
+
+export function WorkflowTriggerInspector({
+  draft,
+  workflowActive,
+  workflowId,
+  workflowVariables,
+  onWorkflowVariablesChange,
+  onChange,
+}: Props) {
+  const workflowVarKeys = Object.keys(workflowVariables ?? {});
+
+  return (
+    <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-3 custom-scrollbar min-w-0 w-full">
+      <h3 className="text-sm font-bold text-on-surface px-0.5">{t('workflows.triggerStartTitle')}</h3>
+
+      <WfInspectorBlock tone="properties" className="space-y-3">
+        <div>
+          <FieldLabel>{t('workflows.triggerType')}</FieldLabel>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {TRIGGER_TYPES.map((type) => (
+              <TypeOption
+                key={type}
+                type={type}
+                active={draft.type === type}
+                onSelect={() => onChange({ type })}
+              />
+            ))}
+          </div>
+        </div>
+
+        {draft.type !== 'MANUAL' ? (
           <div>
-            <label className="text-[10px] font-mono font-bold uppercase text-on-surface-variant">
-              {t('triggers.fieldName')}
-            </label>
+            <FieldLabel>{t('triggers.fieldName')}</FieldLabel>
             <input
               value={draft.name}
               onChange={(e) => onChange({ name: e.target.value })}
@@ -107,165 +363,42 @@ export function WorkflowTriggerInspector({
               className={inputCls}
             />
           </div>
-        </>
-      ) : (
-        <p className="text-xs text-on-surface-variant rounded-xl border border-dashed border-white/10 p-4">
-          {t('workflows.triggerManualDesc')}
-        </p>
-      )}
+        ) : null}
 
-      {draft.type === 'SCHEDULE' ? (
-        <div className="space-y-4 rounded-xl border border-white/5 bg-white/[0.02] p-4">
-          <div>
-            <label className="text-[10px] font-mono font-bold uppercase text-on-surface-variant">
-              {t('triggers.fieldScheduleKind')}
-            </label>
-            <select
-              value={draft.scheduleKind}
-              onChange={(e) => onChange({ scheduleKind: e.target.value as ScheduleKind })}
-              className={inputCls}
-            >
-              {SCHEDULE_KINDS.map((k) => (
-                <option key={k} value={k}>
-                  {t(`triggers.scheduleKind_${k}` as 'triggers.scheduleKind_DAILY')}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="text-[10px] font-mono font-bold uppercase text-on-surface-variant">
-              {t('triggers.fieldTimezone')}
-            </label>
-            <input
-              value={draft.timezone}
-              onChange={(e) => onChange({ timezone: e.target.value })}
-              className={cn(inputCls, 'font-mono')}
+        {!workflowActive ? (
+          <p className="text-xs text-error rounded-xl border border-error/30 bg-error/10 p-3">
+            {t('triggers.workflowInactiveHint')}
+          </p>
+        ) : null}
+      </WfInspectorBlock>
+
+      {draft.type === 'SCHEDULE' || draft.type === 'TELEGRAM' ? (
+        <WfInspectorBlock tone="config" className="space-y-4">
+          {draft.type === 'SCHEDULE' ? (
+            <ScheduleConfig draft={draft} onChange={onChange} />
+          ) : null}
+
+          {draft.type === 'TELEGRAM' ? (
+            <TelegramConfig
+              draft={draft}
+              workflowVarKeys={workflowVarKeys}
+              onChange={onChange}
             />
-          </div>
-          {draft.scheduleKind === 'CRON' ? (
-            <div>
-              <label className="text-[10px] font-mono font-bold uppercase text-on-surface-variant">
-                {t('workflows.cronExpression')}
-              </label>
-              <input
-                value={draft.cronExpression}
-                onChange={(e) => onChange({ cronExpression: e.target.value })}
-                className={cn(inputCls, 'font-mono')}
-              />
-            </div>
           ) : null}
-          {draft.scheduleKind === 'INTERVAL' ? (
-            <div>
-              <label className="text-[10px] font-mono font-bold uppercase text-on-surface-variant">
-                {t('triggers.fieldIntervalMinutes')}
-              </label>
-              <input
-                type="number"
-                min={1}
-                value={draft.intervalMinutes}
-                onChange={(e) => onChange({ intervalMinutes: Number(e.target.value) })}
-                className={inputCls}
-              />
-            </div>
-          ) : null}
-          {draft.scheduleKind === 'DAILY' ? (
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-[10px] font-mono font-bold uppercase text-on-surface-variant">
-                  {t('triggers.fieldHour')}
-                </label>
-                <input
-                  type="number"
-                  min={0}
-                  max={23}
-                  value={draft.dailyHour}
-                  onChange={(e) => onChange({ dailyHour: Number(e.target.value) })}
-                  className={inputCls}
-                />
-              </div>
-              <div>
-                <label className="text-[10px] font-mono font-bold uppercase text-on-surface-variant">
-                  {t('triggers.fieldMinute')}
-                </label>
-                <input
-                  type="number"
-                  min={0}
-                  max={59}
-                  value={draft.dailyMinute}
-                  onChange={(e) => onChange({ dailyMinute: Number(e.target.value) })}
-                  className={inputCls}
-                />
-              </div>
-            </div>
-          ) : null}
-          {draft.scheduleKind === 'ONCE' ? (
-            <div>
-              <label className="text-[10px] font-mono font-bold uppercase text-on-surface-variant">
-                {t('triggers.fieldRunAt')}
-              </label>
-              <input
-                type="datetime-local"
-                value={draft.runAtLocal}
-                onChange={(e) => onChange({ runAtLocal: e.target.value })}
-                className={inputCls}
-              />
-            </div>
-          ) : null}
-        </div>
+        </WfInspectorBlock>
       ) : null}
 
-      {draft.type === 'TELEGRAM' ? (
-        <div className="space-y-4 rounded-xl border border-white/5 bg-white/[0.02] p-4">
-          <div>
-            <label className="text-[10px] font-mono font-bold uppercase text-on-surface-variant">
-              {t('triggers.selectBot')}
-            </label>
-            <WfTelegramBotSelect
-              value={draft.telegramBotId}
-              onChange={(id) => onChange({ telegramBotId: id })}
-              autoSelectFirst={!draft.telegramBotId}
+      {onWorkflowVariablesChange ? (
+        <WfInspectorBlock tone="vars">
+          <WfInspectorSubsection title={t('workflows.triggerEntryVars')} tone="workflow">
+            <WorkflowVariablesEditor
+              key={workflowId}
+              variables={workflowVariables}
+              onChange={onWorkflowVariablesChange}
             />
-          </div>
-          <div>
-            <label className="text-[10px] font-mono font-bold uppercase text-on-surface-variant">
-              {t('triggers.fieldCommands')}
-            </label>
-            <input
-              value={draft.commandsText}
-              onChange={(e) => onChange({ commandsText: e.target.value })}
-              className={cn(inputCls, 'font-mono')}
-            />
-            <p className="text-[10px] text-on-surface-variant mt-1">{t('triggers.fieldCommandsHint')}</p>
-          </div>
-          <div>
-            <span className="text-[10px] font-mono font-bold uppercase text-on-surface-variant">
-              {t('triggers.fieldEvents')}
-            </span>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {TELEGRAM_EVENTS.map((ev) => (
-                <label
-                  key={ev}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-white/10 text-xs cursor-pointer"
-                >
-                  <input
-                    type="checkbox"
-                    checked={draft.telegramEvents.includes(ev)}
-                    onChange={() => toggleEvent(ev)}
-                  />
-                  {ev}
-                </label>
-              ))}
-            </div>
-          </div>
-        </div>
+          </WfInspectorSubsection>
+        </WfInspectorBlock>
       ) : null}
-
-      <p className="text-[11px] text-on-surface-variant">
-        {t('workflows.triggerSaveHint')}{' '}
-        <Link to="/automations" className="text-primary underline">
-          {t('nav.automations')}
-        </Link>
-      </p>
     </div>
   );
 }

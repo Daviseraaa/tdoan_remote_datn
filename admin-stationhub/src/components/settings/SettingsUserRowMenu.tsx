@@ -18,6 +18,7 @@ export type SettingsUserRow = {
   avatar: string;
   subscriptionLabel?: string;
   subscriptionStatus?: string;
+  subscriptionStatusRaw?: string;
   subscriptionPlan?: string;
   subscriptionExpires?: string;
 };
@@ -32,7 +33,7 @@ type Props = {
 };
 
 const iconBtn =
-  'p-2 rounded-lg transition-colors text-on-surface-variant hover:text-on-surface hover:bg-white/5 disabled:opacity-40';
+  'p-1.5 rounded-md transition-colors text-on-surface-variant hover:text-on-surface hover:bg-white/5 disabled:opacity-40';
 
 export function SettingsUserRowMenu({
   user,

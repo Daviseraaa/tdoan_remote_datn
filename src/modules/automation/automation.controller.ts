@@ -4,6 +4,7 @@ import {
   Delete,
   Get,
   HttpStatus,
+  Ip,
   Param,
   Patch,
   Post,
@@ -14,6 +15,7 @@ import type { Response } from 'express';
 import { ApiOperation, ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { CurrentUser, JwtPayload } from '../../common/decorators/current-user.decorator';
 import { PaginationDto } from '../../common/dto/pagination.dto';
+import { AuditService } from '../admin/audit.service';
 import { AutomationService } from './automation.service';
 import { WorkflowRuntimeService } from './workflow-runtime.service';
 import { CreateWorkflowDto, UpdateWorkflowDto } from './dto/index';
@@ -26,6 +28,7 @@ export class AutomationController {
   constructor(
     private readonly automationService: AutomationService,
     private readonly workflowRuntime: WorkflowRuntimeService,
+    private readonly audit: AuditService,
   ) {}
 
   @Post()
@@ -85,10 +88,24 @@ export class AutomationController {
     @CurrentUser() user: JwtPayload,
     @Param('id') id: string,
     @Query('wait') wait: string | undefined,
+    @Ip() ip: string,
     @Res({ passthrough: true }) res: Response,
   ) {
     const sync = wait === 'true' || wait === '1';
     const result = await this.automationService.execute(id, user.sub, sync);
+    const runId =
+      result && typeof result === 'object' && 'runId' in result
+        ? String((result as { runId?: string }).runId ?? '')
+        : undefined;
+    await this.audit.record({
+      actorId: user.sub,
+      actorEmail: user.email,
+      action: 'workflow.execute',
+      resource: 'workflow',
+      resourceId: id,
+      metadata: { sync, ...(runId ? { runId } : {}) },
+      ip,
+    });
     if (!sync) {
       res.status(HttpStatus.ACCEPTED);
     }

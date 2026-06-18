@@ -1,0 +1,38 @@
+@startuml Hinh_2_2_Phan_Ra_Dang_Nhap_Dang_Ky
+' Hình 2.2 — Phân rã use case Đăng nhập / đăng ký
+
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 13
+skinparam usecase {
+  BackgroundColor #FFFACD
+  BorderColor #333333
+}
+skinparam rectangle {
+  BorderColor #333333
+}
+
+left to right direction
+
+actor "Người dùng\n(USER)" as USER
+actor "Quản trị viên\n(ADMIN)" as ADMIN
+
+rectangle " <<use case>>\nĐăng nhập / đăng ký" as SYS {
+
+  usecase "Đăng ký\ntài khoản" as UC1
+  usecase "Đăng nhập" as UC2
+  usecase "Làm mới\naccess token" as UC3
+  usecase "Đăng xuất" as UC4
+}
+
+USER --> UC1
+USER --> UC2
+USER --> UC3
+USER --> UC4
+
+ADMIN --> UC2
+ADMIN --> UC3
+ADMIN --> UC4
+
+@enduml

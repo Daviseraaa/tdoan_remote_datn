@@ -557,11 +557,12 @@ export interface AdminPaymentRecord {
 export interface AuditLogEntry {
   id: string;
   action: string;
-  actorEmail?: string;
-  actorId?: string;
-  targetType?: string;
-  targetId?: string;
-  metadata?: Record<string, unknown>;
+  actorEmail?: string | null;
+  actorId?: string | null;
+  resource: string;
+  resourceId?: string | null;
+  metadata?: Record<string, unknown> | null;
+  ip?: string | null;
   createdAt: string;
 }
 

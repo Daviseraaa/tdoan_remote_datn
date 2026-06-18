@@ -3,6 +3,7 @@ import { WorkflowTriggerType } from '@prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { TriggerDispatcherService } from '../trigger-dispatcher.service';
 import type { TelegramMatchConfig, TelegramTriggerPayload } from './telegram.types';
+import { extractTelegramCommandArgs } from './telegram-command-args';
 
 @Injectable()
 export class TelegramUpdateService {
@@ -150,6 +151,8 @@ export class TelegramUpdateService {
     if (msg.document) event = 'document';
     if (msg.photo) event = 'photo';
 
+    const { args, argsText } = extractTelegramCommandArgs(text, command);
+
     const file = msg.document
       ? (msg.document as Record<string, unknown>)
       : Array.isArray(msg.photo)
@@ -169,6 +172,7 @@ export class TelegramUpdateService {
       text,
       messageId: msg.message_id != null ? String(msg.message_id) : undefined,
       command,
+      ...(args.length ? { args, argsText } : argsText ? { argsText } : {}),
       file,
     };
   }

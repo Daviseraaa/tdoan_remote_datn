@@ -1,0 +1,35 @@
+@startuml Hinh_2_4_Phan_Ra_Quan_Ly_Task_Template
+' Hình 2.4 — Phân rã use case Quản lý task và template
+
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 13
+skinparam usecase {
+  BackgroundColor #FFFACD
+  BorderColor #333333
+}
+skinparam rectangle {
+  BorderColor #333333
+}
+
+left to right direction
+
+actor "Người dùng\n(USER)" as USER
+
+rectangle " <<use case>>\nQuản lý task và template" as SYS {
+
+  usecase "Tạo task\ntemplate" as UC1
+  usecase "Sửa / xóa\ntemplate" as UC2
+  usecase "Tạo task" as UC3
+  usecase "Xem log và\ntrạng thái task" as UC4
+  usecase "Hủy hoặc\nthử lại task" as UC5
+}
+
+USER --> UC1
+USER --> UC2
+USER --> UC3
+USER --> UC4
+USER --> UC5
+
+@enduml

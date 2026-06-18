@@ -1,0 +1,36 @@
+@startuml Hinh_2_2b_Phan_Ra_Workflow
+' (Tùy chọn) Phân rã use case Chạy workflow — dùng nếu GV yêu cầu thêm 1 sơ đồ phân rã
+
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam usecase {
+  BackgroundColor #FFFACD
+  BorderColor #333333
+}
+
+left to right direction
+
+actor "Người dùng\n(USER)" as USER
+actor "Hệ thống\n(Trigger)" as TRG <<actor>>
+
+rectangle "Chạy workflow" as SYS {
+
+  usecase "Khởi tạo\nWorkflowRun" as UC1
+  usecase "Duyệt đồ thị\n(graph scheduler)" as UC2
+  usecase "Resolve biến\nsteps.*" as UC3
+  usecase "Tạo task\ncho từng bước" as UC4
+  usecase "Ghi lịch sử\nStepRun" as UC5
+  usecase "Hoàn tất /\n báo lỗi run" as UC6
+}
+
+USER --> UC1
+TRG --> UC1
+
+UC1 ..> UC2 : <<include>>
+UC2 ..> UC3 : <<include>>
+UC3 ..> UC4 : <<include>>
+UC4 ..> UC5 : <<include>>
+UC5 ..> UC6 : <<include>>
+
+@enduml

@@ -1,0 +1,31 @@
+@startuml Hinh_2_9_Phan_Ra_Quan_Ly_Nguoi_Dung
+' Hình 2.9 — Phân rã use case Quản lý người dùng
+
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 13
+skinparam usecase {
+  BackgroundColor #FFFACD
+  BorderColor #333333
+}
+skinparam rectangle {
+  BorderColor #333333
+}
+
+left to right direction
+
+actor "Quản trị viên\n(ADMIN)" as ADMIN
+
+rectangle " <<use case>>\nQuản lý người dùng" as SYS {
+
+  usecase "Xem danh sách\nngười dùng" as UC1
+  usecase "Khóa / mở khóa\ntài khoản" as UC2
+  usecase "Phân quyền\nADMIN / USER" as UC3
+}
+
+ADMIN --> UC1
+ADMIN --> UC2
+ADMIN --> UC3
+
+@enduml

@@ -22,6 +22,7 @@ import { AutomationModule } from './modules/automation/automation.module';
 import { TriggersModule } from './modules/triggers/triggers.module';
 import { HealthModule } from './modules/health/health.module';
 import { AdminModule } from './modules/admin/admin.module';
+import { AuditModule } from './modules/admin/audit.module';
 import { ChromeScriptsModule } from './modules/chrome-scripts/chrome-scripts.module';
 import { DesktopRecordingsModule } from './modules/desktop-recordings/desktop-recordings.module';
 import { BillingModule } from './modules/billing/billing.module';
@@ -68,6 +69,7 @@ import { BillingModule } from './modules/billing/billing.module';
     ScheduleModule.forRoot(),
 
     PrismaModule,
+    AuditModule,
     AuthModule,
     UsersModule,
     AgentsModule,

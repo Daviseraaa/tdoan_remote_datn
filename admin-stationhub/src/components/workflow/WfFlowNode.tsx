@@ -98,7 +98,7 @@ function WfFlowNodeComponent({ id, data, selected }: NodeProps) {
   const exportsStepVar = nodeExportsStepVariables(d.kind, d.config);
   const outputKey = exportsStepVar ? resolveNodeOutputKey(d, id) : null;
   const workflowVarName =
-    nodePublishesWorkflowVar(d.kind, d.config) ? resolveWorkflowVarName(d.config) : null;
+    nodePublishesWorkflowVar(d.kind, d.config) ? resolveWorkflowVarName(d.kind, d.config) : null;
 
   return (
     <div className="flex flex-col items-center">

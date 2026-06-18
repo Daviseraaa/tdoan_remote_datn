@@ -69,9 +69,6 @@ function VarChip({
           </button>
         ) : null}
       </div>
-      <p className="text-[9px] font-mono text-on-surface-variant/80 truncate" title={refs.primary}>
-        {refs.primary}
-      </p>
     </div>
   );
 }
@@ -114,7 +111,6 @@ export function WfVarRefPanel({ upstream, workflowVarKeys = [], className }: Pro
       <p className="text-[10px] font-mono font-bold uppercase text-primary">
         {t('workflows.varsAvailable')}
       </p>
-      <p className="text-[10px] text-on-surface-variant">{t('workflows.varsHint')}</p>
 
       {workflowVarKeys.length > 0 ? (
         <div className="flex flex-wrap gap-1">
@@ -137,10 +133,6 @@ export function WfVarRefPanel({ upstream, workflowVarKeys = [], className }: Pro
           />
         ))}
       </div>
-
-      {upstream.length === 1 ? (
-        <p className="text-[9px] font-mono text-on-surface-variant">{t('workflows.varPath_prev_stdout')}</p>
-      ) : null}
     </div>
   );
 }

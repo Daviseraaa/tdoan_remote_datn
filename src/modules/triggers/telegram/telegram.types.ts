@@ -8,6 +8,8 @@ export type TelegramMatchConfig = {
     | 'edited_message'
   )[];
   commands?: string[];
+  /** Tham số lệnh (args[0], args[1], …) gán vào biến workflow cùng tên khi chạy. */
+  variableArgs?: string[];
 };
 
 export type TelegramTriggerPayload = {
@@ -21,6 +23,10 @@ export type TelegramTriggerPayload = {
   event: string;
   command?: string;
   callbackData?: string;
+  /** Tham số sau lệnh hoặc nội dung tách theo khoảng trắng. */
+  args?: string[];
+  /** Phần còn lại sau lệnh (chuỗi gốc). */
+  argsText?: string;
   file?: Record<string, unknown>;
 };
 

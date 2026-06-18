@@ -1,0 +1,45 @@
+@startuml Hinh_2_2_Phan_Ra_Thuc_Thi_Task
+' Hình 2.2 — Phân rã use case Thực thi task trên agent
+' Export: PlantUML → PNG/SVG cho Word
+
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 13
+skinparam usecase {
+  BackgroundColor #FFFACD
+  BorderColor #333333
+}
+skinparam rectangle {
+  BorderColor #333333
+}
+
+left to right direction
+
+actor "Người dùng\n(USER)" as USER
+
+rectangle " <<use case>>\nThực thi task trên agent" as SYS {
+
+  usecase "Tạo task" as UC1
+  usecase "Xếp hàng task\n(BullMQ)" as UC2
+  usecase "Phân phối task\n(WebSocket)" as UC3
+  usecase "Thực thi\ntại agent" as UC4
+  usecase "Báo cáo kết quả" as UC5
+  usecase "Thông báo\nrealtime" as UC6
+}
+
+USER --> UC1
+
+UC1 ..> UC2 : <<include>>
+UC2 ..> UC3 : <<include>>
+UC3 ..> UC4 : <<include>>
+UC4 ..> UC5 : <<include>>
+UC5 ..> UC6 : <<include>>
+
+note bottom of SYS
+  Luồng: POST /api/tasks → Redis queue
+  → task:execute → agent → task:result
+  → cập nhật DB → push UI
+end note
+
+@enduml

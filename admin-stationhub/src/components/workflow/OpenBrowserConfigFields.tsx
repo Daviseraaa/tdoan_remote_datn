@@ -103,7 +103,9 @@ export function OpenBrowserConfigFields({
           placeholder="https://example.com"
           className={cn(inputCls, 'font-mono')}
         />
-        <p className="text-[10px] text-on-surface-variant mt-1">{t('openBrowser.urlHint')}</p>
+        {!compact ? (
+          <p className="text-[10px] text-on-surface-variant mt-1">{t('openBrowser.urlHint')}</p>
+        ) : null}
         <div className="flex flex-wrap gap-2 mt-2">
           {URL_PRESETS.map((preset) => (
             <button
@@ -135,9 +137,11 @@ export function OpenBrowserConfigFields({
               <Globe size={16} className="text-primary" />
               {t('workflows.openBrowserEngineCloak')}
             </div>
-            <p className="text-[10px] text-on-surface-variant mt-1.5 leading-relaxed">
-              {t('openBrowser.cloakDesc')}
-            </p>
+            {!compact ? (
+              <p className="text-[10px] text-on-surface-variant mt-1.5 leading-relaxed">
+                {t('openBrowser.cloakDesc')}
+              </p>
+            ) : null}
           </button>
           <button
             type="button"
@@ -153,9 +157,11 @@ export function OpenBrowserConfigFields({
               <Chrome size={16} className="text-primary" />
               {t('workflows.openBrowserEngineChrome')}
             </div>
-            <p className="text-[10px] text-on-surface-variant mt-1.5 leading-relaxed">
-              {t('openBrowser.chromeDesc')}
-            </p>
+            {!compact ? (
+              <p className="text-[10px] text-on-surface-variant mt-1.5 leading-relaxed">
+                {t('openBrowser.chromeDesc')}
+              </p>
+            ) : null}
           </button>
         </div>
       </div>
@@ -166,6 +172,7 @@ export function OpenBrowserConfigFields({
             agentId={agentId}
             value={form.chromeProfile}
             onChange={(profile) => patch({ chromeProfile: profile })}
+            hideHint={compact}
           />
         ) : (
           <p className="text-[10px] text-amber-400/90">{t('workflows.openBrowserSelectAgentFirst')}</p>
@@ -180,7 +187,9 @@ export function OpenBrowserConfigFields({
             placeholder={t('openBrowser.userDataDirPlaceholder')}
             className={cn(inputCls, 'font-mono text-xs')}
           />
-          <p className="text-[10px] text-on-surface-variant mt-1">{t('openBrowser.userDataDirHint')}</p>
+          {!compact ? (
+            <p className="text-[10px] text-on-surface-variant mt-1">{t('openBrowser.userDataDirHint')}</p>
+          ) : null}
         </div>
       )}
 
@@ -191,19 +200,19 @@ export function OpenBrowserConfigFields({
         <div className="px-4 pb-4 pt-1 space-y-4 border-t border-white/5">
           <TriStateSelect
             label={t('openBrowser.headless')}
-            hint={t('openBrowser.headlessHint')}
+            hint={compact ? undefined : t('openBrowser.headlessHint')}
             value={form.headless}
             onChange={(headless) => patch({ headless })}
           />
           <TriStateSelect
             label={t('openBrowser.humanize')}
-            hint={t('openBrowser.humanizeHint')}
+            hint={compact ? undefined : t('openBrowser.humanizeHint')}
             value={form.humanize}
             onChange={(humanize) => patch({ humanize })}
           />
           <TriStateSelect
             label={t('openBrowser.keepOpen')}
-            hint={t('openBrowser.keepOpenHint')}
+            hint={compact ? undefined : t('openBrowser.keepOpenHint')}
             value={form.keepOpen}
             onChange={(keepOpen) => patch({ keepOpen })}
           />

@@ -1,0 +1,29 @@
+@startuml Hinh_2_10_Phan_Ra_Xem_Nhat_Ky_Audit
+' Hình 2.10 — Phân rã use case Xem nhật ký audit
+
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 13
+skinparam usecase {
+  BackgroundColor #FFFACD
+  BorderColor #333333
+}
+skinparam rectangle {
+  BorderColor #333333
+}
+
+left to right direction
+
+actor "Quản trị viên\n(ADMIN)" as ADMIN
+
+rectangle " <<use case>>\nXem nhật ký audit" as SYS {
+
+  usecase "Xem danh sách\nsự kiện audit" as UC1
+  usecase "Lọc theo thời gian\n/ loại hành động" as UC2
+}
+
+ADMIN --> UC1
+ADMIN --> UC2
+
+@enduml

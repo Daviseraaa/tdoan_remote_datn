@@ -1,0 +1,67 @@
+@startuml Hinh_4_1_Bieu_Do_Goi_UML
+' Hình 4.1 — Biểu đồ gói UML (mục 4.1.2)
+' Cấu trúc theo mẫu Hình 1 quy chế: 3 tầng, gói lồng, phụ thuộc mũi tên đứt nét
+' Export: https://www.plantuml.com/plantuml/uml/
+
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 13
+skinparam packageStyle rectangle
+skinparam ArrowColor #333333
+skinparam PackageBorderColor #333333
+skinparam linetype ortho
+skinparam nodesep 30
+skinparam ranksep 40
+
+top to bottom direction
+
+' ══ Tầng 1 (2 gói độc lập) ══
+together {
+  package "console.web" as package1
+  package "agent.shell" as package2
+}
+
+' ══ Tầng 2 (2 gói cha, mỗi gói chứa 2 gói con) ══
+together {
+  package "server.quan-tri" as package34 {
+    package "auth.users" as package3
+    package "admin.audit" as package4
+  }
+  package "server.dieu-phoi" as package56 {
+    package "agents" as package5
+    package "tasks.workflow" as package6
+  }
+}
+
+' ══ Tầng 3 (1 gói đơn + 1 gói cha 2 con + 1 gói đơn) ══
+together {
+  package "infrastructure" as package7
+  package "datastore" as package910 {
+    package "postgresql" as package9
+    package "redis" as package10
+  }
+  package "agent.core" as package8
+}
+
+' Phụ thuộc giữa các gói (dependency — nét đứt, giống mẫu quy chế)
+package1 ..> package34
+package2 ..> package56
+package34 ..> package7
+package56 ..> package910
+package56 ..> package8
+
+note bottom
+  **Sự phụ thuộc giữa các gói (dependency)**
+  ----
+  (1) console.web ──>> server.quan-tri
+  (2) agent.shell ──>> server.dieu-phoi
+  (3) server.quan-tri ──>> infrastructure
+  (4) server.dieu-phoi ──>> datastore
+  (5) server.dieu-phoi ──>> agent.core
+  ----
+  Ký hiệu: ──>> phụ thuộc (mũi tên nét đứt trên sơ đồ).
+  Gói tầng trên phụ thuộc gói tầng dưới; không phụ thuộc ngược.
+end note
+
+@enduml

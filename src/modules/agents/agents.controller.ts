@@ -4,6 +4,7 @@ import {
   Delete,
   Get,
   Header,
+  Ip,
   Param,
   Patch,
   Post,
@@ -13,6 +14,7 @@ import {
 import type { Response } from 'express';
 import { ApiOperation, ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { CurrentUser, JwtPayload } from '../../common/decorators/current-user.decorator';
+import { AuditService } from '../admin/audit.service';
 import { AgentsGateway } from './agents.gateway';
 import { AgentsService } from './agents.service';
 import {
@@ -30,12 +32,27 @@ export class AgentsController {
   constructor(
     private readonly agentsService: AgentsService,
     private readonly agentsGateway: AgentsGateway,
+    private readonly audit: AuditService,
   ) {}
 
   @Post()
   @ApiOperation({ summary: 'Register a new agent' })
-  create(@CurrentUser() user: JwtPayload, @Body() dto: CreateAgentDto) {
-    return this.agentsService.create(user.sub, dto);
+  async create(
+    @CurrentUser() user: JwtPayload,
+    @Body() dto: CreateAgentDto,
+    @Ip() ip: string,
+  ) {
+    const agent = await this.agentsService.create(user.sub, dto);
+    await this.audit.record({
+      actorId: user.sub,
+      actorEmail: user.email,
+      action: 'agent.create',
+      resource: 'agent',
+      resourceId: agent.id,
+      metadata: { name: agent.name },
+      ip,
+    });
+    return agent;
   }
 
   @Get()
@@ -154,7 +171,20 @@ export class AgentsController {
 
   @Delete(':id')
   @ApiOperation({ summary: 'Delete an agent' })
-  remove(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
-    return this.agentsService.remove(id, user.sub);
+  async remove(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+    @Ip() ip: string,
+  ) {
+    const res = await this.agentsService.remove(id, user.sub);
+    await this.audit.record({
+      actorId: user.sub,
+      actorEmail: user.email,
+      action: 'agent.delete',
+      resource: 'agent',
+      resourceId: id,
+      ip,
+    });
+    return res;
   }
 }

@@ -17,12 +17,7 @@ import {
   ShieldCheck,
   ArrowRight,
   ChevronRight,
-  Gem,
-  Crown,
-  Award,
-  Leaf,
 } from 'lucide-react';
-import type { LucideIcon } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { normalizePlanBenefits } from '@/src/lib/planBenefits';
 import { useAuth } from '@/src/hooks/useAuth';
@@ -33,7 +28,14 @@ import { apiErrorMessage } from '@/src/lib/api';
 import { t } from '@/src/i18n/t';
 import { CopyButton } from '@/src/components/CopyButton';
 import { PlanPriceDisplay } from '@/src/components/admin/PlanPriceDisplay';
+import { PlanTierChip } from '@/src/components/billing/PlanTierChip';
 import { formatVnd } from '@/src/lib/planPricing';
+import {
+  buildPlanTierMap,
+  getPlanTierStyle,
+  resolvePlanTierForPlan,
+  type PlanTierId,
+} from '@/src/lib/planTier';
 
 function formatPlanPrice(plan: SubscriptionPlan): string {
   if (plan.isTrial || plan.priceVnd <= 0) return t('billing.freePrice');
@@ -152,137 +154,205 @@ function buildPlanFeatures(plan: SubscriptionPlan): string[] {
   ];
 }
 
-type PlanTierId = 'emerald' | 'amethyst' | 'gold' | 'platinum' | 'diamond';
-
-const PLAN_TIER_ORDER: PlanTierId[] = ['emerald', 'amethyst', 'gold', 'platinum', 'diamond'];
-
-type PlanTierStyle = {
-  labelKey:
-    | 'billing.planTierEmerald'
-    | 'billing.planTierAmethyst'
-    | 'billing.planTierGold'
-    | 'billing.planTierPlatinum'
-    | 'billing.planTierDiamond';
-  Icon: LucideIcon;
-  card: string;
-  orb: string;
-  orbSecondary: string;
-  border: string;
-  price: string;
-  tierBadge: string;
-  tierBadgeText: string;
-  checkBg: string;
-  checkIcon: string;
-  button: string;
-  hoverLift: string;
-  shimmer?: boolean;
-  diamondGlow?: boolean;
-};
-
-const PLAN_TIER_STYLES: Record<PlanTierId, PlanTierStyle> = {
-  emerald: {
-    labelKey: 'billing.planTierEmerald',
-    Icon: Leaf,
-    card: 'bg-gradient-to-br from-emerald-950/70 via-[#0b1326]/95 to-emerald-900/25',
-    orb: 'bg-emerald-400/25',
-    orbSecondary: 'bg-teal-500/15',
-    border: 'border-emerald-500/25 hover:border-emerald-400/45',
-    price: 'text-emerald-300',
-    tierBadge: 'bg-emerald-500/15 border-emerald-400/30',
-    tierBadgeText: 'text-emerald-200',
-    checkBg: 'bg-emerald-500/20',
-    checkIcon: 'text-emerald-300',
-    button:
-      'bg-gradient-to-r from-emerald-600 to-emerald-500 text-white shadow-lg shadow-emerald-600/25 hover:from-emerald-500 hover:to-emerald-400',
-    hoverLift: 'hover:-translate-y-1 hover:shadow-[0_12px_40px_-16px_rgba(52,211,153,0.45)]',
-  },
-  amethyst: {
-    labelKey: 'billing.planTierAmethyst',
-    Icon: Sparkles,
-    card: 'bg-gradient-to-br from-violet-950/70 via-[#0b1326]/95 to-fuchsia-900/20',
-    orb: 'bg-violet-400/25',
-    orbSecondary: 'bg-purple-500/15',
-    border: 'border-violet-500/30 hover:border-violet-400/50',
-    price: 'text-violet-300',
-    tierBadge: 'bg-violet-500/15 border-violet-400/35',
-    tierBadgeText: 'text-violet-200',
-    checkBg: 'bg-violet-500/20',
-    checkIcon: 'text-violet-300',
-    button:
-      'bg-gradient-to-r from-violet-600 to-fuchsia-500 text-white shadow-lg shadow-violet-600/30 hover:from-violet-500 hover:to-fuchsia-400',
-    hoverLift: 'hover:-translate-y-1 hover:shadow-[0_12px_40px_-16px_rgba(167,139,250,0.5)]',
-  },
-  gold: {
-    labelKey: 'billing.planTierGold',
-    Icon: Crown,
-    card: 'bg-gradient-to-br from-amber-950/60 via-[#0b1326]/95 to-orange-900/25',
-    orb: 'bg-amber-400/30',
-    orbSecondary: 'bg-yellow-600/15',
-    border: 'border-amber-400/35 hover:border-amber-300/55',
-    price: 'text-amber-300',
-    tierBadge: 'bg-amber-500/15 border-amber-400/40',
-    tierBadgeText: 'text-amber-100',
-    checkBg: 'bg-amber-500/20',
-    checkIcon: 'text-amber-300',
-    button:
-      'bg-gradient-to-r from-amber-600 to-yellow-500 text-amber-950 shadow-lg shadow-amber-500/30 hover:from-amber-500 hover:to-yellow-400',
-    hoverLift: 'hover:-translate-y-1 hover:shadow-[0_14px_44px_-14px_rgba(251,191,36,0.55)]',
-    shimmer: true,
-  },
-  platinum: {
-    labelKey: 'billing.planTierPlatinum',
-    Icon: Award,
-    card: 'bg-gradient-to-br from-slate-400/10 via-[#0b1326]/95 to-sky-900/20',
-    orb: 'bg-slate-300/20',
-    orbSecondary: 'bg-sky-300/12',
-    border: 'border-slate-300/25 hover:border-slate-200/45',
-    price: 'text-slate-200',
-    tierBadge: 'bg-slate-400/10 border-slate-300/30',
-    tierBadgeText: 'text-slate-100',
-    checkBg: 'bg-slate-400/15',
-    checkIcon: 'text-slate-200',
-    button:
-      'bg-gradient-to-r from-slate-300 to-slate-100 text-slate-900 shadow-lg shadow-slate-400/20 hover:from-white hover:to-slate-200',
-    hoverLift: 'hover:-translate-y-1 hover:shadow-[0_14px_44px_-14px_rgba(226,232,240,0.35)]',
-    shimmer: true,
-  },
-  diamond: {
-    labelKey: 'billing.planTierDiamond',
-    Icon: Gem,
-    card: 'bg-gradient-to-br from-cyan-950/50 via-[#0b1326]/90 to-blue-900/30',
-    orb: 'bg-cyan-300/30',
-    orbSecondary: 'bg-sky-400/20',
-    border: 'border-cyan-300/40 hover:border-cyan-200/60',
-    price: 'text-transparent bg-clip-text bg-gradient-to-r from-cyan-200 via-white to-sky-300',
-    tierBadge: 'bg-cyan-400/15 border-cyan-300/45',
-    tierBadgeText: 'text-cyan-100',
-    checkBg: 'bg-cyan-400/20',
-    checkIcon: 'text-cyan-200',
-    button:
-      'bg-gradient-to-r from-cyan-400 via-sky-300 to-cyan-200 text-slate-900 shadow-lg shadow-cyan-400/35 hover:from-cyan-300 hover:via-white hover:to-cyan-200',
-    hoverLift:
-      'lg:scale-[1.03] lg:-translate-y-1.5 hover:shadow-[0_20px_50px_-12px_rgba(103,232,249,0.55)]',
-    shimmer: true,
-    diamondGlow: true,
-  },
-};
-
-/** Gói rẻ → tier thấp; thiếu gói thì dùng từ xanh; >5 gói thì từ gói thứ 5 trở đi đều kim cương */
-function resolvePlanTier(priceIndex: number, totalPlans: number): PlanTierId {
-  if (totalPlans <= 5) return PLAN_TIER_ORDER[priceIndex];
-  if (priceIndex < 4) return PLAN_TIER_ORDER[priceIndex];
-  return 'diamond';
+function DaysRing({
+  percent,
+  daysLeft,
+  active,
+  ringColor,
+}: {
+  percent: number;
+  daysLeft: number;
+  active: boolean;
+  ringColor: string;
+}) {
+  const r = 42;
+  const c = 2 * Math.PI * r;
+  const offset = c - (percent / 100) * c;
+  const gradId = `billingRing-${ringColor.replace('#', '')}`;
+  return (
+    <div className="relative w-28 h-28 shrink-0">
+      <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
+        <circle cx="50" cy="50" r={r} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="6" />
+        <circle
+          cx="50"
+          cy="50"
+          r={r}
+          fill="none"
+          stroke={active ? `url(#${gradId})` : '#ffb4ab'}
+          strokeWidth="6"
+          strokeLinecap="round"
+          strokeDasharray={c}
+          strokeDashoffset={offset}
+          className="transition-all duration-700 ease-out"
+        />
+        <defs>
+          <linearGradient id={gradId} x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor={ringColor} />
+            <stop offset="100%" stopColor={active ? '#a4e6ff' : '#ffb4ab'} />
+          </linearGradient>
+        </defs>
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <span className="text-2xl font-bold tracking-tight">{daysLeft}</span>
+        <span className="text-[9px] font-mono uppercase tracking-widest text-on-surface-variant">
+          {t('billing.daysLeft')}
+        </span>
+      </div>
+    </div>
+  );
 }
 
-function buildPlanTierMap(plans: SubscriptionPlan[]): Map<string, PlanTierId> {
-  const sorted = [...plans].sort(
-    (a, b) => a.priceVnd - b.priceVnd || a.maxAgents - b.maxAgents || a.durationDays - b.durationDays,
+function SubscriptionHero({
+  plan,
+  tier,
+  status,
+  isActive,
+  isAdmin,
+  daysLeft,
+  expiresAt,
+}: {
+  plan: SubscriptionPlan | null;
+  tier: PlanTierId;
+  status?: string;
+  isActive: boolean;
+  isAdmin: boolean;
+  daysLeft: number;
+  expiresAt?: string | null;
+}) {
+  const style = getPlanTierStyle(tier);
+  const TierIcon = style.Icon;
+  const progress = isAdmin ? 100 : subscriptionProgress(daysLeft, plan);
+  const onTrial = !isAdmin && (status === 'TRIAL' || plan?.isTrial === true);
+
+  return (
+    <section
+      className={cn(
+        'relative overflow-hidden rounded-3xl border',
+        style.card,
+        style.border,
+        style.shimmer && 'plan-tier-shine',
+        style.diamondGlow && 'plan-tier-diamond-glow',
+      )}
+    >
+      <div
+        className={cn(
+          'absolute -top-24 -right-24 w-64 h-64 blur-[100px] rounded-full pointer-events-none',
+          style.orb,
+        )}
+      />
+      <div
+        className={cn(
+          'absolute -bottom-20 -left-16 w-48 h-48 blur-[80px] rounded-full pointer-events-none',
+          style.orbSecondary,
+        )}
+      />
+      <div className="absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent pointer-events-none" />
+
+      <div className="relative p-6 sm:p-8 lg:p-10">
+        <div className="flex flex-col lg:flex-row lg:items-center gap-8 lg:gap-10">
+          {!isAdmin ? (
+            <DaysRing
+              percent={progress}
+              daysLeft={daysLeft}
+              active={isActive}
+              ringColor={style.ringActive}
+            />
+          ) : null}
+
+          <div className="flex-1 min-w-0 space-y-4">
+            <div className="flex flex-wrap items-center gap-2">
+              <PlanTierChip tier={tier} showTierLabel />
+              <span
+                className={cn(
+                  'px-3 py-1 rounded-full text-xs font-bold border',
+                  isActive || isAdmin
+                    ? cn(style.tierBadge, style.tierBadgeText)
+                    : 'bg-error/15 text-error border-error/30',
+                )}
+              >
+                {isAdmin ? t('billing.statusActive') : statusLabel(status)}
+              </span>
+            </div>
+
+            <div>
+              <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-on-surface-variant/80 mb-1">
+                {t('billing.currentPlan')}
+              </p>
+              <div className="flex flex-wrap items-center gap-3">
+                <TierIcon size={28} className={cn('shrink-0', style.tierBadgeText)} />
+                <h2
+                  className={cn(
+                    'text-2xl sm:text-3xl font-bold tracking-tight',
+                    style.title,
+                  )}
+                >
+                  {plan?.name ?? t('billing.noPlan')}
+                </h2>
+              </div>
+              {plan && !isAdmin ? (
+                <p className={cn('mt-2 text-sm font-medium', style.price)}>
+                  {formatPlanPrice(plan)} · {t('billing.durationDays', { days: plan.durationDays })} ·{' '}
+                  {t('billing.maxAgents', { n: plan.maxAgents })}
+                </p>
+              ) : null}
+              {onTrial ? (
+                <p className="mt-3 prose-description text-sm text-on-surface-variant/90">
+                  {t('billing.trialPlanHint')}
+                </p>
+              ) : null}
+            </div>
+
+            <div className="grid sm:grid-cols-2 gap-3 max-w-lg">
+              <div
+                className={cn(
+                  'flex items-center gap-3 p-3.5 rounded-2xl border',
+                  style.tierBadge,
+                )}
+              >
+                <div
+                  className={cn(
+                    'w-9 h-9 rounded-xl flex items-center justify-center shrink-0',
+                    style.checkBg,
+                  )}
+                >
+                  <Calendar size={16} className={style.checkIcon} />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[9px] font-mono uppercase tracking-widest text-on-surface-variant">
+                    {t('billing.expiresAt')}
+                  </p>
+                  <p className="font-bold text-sm truncate">{isAdmin ? '—' : formatDate(expiresAt)}</p>
+                </div>
+              </div>
+              <div
+                className={cn(
+                  'flex items-center gap-3 p-3.5 rounded-2xl border',
+                  style.tierBadge,
+                )}
+              >
+                <div
+                  className={cn(
+                    'w-9 h-9 rounded-xl flex items-center justify-center shrink-0',
+                    style.checkBg,
+                  )}
+                >
+                  <ShieldCheck size={16} className={style.checkIcon} />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[9px] font-mono uppercase tracking-widest text-on-surface-variant">
+                    {t('billing.daysProgress')}
+                  </p>
+                  <p className={cn('font-bold text-sm', style.tierBadgeText)}>
+                    {isAdmin ? '∞' : `${Math.round(progress)}%`}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
   );
-  const map = new Map<string, PlanTierId>();
-  sorted.forEach((p, index) => {
-    map.set(p.id, resolvePlanTier(index, sorted.length));
-  });
-  return map;
 }
 
 function CopyField({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
@@ -310,142 +380,6 @@ function CopyField({ label, value, highlight }: { label: string; value: string; 
   );
 }
 
-function DaysRing({ percent, daysLeft, active }: { percent: number; daysLeft: number; active: boolean }) {
-  const r = 42;
-  const c = 2 * Math.PI * r;
-  const offset = c - (percent / 100) * c;
-  return (
-    <div className="relative w-28 h-28 shrink-0">
-      <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
-        <circle cx="50" cy="50" r={r} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="6" />
-        <circle
-          cx="50"
-          cy="50"
-          r={r}
-          fill="none"
-          stroke={active ? 'url(#billingRing)' : '#ffb4ab'}
-          strokeWidth="6"
-          strokeLinecap="round"
-          strokeDasharray={c}
-          strokeDashoffset={offset}
-          className="transition-all duration-700 ease-out"
-        />
-        <defs>
-          <linearGradient id="billingRing" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#a4e6ff" />
-            <stop offset="100%" stopColor="#68f5b8" />
-          </linearGradient>
-        </defs>
-      </svg>
-      <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-2xl font-bold tracking-tight">{daysLeft}</span>
-        <span className="text-[9px] font-mono uppercase tracking-widest text-on-surface-variant">
-          {t('billing.daysLeft')}
-        </span>
-      </div>
-    </div>
-  );
-}
-
-function SubscriptionHero({
-  plan,
-  status,
-  isActive,
-  isAdmin,
-  daysLeft,
-  expiresAt,
-}: {
-  plan: SubscriptionPlan | null;
-  status?: string;
-  isActive: boolean;
-  isAdmin: boolean;
-  daysLeft: number;
-  expiresAt?: string | null;
-}) {
-  const progress = isAdmin ? 100 : subscriptionProgress(daysLeft, plan);
-  const onTrial = !isAdmin && (status === 'TRIAL' || plan?.isTrial === true);
-
-  return (
-    <section className="relative overflow-hidden rounded-3xl border border-white/10 glass-card">
-      <div className="absolute -top-24 -right-24 w-64 h-64 bg-primary/15 blur-[100px] rounded-full pointer-events-none" />
-      <div className="absolute -bottom-20 -left-16 w-48 h-48 bg-tertiary/10 blur-[80px] rounded-full pointer-events-none" />
-      <div className="absolute inset-0 bg-gradient-to-br from-primary/[0.07] via-transparent to-tertiary/[0.04] pointer-events-none" />
-
-      <div className="relative p-6 sm:p-8 lg:p-10">
-        <div className="flex flex-col lg:flex-row lg:items-center gap-8 lg:gap-10">
-          {!isAdmin ? (
-            <DaysRing percent={progress} daysLeft={daysLeft} active={isActive} />
-          ) : null}
-
-          <div className="flex-1 min-w-0 space-y-4">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-mono font-bold uppercase tracking-widest bg-white/5 text-on-surface-variant border border-white/10">
-                <Sparkles size={11} className="text-primary" />
-                {t('billing.heroEyebrow')}
-              </span>
-              <span
-                className={cn(
-                  'px-3 py-1 rounded-full text-xs font-bold border',
-                  isActive || isAdmin
-                    ? 'bg-tertiary/15 text-tertiary border-tertiary/30'
-                    : 'bg-error/15 text-error border-error/30',
-                )}
-              >
-                {isAdmin ? t('billing.statusActive') : statusLabel(status)}
-              </span>
-            </div>
-
-            <div>
-              <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-on-surface-variant mb-1">
-                {t('billing.currentPlan')}
-              </p>
-              <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-on-surface">
-                {plan?.name ?? t('billing.noPlan')}
-              </h2>
-              {plan && !isAdmin ? (
-                <p className="mt-2 text-sm text-on-surface-variant">
-                  {formatPlanPrice(plan)} · {t('billing.durationDays', { days: plan.durationDays })} ·{' '}
-                  {t('billing.maxAgents', { n: plan.maxAgents })}
-                </p>
-              ) : null}
-              {onTrial ? (
-                <p className="mt-3 prose-description text-sm text-primary/90">
-                  {t('billing.trialPlanHint')}
-                </p>
-              ) : null}
-            </div>
-
-            <div className="grid sm:grid-cols-2 gap-3 max-w-lg">
-              <div className="flex items-center gap-3 p-3.5 rounded-2xl bg-surface-container-low/60 border border-white/5">
-                <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                  <Calendar size={16} className="text-primary" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-[9px] font-mono uppercase tracking-widest text-on-surface-variant">
-                    {t('billing.expiresAt')}
-                  </p>
-                  <p className="font-bold text-sm truncate">{isAdmin ? '—' : formatDate(expiresAt)}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3 p-3.5 rounded-2xl bg-surface-container-low/60 border border-white/5">
-                <div className="w-9 h-9 rounded-xl bg-tertiary/10 flex items-center justify-center shrink-0">
-                  <ShieldCheck size={16} className="text-tertiary" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-[9px] font-mono uppercase tracking-widest text-on-surface-variant">
-                    {t('billing.daysProgress')}
-                  </p>
-                  <p className="font-bold text-sm">{isAdmin ? '∞' : `${Math.round(progress)}%`}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
 function PlanPricingCard({
   plan,
   tier,
@@ -460,13 +394,13 @@ function PlanPricingCard({
   onCheckout: () => void;
 }) {
   const features = buildPlanFeatures(plan);
-  const style = PLAN_TIER_STYLES[tier];
+  const style = getPlanTierStyle(tier);
   const TierIcon = style.Icon;
 
   return (
     <article
       className={cn(
-        'group relative flex flex-col overflow-hidden rounded-3xl border p-6 sm:p-7 transition-all duration-500',
+        'group relative flex flex-col h-full overflow-hidden rounded-3xl border p-6 sm:p-7 transition-all duration-500',
         style.card,
         style.border,
         style.hoverLift,
@@ -854,6 +788,10 @@ export default function Billing() {
     plan && !plan.isTrial && status === 'ACTIVE' ? plan.id : null;
 
   const planTierById = useMemo(() => buildPlanTierMap(plans), [plans]);
+  const currentPlanTier = useMemo(
+    () => resolvePlanTierForPlan(plan, plans),
+    [plan, plans],
+  );
 
   const handleCheckout = async (planId: string) => {
     setError('');
@@ -941,6 +879,7 @@ export default function Billing() {
 
       <SubscriptionHero
         plan={plan}
+        tier={currentPlanTier}
         status={status}
         isActive={isActive}
         isAdmin={isAdmin}
@@ -975,7 +914,7 @@ export default function Billing() {
           ) : (
             <div
               className={cn(
-                'grid gap-5',
+                'grid gap-5 items-stretch',
                 plans.length === 1 ? 'max-w-md' : 'sm:grid-cols-2 lg:grid-cols-3',
               )}
             >

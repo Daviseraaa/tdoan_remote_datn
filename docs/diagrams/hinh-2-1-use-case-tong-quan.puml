@@ -1,0 +1,70 @@
+@startuml Hinh_2_1_Use_Case_Tong_Quan
+' Hình 2.1 — Biểu đồ use case tổng quan
+' Export: https://www.plantuml.com/plantuml/uml/  hoặc VS Code + PlantUML
+' Chú thích Word: Biểu đồ use case tổng quan hệ thống quản lý agent–server
+
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 13
+skinparam usecase {
+  BackgroundColor #FFFACD
+  BorderColor #333333
+  FontColor black
+}
+skinparam rectangle {
+  BorderColor #333333
+  FontColor black
+}
+skinparam actor {
+  BorderColor #333333
+}
+
+left to right direction
+
+actor "Người dùng\n(USER)" as USER
+
+rectangle "Hệ thống quản lý agent–server" as SYS {
+
+  usecase "Đăng nhập /\nđăng ký" as UC_AUTH
+
+  usecase "Quản lý\nfleet agent" as UC_AGENT
+
+  usecase "Quản lý task\nvà template" as UC_TASK
+
+  usecase "Thiết kế\nworkflow" as UC_WF_EDIT
+
+  usecase "Chạy task /\nworkflow" as UC_WF_RUN
+
+  usecase "Cấu hình trigger\n(Cron · Telegram)" as UC_TRIGGER
+
+  usecase "Xem\ndashboard" as UC_DASH
+
+  usecase "Quản lý\nngười dùng" as UC_USER_MGMT
+
+  usecase "Xem nhật ký\naudit" as UC_AUDIT
+}
+
+actor "Quản trị viên\n(ADMIN)" as ADMIN
+
+' --- Người dùng (USER)
+USER --> UC_AUTH
+USER --> UC_AGENT
+USER --> UC_TASK
+USER --> UC_WF_EDIT
+USER --> UC_WF_RUN
+USER --> UC_TRIGGER
+USER --> UC_DASH
+
+' --- Quản trị viên (ADMIN): toàn bộ quyền USER + quản trị
+ADMIN --> UC_AUTH
+ADMIN --> UC_AGENT
+ADMIN --> UC_TASK
+ADMIN --> UC_WF_EDIT
+ADMIN --> UC_WF_RUN
+ADMIN --> UC_TRIGGER
+ADMIN --> UC_DASH
+ADMIN --> UC_USER_MGMT
+ADMIN --> UC_AUDIT
+
+@enduml

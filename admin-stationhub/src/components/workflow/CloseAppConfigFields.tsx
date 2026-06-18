@@ -71,7 +71,9 @@ export function CloseAppConfigFields({ payload, onChange, compact }: Props) {
             placeholder="{{steps.open_app.json.pid}}"
             className={inputCls}
           />
-          <p className="text-[10px] text-on-surface-variant mt-1">{t('closeApp.pidHint')}</p>
+          {!compact ? (
+            <p className="text-[10px] text-on-surface-variant mt-1">{t('closeApp.pidHint')}</p>
+          ) : null}
         </div>
       ) : null}
 
@@ -99,7 +101,7 @@ export function CloseAppConfigFields({ payload, onChange, compact }: Props) {
         </div>
       ) : null}
 
-      {form.mode === 'openedInRun' ? (
+      {form.mode === 'openedInRun' && !compact ? (
         <p className="text-xs text-on-surface-variant">{t('closeApp.openedInRunHint')}</p>
       ) : null}
     </div>

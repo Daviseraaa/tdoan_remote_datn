@@ -1,0 +1,70 @@
+%% Hình 1.1 — Kiến trúc agent–server ba tầng (Định hướng giải pháp)
+%% Export: https://mermaid.live hoặc VS Code Mermaid Preview → PNG/SVG
+
+flowchart TB
+  subgraph Users["Người dùng"]
+    U["Quản trị viên / User"]
+  end
+
+  subgraph Presentation["Tầng trình bày (Presentation)"]
+    SPA["Console quản trị web<br/>React SPA"]
+  end
+
+  subgraph Application["Tầng ứng dụng (Application)"]
+    API["REST API /api<br/>JWT · RBAC"]
+    WS["WebSocket Gateway<br/>/ws/agent · /ws/client"]
+    WRK["BullMQ Worker"]
+    RT["Workflow Runtime"]
+    TRG["Trigger<br/>Cron · Telegram"]
+  end
+
+  subgraph Data["Lưu trữ"]
+    PG[(PostgreSQL)]
+    RD[(Redis)]
+  end
+
+  subgraph Execution["Tầng thực thi (Execution)"]
+    AG1["Agent Windows #1<br/>Rust + Electron"]
+    AG2["Agent Windows #2"]
+    AGN["Agent Windows #N"]
+  end
+
+  U -->|HTTPS| SPA
+  SPA -->|REST| API
+  SPA <-->|Socket.IO realtime| WS
+  API --> PG
+  WRK --> RD
+  API --> WRK
+  RT --> WRK
+  TRG --> RT
+  WRK -->|task:execute| WS
+  WS <-->|WSS · agentKey| AG1
+  WS <-->|WSS| AG2
+  WS <-->|WSS| AGN
+  AG1 -->|task:result · heartbeat| WS
+  WS --> PG
+
+---
+%% Hình 1.2 — Luồng nghiệp vụ chính
+
+sequenceDiagram
+  autonumber
+  participant U as Người dùng
+  participant UI as Console web
+  participant API as Server NestJS
+  participant Q as BullMQ / Redis
+  participant GW as WebSocket Gateway
+  participant AG as Agent Windows
+  participant DB as PostgreSQL
+
+  U->>UI: Tạo task / chạy workflow
+  UI->>API: POST /api/tasks (JWT)
+  API->>DB: Lưu task PENDING / QUEUED
+  API->>Q: Enqueue job dispatch
+  Q->>GW: Worker lấy job
+  GW->>AG: task:execute
+  AG->>AG: Thực thi tại máy trạm
+  AG->>GW: task:result
+  GW->>API: Cập nhật trạng thái
+  API->>DB: COMPLETED / FAILED
+  GW-->>UI: task:completed (realtime)

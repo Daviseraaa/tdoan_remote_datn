@@ -15,6 +15,7 @@ type Props = {
   value: string;
   onChange: (profileDirectory: string) => void;
   className?: string;
+  hideHint?: boolean;
 };
 
 const inputCls =
@@ -25,6 +26,7 @@ export function OpenBrowserChromeProfileFields({
   value,
   onChange,
   className,
+  hideHint,
 }: Props) {
   const { isAdmin } = useAuth();
   const qc = useQueryClient();
@@ -103,9 +105,11 @@ export function OpenBrowserChromeProfileFields({
         />
       )}
 
-      <p className="text-[10px] text-on-surface-variant">
-        {t('workflows.openBrowserChromeProfileHint')}
-      </p>
+      {!hideHint ? (
+        <p className="text-[10px] text-on-surface-variant">
+          {t('workflows.openBrowserChromeProfileHint')}
+        </p>
+      ) : null}
       {!agentOnline ? (
         <p className="text-[10px] text-amber-400/90">{t('agents.chromeProfilesOffline')}</p>
       ) : null}

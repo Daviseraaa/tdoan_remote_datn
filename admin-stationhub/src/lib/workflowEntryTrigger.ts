@@ -20,6 +20,7 @@ export type EntryTriggerDraft = {
   telegramBotId: string;
   commandsText: string;
   telegramEvents: string[];
+  variableArgsText: string;
 };
 
 export function defaultEntryTriggerDraft(): EntryTriggerDraft {
@@ -39,6 +40,7 @@ export function defaultEntryTriggerDraft(): EntryTriggerDraft {
     telegramBotId: '',
     commandsText: '/run',
     telegramEvents: ['message', 'command', 'callback_query'],
+    variableArgsText: '',
   };
 }
 
@@ -73,6 +75,7 @@ export function draftFromWorkflowTrigger(tr: WorkflowTrigger | null): EntryTrigg
     telegramBotId: tr.telegramBotId ?? '',
     commandsText: mc.commands?.length ? mc.commands.join(', ') : base.commandsText,
     telegramEvents: mc.events?.length ? mc.events : base.telegramEvents,
+    variableArgsText: mc.variableArgs?.length ? mc.variableArgs.join(', ') : '',
   };
 }
 
@@ -126,6 +129,7 @@ function formOpts(workflowId: string, draft: EntryTriggerDraft) {
     telegramBotId: draft.telegramBotId,
     commandsText: draft.commandsText,
     telegramEvents: draft.telegramEvents,
+    variableArgsText: draft.variableArgsText,
   };
 }
 

@@ -12,6 +12,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { SubscriptionService } from '../billing/subscription.service';
 import { RegisterDto, LoginDto } from './dto/index';
 import { MailService } from '../mail/mail.service';
+import { AuditService } from '../admin/audit.service';
 import Redis from 'ioredis';
 import { OAuth2Client } from 'google-auth-library';
 import { randomBytes, randomInt } from 'crypto';
@@ -55,6 +56,7 @@ export class AuthService {
     private configService: ConfigService,
     private subscriptionService: SubscriptionService,
     private mailService: MailService,
+    private audit: AuditService,
   ) {
     this.redis = new Redis({
       host: this.configService.get<string>('redis.host'),
@@ -224,7 +226,7 @@ export class AuthService {
     };
   }
 
-  async loginWithGoogle(idToken: string) {
+  async loginWithGoogle(idToken: string, ip?: string) {
     const clientId = this.configService.get<string>('google.clientId');
     if (!clientId) {
       throw new BadRequestException('Đăng nhập Google chưa được cấu hình');
@@ -244,15 +246,35 @@ export class AuthService {
       });
       payload = ticket.getPayload() ?? {};
     } catch {
+      await this.audit.record({
+        action: 'auth.google.failed',
+        resource: 'auth',
+        metadata: { reason: 'invalid_token' },
+        ip,
+      });
       throw new UnauthorizedException('Token Google không hợp lệ');
     }
 
     const googleId = payload.sub;
     const email = payload.email ? this.normalizeEmail(payload.email) : '';
     if (!googleId || !email) {
+      await this.audit.record({
+        actorEmail: email || undefined,
+        action: 'auth.google.failed',
+        resource: 'auth',
+        metadata: { reason: 'missing_profile' },
+        ip,
+      });
       throw new UnauthorizedException('Thiếu thông tin từ Google');
     }
     if (payload.email_verified === false) {
+      await this.audit.record({
+        actorEmail: email,
+        action: 'auth.google.failed',
+        resource: 'auth',
+        metadata: { reason: 'email_unverified' },
+        ip,
+      });
       throw new UnauthorizedException('Email Google chưa được xác thực');
     }
 
@@ -305,10 +327,27 @@ export class AuthService {
     }
 
     if (!user.isActive) {
+      await this.audit.record({
+        actorId: user.id,
+        actorEmail: user.email,
+        action: 'auth.google.failed',
+        resource: 'auth',
+        resourceId: user.id,
+        metadata: { reason: 'deactivated' },
+        ip,
+      });
       throw new UnauthorizedException('Tài khoản đã bị vô hiệu hóa');
     }
 
     const tokens = await this.generateTokens(user.id, user.email, user.role);
+    await this.audit.record({
+      actorId: user.id,
+      actorEmail: user.email,
+      action: 'auth.google.login',
+      resource: 'auth',
+      resourceId: user.id,
+      ip,
+    });
     return {
       user: await this.formatUser(user),
       ...tokens,
@@ -337,12 +376,21 @@ export class AuthService {
     return url.toString();
   }
 
-  async completeGoogleRedirect(credential: string | undefined): Promise<string> {
+  async completeGoogleRedirect(
+    credential: string | undefined,
+    ip?: string,
+  ): Promise<string> {
     try {
       if (!credential?.trim()) {
+        await this.audit.record({
+          action: 'auth.google.failed',
+          resource: 'auth',
+          metadata: { reason: 'missing_credential' },
+          ip,
+        });
         return this.buildGoogleRedirectFailureUrl();
       }
-      const result = await this.loginWithGoogle(credential);
+      const result = await this.loginWithGoogle(credential, ip);
       return this.buildGoogleRedirectSuccessUrl({
         accessToken: result.accessToken,
         refreshToken: result.refreshToken,
@@ -352,26 +400,56 @@ export class AuthService {
     }
   }
 
-  async login(dto: LoginDto) {
+  async login(dto: LoginDto, ip?: string) {
+    const email = this.normalizeEmail(dto.email);
     const user = await this.prisma.user.findUnique({
-      where: { email: dto.email },
+      where: { email },
       select: { ...USER_AUTH_SELECT, password: true },
     });
     if (!user) {
+      await this.audit.record({
+        actorEmail: email,
+        action: 'auth.login.failed',
+        resource: 'auth',
+        metadata: { reason: 'invalid_credentials' },
+        ip,
+      });
       throw new UnauthorizedException('Invalid credentials');
     }
 
     const isPasswordValid = await bcrypt.compare(dto.password, user.password);
     if (!isPasswordValid) {
+      await this.audit.record({
+        actorEmail: email,
+        action: 'auth.login.failed',
+        resource: 'auth',
+        metadata: { reason: 'invalid_credentials' },
+        ip,
+      });
       throw new UnauthorizedException('Invalid credentials');
     }
 
     if (!user.isActive) {
+      await this.audit.record({
+        actorEmail: email,
+        action: 'auth.login.failed',
+        resource: 'auth',
+        metadata: { reason: 'deactivated' },
+        ip,
+      });
       throw new UnauthorizedException('Account is deactivated');
     }
 
     const { password: _pw, ...safeUser } = user;
     const tokens = await this.generateTokens(user.id, user.email, user.role);
+    await this.audit.record({
+      actorId: user.id,
+      actorEmail: user.email,
+      action: 'auth.login',
+      resource: 'auth',
+      resourceId: user.id,
+      ip,
+    });
     return {
       user: await this.formatUser(safeUser),
       ...tokens,
@@ -398,8 +476,22 @@ export class AuthService {
     return this.generateTokens(user.id, user.email, user.role);
   }
 
-  async logout(refreshToken: string) {
+  async logout(
+    refreshToken: string,
+    actor?: { id: string; email: string },
+    ip?: string,
+  ) {
     await this.redis.set(`bl:${refreshToken}`, '1', 'EX', 7 * 24 * 60 * 60);
+    if (actor) {
+      await this.audit.record({
+        actorId: actor.id,
+        actorEmail: actor.email,
+        action: 'auth.logout',
+        resource: 'auth',
+        resourceId: actor.id,
+        ip,
+      });
+    }
     return { message: 'Logged out successfully' };
   }
 

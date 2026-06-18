@@ -1,0 +1,54 @@
+@startuml Hinh_4_4_Goi_Agent_Core
+' Hình 4.4 — Thiết kế chi tiết gói agent.core (mục 4.1.3)
+
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 12
+skinparam classAttributeIconSize 0
+hide empty members
+hide circle
+
+package "agent.core" as P8 {
+
+  package "connection" as CONN {
+    class ConnectionRunner
+    class TelemetrySampler
+  }
+
+  package "tasks" as TASKS {
+    class TaskRegistry
+    interface TaskHandler <<interface>>
+    class CommandHandler
+    class HttpRequestHandler
+    class DesktopHandler
+    class OpenAppHandler
+    class TaskExecute
+    class TaskCancelRegistry
+  }
+
+  package "platform" as PLAT {
+    class Platform
+    class AgentConfig
+  }
+}
+
+' ── connection ──
+ConnectionRunner ..> TaskRegistry : <<dependency>>
+ConnectionRunner *-- AgentConfig : <<composition>>
+ConnectionRunner o-- TelemetrySampler : <<aggregation>>
+ConnectionRunner ..> TaskExecute : <<dependency>>
+
+' ── tasks — handler registry ──
+TaskRegistry o-- TaskHandler : <<aggregation>>
+CommandHandler ..|> TaskHandler : <<implementation>>
+HttpRequestHandler ..|> TaskHandler : <<implementation>>
+DesktopHandler ..|> TaskHandler : <<implementation>>
+OpenAppHandler ..|> TaskHandler : <<implementation>>
+TaskRegistry ..> Platform : <<dependency>>
+TaskRegistry o-- TaskCancelRegistry : <<aggregation>>
+
+' ── platform ──
+Platform *-- AgentConfig : <<composition>>
+
+@enduml

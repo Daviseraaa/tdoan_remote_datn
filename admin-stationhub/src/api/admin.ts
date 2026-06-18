@@ -115,12 +115,20 @@ export async function listAuditLogs(params: {
   limit?: number;
   actor?: string;
   action?: string;
+  resource?: string;
+  resourceIn?: string;
+  from?: string;
+  to?: string;
 }): Promise<PaginatedResponse<AuditLogEntry>> {
   const q = new URLSearchParams();
   if (params.page) q.set('page', String(params.page));
   if (params.limit) q.set('limit', String(params.limit));
   if (params.actor) q.set('actor', params.actor);
   if (params.action) q.set('action', params.action);
+  if (params.resource) q.set('resource', params.resource);
+  if (params.resourceIn) q.set('resourceIn', params.resourceIn);
+  if (params.from) q.set('from', params.from);
+  if (params.to) q.set('to', params.to);
   const query = q.toString();
   const raw = await apiFetch<unknown>(`/admin/audit-logs${query ? `?${query}` : ''}`);
   return normalizePaginated<AuditLogEntry>(raw);

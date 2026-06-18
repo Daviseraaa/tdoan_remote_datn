@@ -47,7 +47,9 @@ export function TelegramSendConfigFields({ payload, onChange, compact }: Props) 
         </div>
       ) : null}
 
-      <p className="text-xs text-sky-400/90">{t('telegramSend.agentBanner')}</p>
+      {!compact ? (
+        <p className="text-xs text-sky-400/90">{t('telegramSend.agentBanner')}</p>
+      ) : null}
 
       <div>
         <label className={labelCls}>{t('triggers.selectBot')}</label>
@@ -107,7 +109,9 @@ export function TelegramSendConfigFields({ payload, onChange, compact }: Props) 
               placeholder="C:/Users/.../file.pdf"
               className={inputCls}
             />
-            <p className="text-[10px] text-on-surface-variant mt-1">{t('telegramSend.filePathHint')}</p>
+            {!compact ? (
+              <p className="text-[10px] text-on-surface-variant mt-1">{t('telegramSend.filePathHint')}</p>
+            ) : null}
           </div>
           <div>
             <label className={labelCls}>{t('screenCapture.caption')}</label>

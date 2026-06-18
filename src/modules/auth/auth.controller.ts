@@ -1,4 +1,4 @@
-import { Body, Controller, HttpCode, HttpStatus, Post, Res } from '@nestjs/common';
+import { Body, Controller, HttpCode, HttpStatus, Ip, Post, Res } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import type { Response } from 'express';
@@ -40,8 +40,8 @@ export class AuthController {
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Login or register with Google ID token' })
-  loginWithGoogle(@Body() dto: GoogleAuthDto) {
-    return this.authService.loginWithGoogle(dto.idToken);
+  loginWithGoogle(@Body() dto: GoogleAuthDto, @Ip() ip: string) {
+    return this.authService.loginWithGoogle(dto.idToken, ip);
   }
 
   @Public()
@@ -52,9 +52,10 @@ export class AuthController {
   })
   async googleRedirect(
     @Body('credential') credential: string | undefined,
+    @Ip() ip: string,
     @Res() res: Response,
   ) {
-    const url = await this.authService.completeGoogleRedirect(credential);
+    const url = await this.authService.completeGoogleRedirect(credential, ip);
     return res.redirect(302, url);
   }
 
@@ -63,8 +64,8 @@ export class AuthController {
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Login with email and password' })
-  login(@Body() dto: LoginDto) {
-    return this.authService.login(dto);
+  login(@Body() dto: LoginDto, @Ip() ip: string) {
+    return this.authService.login(dto, ip);
   }
 
   @Public()
@@ -82,8 +83,13 @@ export class AuthController {
   @ApiOperation({ summary: 'Logout and invalidate refresh token' })
   logout(
     @Body() dto: RefreshTokenDto,
-    @CurrentUser() _user: JwtPayload,
+    @CurrentUser() user: JwtPayload,
+    @Ip() ip: string,
   ) {
-    return this.authService.logout(dto.refreshToken);
+    return this.authService.logout(
+      dto.refreshToken,
+      { id: user.sub, email: user.email },
+      ip,
+    );
   }
 }

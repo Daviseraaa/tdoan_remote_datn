@@ -1,0 +1,71 @@
+@startuml Hinh_4_3_Goi_Server_Dieu_Phoi
+' Hình 4.3 — Thiết kế chi tiết gói server.dieu-phoi (mục 4.1.3)
+
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 12
+skinparam classAttributeIconSize 0
+hide empty members
+hide circle
+
+package "server.dieu-phoi" as P56 {
+
+  package "agents" as AGENTS {
+    class AgentsController
+    class AgentsService
+    class AgentsGateway
+    class AgentTelemetryStore
+  }
+
+  package "tasks.workflow" as TASKWF {
+    class TasksController
+    class TasksService
+    class TasksProcessor
+    class AutomationController
+    class AutomationService
+    class WorkflowRuntimeService
+    class TriggersController
+    class TriggersService
+    class TriggerDispatcherService
+    class ScheduleTriggerService
+  }
+}
+
+package "infrastructure" as INFRA {
+  abstract WorkerHost
+  class PrismaService
+  class TaskQueue
+}
+
+' ── agents ──
+AgentsController ..> AgentsService : <<dependency>>
+AgentsGateway *-- AgentsService : <<composition>>
+AgentsService *-- AgentTelemetryStore : <<composition>>
+
+' ── tasks.workflow — task ──
+TasksController ..> TasksService : <<dependency>>
+TasksService ..> AgentsService : <<dependency>>
+TasksService ..> AgentsGateway : <<dependency>>
+TasksService o-- TaskQueue : <<aggregation>>
+TasksProcessor --|> WorkerHost : <<inheritance>>
+TasksProcessor ..> AgentsGateway : <<dependency>>
+TasksProcessor ..> TasksService : <<dependency>>
+
+' ── tasks.workflow — automation & trigger ──
+AutomationController ..> AutomationService : <<dependency>>
+AutomationService *-- WorkflowRuntimeService : <<composition>>
+WorkflowRuntimeService ..> AutomationService : <<dependency>>
+TriggersController ..> TriggersService : <<dependency>>
+TriggerDispatcherService ..> WorkflowRuntimeService : <<dependency>>
+ScheduleTriggerService ..> TriggerDispatcherService : <<dependency>>
+TriggersService o-- TriggerDispatcherService : <<aggregation>>
+
+' ── infrastructure ──
+TasksService --> PrismaService : <<association>>
+AgentsService --> PrismaService : <<association>>
+AutomationService --> PrismaService : <<association>>
+TriggersService --> PrismaService : <<association>>
+WorkflowRuntimeService --> PrismaService : <<association>>
+
+@enduml

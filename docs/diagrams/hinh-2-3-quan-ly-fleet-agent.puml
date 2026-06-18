@@ -1,0 +1,35 @@
+@startuml Hinh_2_3_Phan_Ra_Quan_Ly_Fleet_Agent
+' Hình 2.3 — Phân rã use case Quản lý fleet agent
+
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 13
+skinparam usecase {
+  BackgroundColor #FFFACD
+  BorderColor #333333
+}
+skinparam rectangle {
+  BorderColor #333333
+}
+
+left to right direction
+
+actor "Người dùng\n(USER)" as USER
+
+rectangle " <<use case>>\nQuản lý fleet agent" as SYS {
+
+  usecase "Tạo agent" as UC1
+  usecase "Cấu hình agent key\ntrên máy trạm" as UC2
+  usecase "Xem trạng thái\nvà metadata" as UC3
+  usecase "Tái tạo\nagent key" as UC4
+  usecase "Xóa agent" as UC5
+}
+
+USER --> UC1
+USER --> UC2
+USER --> UC3
+USER --> UC4
+USER --> UC5
+
+@enduml

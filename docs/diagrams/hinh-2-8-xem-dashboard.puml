@@ -1,0 +1,31 @@
+@startuml Hinh_2_8_Phan_Ra_Xem_Dashboard
+' Hình 2.8 — Phân rã use case Xem dashboard
+
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 13
+skinparam usecase {
+  BackgroundColor #FFFACD
+  BorderColor #333333
+}
+skinparam rectangle {
+  BorderColor #333333
+}
+
+left to right direction
+
+actor "Người dùng\n(USER)" as USER
+
+rectangle " <<use case>>\nXem dashboard" as SYS {
+
+  usecase "Xem thống kê\nsố lượng agent" as UC1
+  usecase "Xem thống kê task\ntheo trạng thái" as UC2
+  usecase "Xem hoạt động\ngần đây" as UC3
+}
+
+USER --> UC1
+USER --> UC2
+USER --> UC3
+
+@enduml

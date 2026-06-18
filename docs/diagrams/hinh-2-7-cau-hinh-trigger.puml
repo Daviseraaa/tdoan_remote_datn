@@ -1,0 +1,33 @@
+@startuml Hinh_2_7_Phan_Ra_Cau_Hinh_Trigger
+' Hình 2.7 — Phân rã use case Cấu hình trigger (Cron · Telegram)
+
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 13
+skinparam usecase {
+  BackgroundColor #FFFACD
+  BorderColor #333333
+}
+skinparam rectangle {
+  BorderColor #333333
+}
+
+left to right direction
+
+actor "Người dùng\n(USER)" as USER
+
+rectangle " <<use case>>\nCấu hình trigger\n(Cron · Telegram)" as SYS {
+
+  usecase "Tạo trigger\ntheo lịch" as UC1
+  usecase "Đăng ký bot Telegram\nvà webhook" as UC2
+  usecase "Gắn trigger\nvới workflow" as UC3
+  usecase "Bật / tắt\ntrigger" as UC4
+}
+
+USER --> UC1
+USER --> UC2
+USER --> UC3
+USER --> UC4
+
+@enduml

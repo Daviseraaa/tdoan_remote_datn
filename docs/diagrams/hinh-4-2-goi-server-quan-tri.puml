@@ -1,0 +1,59 @@
+@startuml Hinh_4_2_Goi_Server_Quan_Tri
+' Hình 4.2 — Thiết kế chi tiết gói server.quan-tri (mục 4.1.3)
+' Chỉ tên lớp; quan hệ: dependency, association, aggregation, inheritance, implementation
+
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 12
+skinparam classAttributeIconSize 0
+hide empty members
+hide circle
+
+package "server.quan-tri" as P34 {
+
+  package "auth.users" as AUTH {
+    class AuthController
+    class AuthService
+    class UsersController
+    class UsersService
+    class JwtStrategy
+    class JwtRefreshStrategy
+  }
+
+  package "admin.audit" as ADMIN {
+    class AdminController
+    class AdminService
+    class AuditService
+    class ClientGateway
+  }
+}
+
+package "infrastructure" as INFRA {
+  abstract PassportStrategy
+  class PrismaService
+  class JwtAuthGuard
+}
+
+' ── Trong gói auth.users ──
+AuthController ..> AuthService : <<dependency>>
+UsersController ..> UsersService : <<dependency>>
+AuthService o-- JwtStrategy : <<aggregation>>
+AuthService o-- JwtRefreshStrategy : <<aggregation>>
+JwtStrategy --|> PassportStrategy : <<inheritance>>
+JwtRefreshStrategy --|> PassportStrategy : <<inheritance>>
+
+' ── Trong gói admin.audit ──
+AdminController ..> AdminService : <<dependency>>
+AdminController ..> AuditService : <<dependency>>
+AdminService --> AdminController : <<association>>
+ClientGateway ..> JwtAuthGuard : <<dependency>>
+ClientGateway ..> AdminService : <<dependency>>
+
+' ── Sang infrastructure ──
+AuthService --> PrismaService : <<association>>
+UsersService --> PrismaService : <<association>>
+AdminService --> PrismaService : <<association>>
+AuditService --> PrismaService : <<association>>
+
+@enduml
