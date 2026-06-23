@@ -1,4 +1,4 @@
-import { Bot, Info } from 'lucide-react';
+import { AlertTriangle, Bot, Info } from 'lucide-react';
 import { TelegramBotsPanel } from '@/src/components/automations/TelegramBotsPanel';
 import { t } from '@/src/i18n/t';
 
@@ -23,6 +23,13 @@ export default function Bots() {
         <div className="flex items-start gap-3">
           <Info className="text-tertiary shrink-0" size={22} />
           <p className="text-sm text-on-surface-variant leading-relaxed">{t('botsPage.hint')}</p>
+        </div>
+      </div>
+
+      <div className="rounded-2xl p-5 sm:p-6 border border-amber-400/25 bg-amber-400/5">
+        <div className="flex items-start gap-3">
+          <AlertTriangle className="text-amber-400 shrink-0" size={22} />
+          <p className="text-sm text-amber-400/95 leading-relaxed">{t('botsPage.securityWarning')}</p>
         </div>
       </div>
 

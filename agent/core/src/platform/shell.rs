@@ -18,10 +18,27 @@ pub struct ExecuteResult {
     pub cancelled: bool,
 }
 
-const DANGEROUS: &[&str] = &[
-    "format ", // disk format
-    "mkfs",
-];
+const DANGEROUS: &[&str] = &["mkfs"];
+
+/// `format C:` / `format D:` — không chặn cờ kiểu `--merge-output-format`.
+fn looks_like_windows_format(lower: &str) -> bool {
+    let mut search = 0;
+    while let Some(rel) = lower[search..].find("format") {
+        let abs = search + rel;
+        if abs > 0 && lower.as_bytes()[abs - 1] == b'-' {
+            search = abs + 6;
+            continue;
+        }
+        if let Some(rest) = lower[abs..].strip_prefix("format ") {
+            let t = rest.trim_start();
+            if t.len() >= 2 && t.as_bytes()[1] == b':' && t.as_bytes()[0].is_ascii_alphabetic() {
+                return true;
+            }
+        }
+        search = abs + 6;
+    }
+    false
+}
 
 pub fn assert_safe_command(command: &str) -> Result<(), String> {
     let c = command.trim();
@@ -30,9 +47,12 @@ pub fn assert_safe_command(command: &str) -> Result<(), String> {
     }
     let lower = c.to_lowercase();
     for pat in DANGEROUS {
-        if lower.contains(pat) && (lower.contains("c:") || lower.contains("/dev/")) {
+        if lower.contains(pat) && lower.contains("/dev/") {
             return Err(format!("Dangerous command rejected: {}", pat));
         }
+    }
+    if looks_like_windows_format(&lower) {
+        return Err("Dangerous command rejected: format".into());
     }
     Ok(())
 }

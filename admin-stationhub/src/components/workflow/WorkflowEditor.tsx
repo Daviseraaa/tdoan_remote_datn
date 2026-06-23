@@ -41,8 +41,9 @@ import {
   entryTriggerTypeSubtitle,
   pickEntryTrigger,
   type EntryTriggerDraft,
+  type EntryTriggerPatch,
 } from '@/src/lib/workflowEntryTrigger';
-import { parseTelegramVariableArgNames } from '@/src/lib/triggerForm';
+import { parseCommittedTelegramVariableArgNames, parseTelegramVariableArgNames } from '@/src/lib/triggerForm';
 import { WorkflowEdgeInspector } from './WorkflowEdgeInspector';
 import { WorkflowExecutionPanel } from './WorkflowExecutionPanel';
 import { WfEditorShortcutsHint } from './WfEditorShortcutsHint';
@@ -83,6 +84,10 @@ import {
   type WfNodeData,
   type WfRunStatus,
   type WfGraphEdge,
+  buildClipboardFromNodes,
+  pasteClipboard,
+  isWorkflowEditorEditableTarget,
+  type WfNodeClipboard,
 } from '@/src/lib/workflowGraph';
 import { t } from '@/src/i18n/t';
 import {
@@ -207,6 +212,9 @@ export function WorkflowEditor({
   );
   const [entryTrigger, setEntryTrigger] = useState<EntryTriggerDraft>(() => defaultEntryTriggerDraft());
   const entryTriggerSyncSig = useRef('');
+  const telegramVarNamesRef = useRef<string[]>([]);
+  const nodeClipboardRef = useRef<WfNodeClipboard | null>(null);
+  const pasteGenerationRef = useRef(0);
 
   const { data: workflowTriggers } = useQuery({
     queryKey: ['workflow-triggers', workflow.id],
@@ -242,6 +250,8 @@ export function WorkflowEditor({
     setSelectedNodeId(null);
     setSelectedEdgeId(null);
     setPropertiesOpen(false);
+    nodeClipboardRef.current = null;
+    pasteGenerationRef.current = 0;
     requestAnimationFrame(() => {
       rfInstance?.fitView({ padding: 0.15, duration: 200 });
     });
@@ -295,10 +305,14 @@ export function WorkflowEditor({
     const draft = draftFromWorkflowTrigger(pickEntryTrigger(workflowTriggers ?? []));
     setEntryTrigger(draft);
     applyEntryTriggerToCanvas(draft);
+    telegramVarNamesRef.current =
+      draft.type === 'TELEGRAM'
+        ? parseTelegramVariableArgNames(draft.variableArgsText)
+        : [];
   }, [workflow.id, graphReloadToken, workflowTriggers, applyEntryTriggerToCanvas]);
 
   const patchEntryTrigger = useCallback(
-    (patch: Partial<EntryTriggerDraft>) => {
+    (patch: EntryTriggerPatch) => {
       if (patch.type === 'MANUAL') {
         setEntryTrigger((prev) => {
           if (prev.triggerId) {
@@ -310,29 +324,54 @@ export function WorkflowEditor({
           applyEntryTriggerToCanvas(cleared);
           return cleared;
         });
+        telegramVarNamesRef.current = [];
         onDirty();
         return;
       }
 
+      const { variableArgsCommitted, ...draftPatch } = patch;
+
       setEntryTrigger((prev) => {
-        const next = { ...prev, ...patch };
+        const next = { ...prev, ...draftPatch };
         applyEntryTriggerToCanvas(next);
         return next;
       });
 
-      if (patch.variableArgsText !== undefined) {
+      const variableArgsText =
+        patch.variableArgsText ??
+        (variableArgsCommitted ? entryTrigger.variableArgsText : undefined);
+
+      if (variableArgsText !== undefined) {
         const nextType = patch.type ?? entryTrigger.type;
         if (nextType === 'TELEGRAM') {
-          const names = parseTelegramVariableArgNames(patch.variableArgsText);
+          const committed = Boolean(variableArgsCommitted);
+          const names = parseCommittedTelegramVariableArgNames(
+            variableArgsText,
+            committed,
+          );
           const cur = workflow.variables ?? {};
-          const missing = names.filter((k) => !(k in cur));
-          if (missing.length) {
-            onMetaChange({
-              variables: {
-                ...cur,
-                ...Object.fromEntries(missing.map((k) => [k, ''])),
-              },
-            });
+          const prevManaged = telegramVarNamesRef.current;
+          const nextVars = { ...cur };
+
+          if (committed) {
+            for (const k of prevManaged) {
+              if (!names.includes(k) && k in nextVars) {
+                delete nextVars[k];
+              }
+            }
+          }
+
+          for (const k of names) {
+            if (!(k in nextVars)) nextVars[k] = '';
+          }
+
+          telegramVarNamesRef.current = names;
+
+          const added = names.some((k) => !(k in cur));
+          const removed =
+            committed && prevManaged.some((k) => !names.includes(k) && k in cur);
+          if (added || removed) {
+            onMetaChange({ variables: nextVars });
           }
         }
       }
@@ -346,6 +385,7 @@ export function WorkflowEditor({
       workflow.id,
       workflow.variables,
       entryTrigger.type,
+      entryTrigger.variableArgsText,
       onMetaChange,
     ],
   );
@@ -887,6 +927,64 @@ export function WorkflowEditor({
     else deleteSelectedNodes();
   }, [selectedEdgeId, deleteSelectedEdge, deleteSelectedNodes]);
 
+  const resolveCopyNodeIds = useCallback((): string[] => {
+    const ids = new Set<string>(selectedWfNodeIds);
+    if (ids.size === 0 && selectedNodeId && selectedNodeId !== WF_TRIGGER_ID) {
+      ids.add(selectedNodeId);
+    }
+    return Array.from(ids);
+  }, [selectedNodeId, selectedWfNodeIds]);
+
+  const copySelectedNodes = useCallback(() => {
+    const ids = new Set(resolveCopyNodeIds());
+    if (ids.size === 0) return;
+    const selected = nodes.filter((n) => ids.has(n.id)) as Node<WfNodeData>[];
+    const clip = buildClipboardFromNodes(selected, edges);
+    if (!clip) return;
+    nodeClipboardRef.current = clip;
+    pasteGenerationRef.current = 0;
+  }, [edges, nodes, resolveCopyNodeIds]);
+
+  const pasteCopiedNodes = useCallback(() => {
+    const clip = nodeClipboardRef.current;
+    if (!clip || clip.nodes.length === 0) return;
+    pasteGenerationRef.current += 1;
+    const { nodes: pastedNodes, edges: pastedEdges } = pasteClipboard(
+      clip,
+      pasteGenerationRef.current,
+    );
+    const lastId = pastedNodes[pastedNodes.length - 1]?.id ?? null;
+    setNodes((nds) => [
+      ...nds.map((n) => ({ ...n, selected: false })),
+      ...pastedNodes,
+    ]);
+    setEdges((eds) => [...eds, ...pastedEdges]);
+    setSelectedEdgeId(null);
+    setSelectedNodeId(lastId);
+    setPropertiesOpen(Boolean(lastId));
+    onDirty();
+  }, [onDirty, setEdges, setNodes]);
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (isWorkflowEditorEditableTarget(e.target)) return;
+      const mod = e.ctrlKey || e.metaKey;
+      if (!mod) return;
+      const key = e.key.toLowerCase();
+      if (key === 'c') {
+        if (resolveCopyNodeIds().length === 0) return;
+        e.preventDefault();
+        copySelectedNodes();
+      } else if (key === 'v') {
+        if (!nodeClipboardRef.current) return;
+        e.preventDefault();
+        pasteCopiedNodes();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [copySelectedNodes, pasteCopiedNodes, resolveCopyNodeIds]);
+
   const updateSelectedEdgeBranch = useCallback(
     (handle: string) => {
       if (!selectedEdgeId) return;
@@ -1352,8 +1450,13 @@ export function WorkflowEditor({
               }}
               maskColor="rgba(0,0,0,0.6)"
             />
-            <Panel position="bottom-left" className="!m-2 !mb-2 flex flex-col items-start gap-2">
-              <Controls showInteractive={false} className={WF_CANVAS_CONTROLS_CLS} />
+            <Panel
+              position="bottom-left"
+              className="!m-2 !mb-2 !z-40 flex flex-col items-start gap-2 pointer-events-none [&_button]:pointer-events-auto"
+            >
+              <div className="pointer-events-auto">
+                <Controls showInteractive={false} className={WF_CANVAS_CONTROLS_CLS} />
+              </div>
               <WfEditorShortcutsHint />
             </Panel>
             <Panel position="top-left" className="m-2">
@@ -1454,7 +1557,6 @@ export function WorkflowEditor({
             </aside>
             </>
           ) : null}
-          </div>
 
           <WorkflowExecutionPanel
             open={executionOpen}
@@ -1464,6 +1566,7 @@ export function WorkflowEditor({
             workflow={workflow}
             runStatusByStepId={runStatusByStepId}
           />
+          </div>
         </div>
       </div>
     </div>

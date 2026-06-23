@@ -17,6 +17,13 @@ import { SubscriptionService } from '../billing/subscription.service';
 
 const AGENT_OFFLINE_TASK_MSG = 'Agent đang offline — không gửi task';
 
+const TERMINAL_TASK_STATUSES: TaskStatus[] = [
+  TaskStatus.COMPLETED,
+  TaskStatus.FAILED,
+  TaskStatus.TIMEOUT,
+  TaskStatus.CANCELLED,
+];
+
 @Injectable()
 export class TasksService {
   constructor(
@@ -370,6 +377,35 @@ export class TasksService {
         removeOnFail: 200,
       },
     );
+  }
+
+  /** Đóng task còn RUNNING/QUEUED/PENDING khi workflow hoặc worker hết thời gian chờ. */
+  async markTaskTimedOutIfActive(
+    taskId: string,
+    message: string,
+  ): Promise<boolean> {
+    const task = await this.prisma.task.findUnique({
+      where: { id: taskId },
+      select: { status: true, userId: true },
+    });
+    if (!task || TERMINAL_TASK_STATUSES.includes(task.status)) {
+      return false;
+    }
+
+    await this.updateTaskStatus(taskId, TaskStatus.TIMEOUT, message);
+    await this.addLog(taskId, 'ERROR', message);
+    notifyTaskCompleted(taskId, {
+      status: TaskStatus.TIMEOUT,
+      exitCode: null,
+      result: message,
+      error: message,
+    });
+    this.agentsGateway.emitTaskStatusToUser(
+      task.userId,
+      taskId,
+      TaskStatus.TIMEOUT,
+    );
+    return true;
   }
 
   async updateTaskStatus(

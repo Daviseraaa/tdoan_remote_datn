@@ -625,7 +625,14 @@ export class AutomationService {
       };
     })();
 
-    return Promise.race([eventWait, pollWait]);
+    const outcome = await Promise.race([eventWait, pollWait]);
+    if (outcome.status === TaskStatus.TIMEOUT) {
+      await this.tasksService.markTaskTimedOutIfActive(
+        taskId,
+        outcome.error ?? 'Workflow step timed out waiting for task',
+      );
+    }
+    return outcome;
   }
 
   private async runStep(
@@ -1218,6 +1225,7 @@ export class AutomationService {
       outcome = await this.waitForTask(task.id, userId, timeoutMs);
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : 'Task wait failed';
+      await this.tasksService.markTaskTimedOutIfActive(task.id, errMsg);
       await trackEnd(StepRunStatus.FAILED, {
         taskId: task.id,
         error: errMsg,

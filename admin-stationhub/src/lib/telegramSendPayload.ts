@@ -12,10 +12,12 @@ export interface TelegramSendFormState {
   fileName: string;
 }
 
+export const DEFAULT_TELEGRAM_RECIPIENT = '{{telegram.userId}}';
+
 export const DEFAULT_TELEGRAM_SEND_FORM: TelegramSendFormState = {
   mode: 'message',
   telegramBotId: '',
-  chatId: '{{telegram.chatId}}',
+  chatId: DEFAULT_TELEGRAM_RECIPIENT,
   text: '',
   filePath: 'C:/Users/Public',
   caption: '',

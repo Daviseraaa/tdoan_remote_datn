@@ -1,6 +1,7 @@
 import type { TelegramStepAction, WorkflowStepConfig } from '@/src/types/api';
 import { cn } from '@/src/lib/utils';
 import { t } from '@/src/i18n/t';
+import { DEFAULT_TELEGRAM_RECIPIENT } from '@/src/lib/telegramSendPayload';
 import { WfTelegramBotSelect } from './WfTelegramBotSelect';
 
 const TELEGRAM_ACTIONS: TelegramStepAction[] = [
@@ -76,7 +77,7 @@ export function WfTelegramNodeConfigFields({ config, onPatch }: Props) {
       <div>
         <label className={labelCls}>{t('workflows.telegramChatId')}</label>
         <input
-          value={config.chatId ?? '{{telegram.chatId}}'}
+          value={config.chatId ?? DEFAULT_TELEGRAM_RECIPIENT}
           onChange={(e) => onPatch({ chatId: e.target.value })}
           className={inputCls}
         />

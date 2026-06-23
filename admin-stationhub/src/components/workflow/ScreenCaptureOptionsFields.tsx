@@ -1,5 +1,6 @@
 import { cn } from '@/src/lib/utils';
 import { t } from '@/src/i18n/t';
+import { DEFAULT_TELEGRAM_RECIPIENT } from '@/src/lib/telegramSendPayload';
 import { WfTelegramBotSelect } from './WfTelegramBotSelect';
 
 export type TelegramSendAs = 'photo' | 'document';
@@ -89,7 +90,7 @@ export function ScreenCaptureOptionsFields({
               {t('workflows.telegramChatId')}
             </label>
             <input
-              value={p.chatId ?? '{{telegram.chatId}}'}
+              value={p.chatId ?? DEFAULT_TELEGRAM_RECIPIENT}
               onChange={(e) => patch({ chatId: e.target.value })}
               className={cn(inputCls, 'font-mono')}
             />

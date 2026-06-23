@@ -34,6 +34,31 @@ export function parseTelegramVariableArgNames(text: string): string[] {
     .filter(Boolean);
 }
 
+/** Tên tham số đã nhập xong — bỏ qua segment cuối đang gõ dở (chưa có dấu phẩy). */
+export function parseCommittedTelegramVariableArgNames(
+  text: string,
+  includeLastSegment = false,
+): string[] {
+  const trimmed = text.trim();
+  if (!trimmed) return [];
+
+  if (includeLastSegment) {
+    return parseTelegramVariableArgNames(trimmed);
+  }
+
+  if (trimmed.endsWith(',')) {
+    return parseTelegramVariableArgNames(trimmed);
+  }
+
+  const parts = trimmed.split(',');
+  if (parts.length <= 1) return [];
+
+  return parts
+    .slice(0, -1)
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
 function parseVariableArgsText(text: string): string[] | undefined {
   const names = parseTelegramVariableArgNames(text);
   return names.length ? names : undefined;

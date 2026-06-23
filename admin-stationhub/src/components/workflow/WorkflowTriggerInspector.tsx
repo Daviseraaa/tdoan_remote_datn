@@ -3,6 +3,7 @@ import { CalendarClock, MessageCircle, PlayCircle } from 'lucide-react';
 import type { ScheduleKind, WorkflowTriggerType } from '@/src/api/triggers';
 import {
   type EntryTriggerDraft,
+  type EntryTriggerPatch,
   entryTriggerTypeSubtitle,
 } from '@/src/lib/workflowEntryTrigger';
 import { SCHEDULE_KINDS, TELEGRAM_EVENTS, parseTelegramVariableArgNames } from '@/src/lib/triggerForm';
@@ -25,7 +26,7 @@ type Props = {
   workflowVariables?: Record<string, unknown>;
   workflowVarKeys?: string[];
   onWorkflowVariablesChange?: (variables: Record<string, unknown>) => void;
-  onChange: (patch: Partial<EntryTriggerDraft>) => void;
+  onChange: (patch: EntryTriggerPatch) => void;
 };
 
 const TRIGGER_TYPES: WorkflowTriggerType[] = ['MANUAL', 'SCHEDULE', 'TELEGRAM'];
@@ -85,7 +86,7 @@ function ScheduleConfig({
   onChange,
 }: {
   draft: EntryTriggerDraft;
-  onChange: (patch: Partial<EntryTriggerDraft>) => void;
+  onChange: (patch: EntryTriggerPatch) => void;
 }) {
   return (
     <div className="space-y-4">
@@ -235,7 +236,7 @@ function TelegramConfig({
 }: {
   draft: EntryTriggerDraft;
   workflowVarKeys: string[];
-  onChange: (patch: Partial<EntryTriggerDraft>) => void;
+  onChange: (patch: EntryTriggerPatch) => void;
 }) {
   const toggleEvent = (ev: string) => {
     const next = draft.telegramEvents.includes(ev)
@@ -324,6 +325,9 @@ function TelegramConfig({
         <input
           value={draft.variableArgsText}
           onChange={(e) => onChange({ variableArgsText: e.target.value })}
+          onBlur={(e) =>
+            onChange({ variableArgsText: e.target.value, variableArgsCommitted: true })
+          }
           placeholder={t('triggers.fieldVariableArgsPlaceholder')}
           className={cn(inputCls, 'font-mono bg-black/20')}
         />

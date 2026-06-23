@@ -43,7 +43,11 @@ export function registerTaskCompletionWaiter(
       },
       timer: setTimeout(() => {
         removeWaiter(taskId, entry);
-        reject(new Error('Timed out waiting for task'));
+        resolve({
+          status: TaskStatus.TIMEOUT,
+          exitCode: null,
+          error: 'Timed out waiting for task',
+        });
       }, deadline),
     };
 

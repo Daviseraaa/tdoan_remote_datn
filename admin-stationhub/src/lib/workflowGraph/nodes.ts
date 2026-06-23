@@ -5,6 +5,7 @@ import type {
   WorkflowVariableMode,
 } from '@/src/types/api';
 import { t } from '@/src/i18n/t';
+import { DEFAULT_TELEGRAM_RECIPIENT } from '@/src/lib/telegramSendPayload';
 import type { WfNodeData } from './types';
 import { loopNodeLabel } from './loopLabel';
 
@@ -58,7 +59,7 @@ export function newTaskNodeData(
                 : taskType === 'TELEGRAM_SEND'
                   ? {
                       mode: 'message',
-                      chatId: '{{telegram.chatId}}',
+                      chatId: DEFAULT_TELEGRAM_RECIPIENT,
                     }
                   : undefined,
       timeout: 60000,
@@ -95,7 +96,7 @@ export function newTelegramNodeData(
     stepType: 'TELEGRAM',
     config: {
       action: 'send_message',
-      chatId: '{{telegram.chatId}}',
+      chatId: DEFAULT_TELEGRAM_RECIPIENT,
       text: '{{steps.prev.stdout}}',
       stepKey,
       ui: position,

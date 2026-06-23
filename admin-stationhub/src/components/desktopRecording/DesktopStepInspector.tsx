@@ -1,6 +1,7 @@
 import React from 'react';
 import { t } from '@/src/i18n/t';
 import type { DesktopStep } from '@/src/lib/taskTemplatePayload';
+import { KeyComboPicker } from './KeyComboPicker';
 
 type Props = {
   step: DesktopStep | null;
@@ -147,10 +148,9 @@ export function DesktopStepInspector({ step, onChange, readOnly = false }: Props
     case 'keyCombo':
       return (
         <Field label={t('templateWizard.field_keys')}>
-          <input
+          <KeyComboPicker
             value={step.keys ?? ''}
-            onChange={(e) => onChange({ keys: e.target.value })}
-            className={inputCls}
+            onChange={(keys) => onChange({ keys })}
             disabled={readOnly}
           />
         </Field>

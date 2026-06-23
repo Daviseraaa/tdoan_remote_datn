@@ -25,6 +25,7 @@ import {
 } from '@/src/lib/closeAppPayload';
 import {
   buildTelegramSendTask,
+  DEFAULT_TELEGRAM_RECIPIENT,
   parseTelegramSendForm,
 } from '@/src/lib/telegramSendPayload';
 
@@ -157,7 +158,7 @@ export const DEFAULT_TEMPLATE_STATE: TemplateEditorState = {
   screenSendTelegram: false,
   screenOnlySendTelegram: false,
   screenTelegramBotId: '',
-  screenTelegramChatId: '{{telegram.chatId}}',
+  screenTelegramChatId: DEFAULT_TELEGRAM_RECIPIENT,
   screenTelegramCaption: '',
   screenTelegramSendAs: 'photo',
   screenTelegramFileName: 'screenshot.png',
@@ -167,7 +168,7 @@ export const DEFAULT_TEMPLATE_STATE: TemplateEditorState = {
   openBrowserUrl: 'https://',
   openBrowserPayload: {},
   closeAppPayload: { mode: 'openedInRun' },
-  telegramSendPayload: { mode: 'message', chatId: '{{telegram.chatId}}' },
+  telegramSendPayload: { mode: 'message', chatId: DEFAULT_TELEGRAM_RECIPIENT },
   timeout: 120000,
   priority: 5,
 };
@@ -190,7 +191,7 @@ export function newDesktopStep(action: DesktopAction): DesktopStep {
     case 'typeText':
       return { ...base, text: '' };
     case 'keyCombo':
-      return { ...base, keys: 'ctrl+c' };
+      return { ...base, keys: '' };
     case 'scroll':
       return { ...base, direction: 'down', amount: 3 };
     default:

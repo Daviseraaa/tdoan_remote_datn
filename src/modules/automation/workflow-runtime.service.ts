@@ -18,6 +18,7 @@ import {
 } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { SubscriptionService } from '../billing/subscription.service';
+import { TasksService } from '../tasks/tasks.service';
 import { TelegramWorkflowProgressService } from '../triggers/telegram/telegram-workflow-progress.service';
 import { AutomationService, type WorkflowStepResult } from './automation.service';
 import { getStartStepIds, buildAdjacency } from './workflow-runtime/graph-utils';
@@ -31,6 +32,7 @@ export class WorkflowRuntimeService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly subscription: SubscriptionService,
+    private readonly tasksService: TasksService,
     @Inject(forwardRef(() => AutomationService))
     private readonly automation: AutomationService,
     private readonly telegramProgress: TelegramWorkflowProgressService,
@@ -240,6 +242,16 @@ export class WorkflowRuntimeService {
             status = StepRunStatus.FAILED;
             exitCode = task.exitCode;
             error = task.result ?? `Task ${task.status}`;
+          } else if (
+            runStatus === WorkflowRunStatus.FAILED &&
+            (task.status === TaskStatus.RUNNING ||
+              task.status === TaskStatus.QUEUED ||
+              task.status === TaskStatus.PENDING)
+          ) {
+            const msg = 'Workflow kết thúc trước khi task hoàn thành';
+            await this.tasksService.markTaskTimedOutIfActive(sr.taskId, msg);
+            status = StepRunStatus.FAILED;
+            error = msg;
           }
         }
       }

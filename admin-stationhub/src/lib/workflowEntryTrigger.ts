@@ -23,6 +23,11 @@ export type EntryTriggerDraft = {
   variableArgsText: string;
 };
 
+/** Patch trigger canvas — `variableArgsCommitted` = blur ô tham số lệnh. */
+export type EntryTriggerPatch = Partial<EntryTriggerDraft> & {
+  variableArgsCommitted?: boolean;
+};
+
 export function defaultEntryTriggerDraft(): EntryTriggerDraft {
   return {
     triggerId: null,

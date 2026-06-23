@@ -25,6 +25,24 @@ export function WfEditorShortcutsHint() {
         <Kbd>Alt</Kbd>
         <span>{t('workflows.shortcuts.multiSelect')}</span>
       </span>
+      <span className="hidden sm:inline text-white/15" aria-hidden>
+        ·
+      </span>
+      <span className="flex items-center gap-1.5">
+        <Kbd>Ctrl</Kbd>
+        <span className="text-on-surface-variant/60">+</span>
+        <Kbd>C</Kbd>
+        <span>{t('workflows.shortcuts.copy')}</span>
+      </span>
+      <span className="hidden sm:inline text-white/15" aria-hidden>
+        ·
+      </span>
+      <span className="flex items-center gap-1.5">
+        <Kbd>Ctrl</Kbd>
+        <span className="text-on-surface-variant/60">+</span>
+        <Kbd>V</Kbd>
+        <span>{t('workflows.shortcuts.paste')}</span>
+      </span>
     </div>
   );
 }

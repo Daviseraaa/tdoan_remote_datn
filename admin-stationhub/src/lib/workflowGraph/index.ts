@@ -14,3 +14,4 @@ export * from './desktopRecordingImport';
 export * from './buildLinearWorkflow';
 export * from './importSources';
 export * from './recordingStepEdit';
+export * from './nodeClipboard';

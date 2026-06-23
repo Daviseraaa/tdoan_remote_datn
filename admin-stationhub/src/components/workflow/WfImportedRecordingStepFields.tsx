@@ -1,5 +1,4 @@
 import { actionLabel as chromeActionLabel, summarizeStep as summarizeChromeStep } from '@/src/lib/chromeScriptSteps';
-import { actionLabel as desktopActionLabel, summarizeStep as summarizeDesktopStep } from '@/src/lib/desktopRecordingSteps';
 import { t } from '@/src/i18n/t';
 import type { ChromeScriptStep } from '@/src/lib/chromeScriptSteps';
 import type { DesktopStep } from '@/src/lib/taskTemplatePayload';
@@ -38,10 +37,6 @@ export function WfDesktopImportedStepFields({ payload, onPatch }: DesktopProps) 
     <div className="space-y-3">
       <p className="text-[10px] text-primary/90 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2">
         {t('workflows.importedDesktopStepHint')}
-      </p>
-      <p className="text-xs font-mono text-on-surface-variant">
-        {desktopActionLabel(step.action)}
-        {summarizeDesktopStep(step) ? ` · ${summarizeDesktopStep(step)}` : ''}
       </p>
       <DesktopStepInspector step={step} onChange={applyStep} />
     </div>

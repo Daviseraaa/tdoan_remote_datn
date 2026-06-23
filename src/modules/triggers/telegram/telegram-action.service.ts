@@ -13,7 +13,7 @@ export class TelegramActionService {
     scope: WorkflowRunScope,
   ): Promise<{ messageId?: number; result: string }> {
     const chatId = resolveTemplateString(
-      config.chatId ?? '{{telegram.chatId}}',
+      config.chatId ?? '{{telegram.userId}}',
       scope,
     );
     const text = config.text

@@ -115,18 +115,18 @@ export class TasksProcessor extends WorkerHost {
       timeout: task.timeout,
     });
 
-    const outcome = await registerTaskCompletionWaiter(taskId, task.timeout).catch(
-      () => null,
-    );
+    const outcome = await registerTaskCompletionWaiter(taskId, task.timeout);
 
-    if (outcome) {
+    if (outcome.status === TaskStatus.TIMEOUT) {
+      await this.tasksService.markTaskTimedOutIfActive(
+        taskId,
+        outcome.error ?? 'Task timed out',
+      );
+    } else {
       // Gateway đã update DB khi nhận task:result. Processor chỉ log audit.
       this.logger.log(
         `Task ${taskId} resolved by gateway: ${outcome.status} (exit ${outcome.exitCode})`,
       );
-    } else {
-      await this.tasksService.updateTaskStatus(taskId, TaskStatus.TIMEOUT);
-      await this.tasksService.addLog(taskId, 'ERROR', 'Task timed out');
     }
   }
 }
