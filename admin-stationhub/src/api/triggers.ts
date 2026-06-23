@@ -27,7 +27,7 @@ export interface WorkflowTrigger {
   nextRunAt?: string | null;
   lastRunAt?: string | null;
   lastRunStatus?: string | null;
-  matchConfig?: { events?: string[]; commands?: string[] } | null;
+  matchConfig?: { events?: string[]; commands?: string[]; variableArgs?: string[]; progressChatId?: string } | null;
   telegramBotId?: string | null;
   workflow: { id: string; name: string; isActive: boolean };
   telegramBot?: { id: string; name: string; botUsername?: string | null } | null;

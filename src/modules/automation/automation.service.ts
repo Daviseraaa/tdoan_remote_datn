@@ -1321,6 +1321,7 @@ export class AutomationService {
       | {
           runId: string;
           userId: string;
+          triggerType: WorkflowTriggerType | null;
           triggerId: string | null;
           triggerPayload: unknown;
         }
@@ -1340,12 +1341,14 @@ export class AutomationService {
         runVars = run.variables as Record<string, unknown>;
       }
       if (
-        run?.triggerType === WorkflowTriggerType.TELEGRAM &&
+        (run?.triggerType === WorkflowTriggerType.TELEGRAM ||
+          run?.triggerType === WorkflowTriggerType.SCHEDULE) &&
         runOpts.workflowRunId
       ) {
         telegramRunMeta = {
           runId: runOpts.workflowRunId,
           userId,
+          triggerType: run.triggerType,
           triggerId: run.triggerId,
           triggerPayload: run.triggerPayload,
         };
@@ -1358,6 +1361,7 @@ export class AutomationService {
         userId: telegramRunMeta.userId,
         workflowName: workflow.name,
         steps: workflow.steps,
+        triggerType: telegramRunMeta.triggerType,
         triggerId: telegramRunMeta.triggerId,
         triggerPayload: telegramRunMeta.triggerPayload,
       });

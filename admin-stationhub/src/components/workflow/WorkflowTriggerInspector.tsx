@@ -184,6 +184,29 @@ function ScheduleConfig({
           className={cn(inputCls, 'font-mono')}
         />
       </div>
+
+      <div className="rounded-xl border border-white/10 bg-black/15 p-3 space-y-3">
+        <div>
+          <FieldLabel>{t('workflows.scheduleTelegramNotifyBot')}</FieldLabel>
+          <WfTelegramBotSelect
+            value={draft.telegramBotId}
+            onChange={(id) => onChange({ telegramBotId: id })}
+            autoSelectFirst={false}
+          />
+        </div>
+        <div>
+          <FieldLabel>{t('workflows.scheduleTelegramNotifyChatId')}</FieldLabel>
+          <input
+            value={draft.progressChatId}
+            onChange={(e) => onChange({ progressChatId: e.target.value })}
+            placeholder={t('workflows.scheduleTelegramNotifyChatIdPlaceholder')}
+            className={cn(inputCls, 'font-mono')}
+          />
+        </div>
+        <p className="text-[11px] text-on-surface-variant">
+          {t('workflows.scheduleTelegramNotifyHint')}
+        </p>
+      </div>
     </div>
   );
 }
@@ -326,9 +349,6 @@ function TelegramConfig({
         <input
           value={draft.variableArgsText}
           onChange={(e) => onChange({ variableArgsText: e.target.value })}
-          onBlur={(e) =>
-            onChange({ variableArgsText: e.target.value, variableArgsCommitted: true })
-          }
           placeholder={t('triggers.fieldVariableArgsPlaceholder')}
           className={cn(inputCls, 'font-mono bg-black/20')}
         />
@@ -384,12 +404,13 @@ export function WorkflowTriggerInspector({
           <FieldLabel>{t('workflows.triggerType')}</FieldLabel>
           <div className="mt-2 flex flex-wrap gap-2">
             {TRIGGER_TYPES.map((type) => (
-              <TypeOption
-                key={type}
-                type={type}
-                active={draft.type === type}
-                onSelect={() => onChange({ type })}
-              />
+              <div key={type} className="flex-1 min-w-[88px]">
+                <TypeOption
+                  type={type}
+                  active={draft.type === type}
+                  onSelect={() => onChange({ type })}
+                />
+              </div>
             ))}
           </div>
         </div>
@@ -435,7 +456,6 @@ export function WorkflowTriggerInspector({
         <WfInspectorBlock tone="vars">
           <WfInspectorSubsection title={t('workflows.triggerEntryVars')} tone="workflow">
             <WorkflowVariablesEditor
-              key={workflowId}
               variables={workflowVariables}
               onChange={onWorkflowVariablesChange}
             />

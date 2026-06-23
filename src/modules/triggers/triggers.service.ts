@@ -132,6 +132,16 @@ export class TriggersService {
     if (dto.type === WorkflowTriggerType.SCHEDULE && !dto.scheduleKind) {
       throw new BadRequestException('scheduleKind required for SCHEDULE trigger');
     }
+    if (
+      dto.type === WorkflowTriggerType.SCHEDULE &&
+      dto.matchConfig &&
+      typeof dto.matchConfig === 'object' &&
+      typeof (dto.matchConfig as Record<string, unknown>).progressChatId === 'string' &&
+      (dto.matchConfig as Record<string, unknown>).progressChatId &&
+      !dto.telegramBotId
+    ) {
+      throw new BadRequestException('telegramBotId required for SCHEDULE telegram progress');
+    }
 
     const nextRunAt =
       dto.type === WorkflowTriggerType.SCHEDULE
@@ -182,6 +192,18 @@ export class TriggersService {
     if (!existing) throw new NotFoundException('Trigger not found');
 
     const merged = { ...existing, ...patch };
+    const mergedMatch =
+      merged.matchConfig && typeof merged.matchConfig === 'object'
+        ? (merged.matchConfig as Record<string, unknown>)
+        : {};
+    if (
+      existing.type === WorkflowTriggerType.SCHEDULE &&
+      typeof mergedMatch.progressChatId === 'string' &&
+      mergedMatch.progressChatId.trim() &&
+      !merged.telegramBotId
+    ) {
+      throw new BadRequestException('telegramBotId required for SCHEDULE telegram progress');
+    }
     const runAtForSchedule =
       merged.runAt != null ? new Date(merged.runAt as string | Date) : null;
     const nextRunAt =

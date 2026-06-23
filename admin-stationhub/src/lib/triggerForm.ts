@@ -15,6 +15,7 @@ export type TelegramMatchConfig = {
   events?: string[];
   commands?: string[];
   variableArgs?: string[];
+  progressChatId?: string;
 };
 
 export function parseMatchConfig(raw: unknown): TelegramMatchConfig {
@@ -24,6 +25,10 @@ export function parseMatchConfig(raw: unknown): TelegramMatchConfig {
     events: Array.isArray(o.events) ? o.events : undefined,
     commands: Array.isArray(o.commands) ? o.commands : undefined,
     variableArgs: Array.isArray(o.variableArgs) ? o.variableArgs : undefined,
+    progressChatId:
+      typeof o.progressChatId === 'string' && o.progressChatId.trim()
+        ? o.progressChatId.trim()
+        : undefined,
   };
 }
 
@@ -97,6 +102,7 @@ export function buildTriggerPayload(opts: {
   commandsText: string;
   telegramEvents: string[];
   variableArgsText: string;
+  progressChatId?: string;
 }): Record<string, unknown> {
   const body: Record<string, unknown> = {
     type: opts.type,
@@ -108,6 +114,7 @@ export function buildTriggerPayload(opts: {
   if (opts.type === 'SCHEDULE') {
     body.timezone = opts.timezone;
     body.scheduleKind = opts.scheduleKind;
+    body.telegramBotId = opts.telegramBotId || undefined;
     if (opts.scheduleKind === 'CRON') body.cronExpression = opts.cronExpression.trim();
     if (opts.scheduleKind === 'INTERVAL') {
       body.intervalSeconds = Math.max(60, opts.intervalMinutes * 60);
@@ -118,6 +125,9 @@ export function buildTriggerPayload(opts: {
     }
     if (opts.scheduleKind === 'ONCE' && opts.runAtLocal) {
       body.runAt = new Date(opts.runAtLocal).toISOString();
+    }
+    if (opts.progressChatId?.trim()) {
+      body.matchConfig = { progressChatId: opts.progressChatId.trim() };
     }
   }
 
@@ -144,6 +154,7 @@ export function buildPatchPayload(opts: {
   commandsText: string;
   telegramEvents: string[];
   variableArgsText: string;
+  progressChatId?: string;
 }): Record<string, unknown> {
   const patch: Record<string, unknown> = {
     name: opts.name.trim() || undefined,
@@ -153,6 +164,7 @@ export function buildPatchPayload(opts: {
   if (opts.type === 'SCHEDULE') {
     patch.timezone = opts.timezone;
     patch.scheduleKind = opts.scheduleKind;
+    patch.telegramBotId = opts.telegramBotId || undefined;
     patch.cronExpression =
       opts.scheduleKind === 'CRON' ? opts.cronExpression.trim() : undefined;
     patch.intervalSeconds =
@@ -164,6 +176,9 @@ export function buildPatchPayload(opts: {
     if (opts.scheduleKind === 'ONCE' && opts.runAtLocal) {
       patch.runAt = new Date(opts.runAtLocal).toISOString();
     }
+    patch.matchConfig = opts.progressChatId?.trim()
+      ? { progressChatId: opts.progressChatId.trim() }
+      : undefined;
   }
 
   if (opts.type === 'TELEGRAM') {

@@ -63,17 +63,17 @@ export class TelegramWorkflowProgressService {
     userId: string;
     workflowName: string;
     steps: StepLike[];
+    triggerType?: WorkflowTriggerType | null;
     triggerId: string | null;
     triggerPayload: unknown;
   }): Promise<void> {
-    const tg = this.extractTelegramPayload(opts.triggerPayload);
-    if (!tg?.chatId) return;
-
-    const botToken = await this.resolveBotToken(opts.userId, opts.triggerId);
-    if (!botToken) {
-      this.logger.warn(`Telegram progress: no bot token run=${opts.runId}`);
-      return;
-    }
+    const target = await this.resolveProgressTarget(
+      opts.userId,
+      opts.triggerId,
+      opts.triggerType ?? null,
+      opts.triggerPayload,
+    );
+    if (!target?.chatId || !target.botToken) return;
 
     const stepStatus = new Map<
       string,
@@ -91,16 +91,18 @@ export class TelegramWorkflowProgressService {
     });
 
     try {
-      const res = await this.api.sendMessage(botToken, {
-        chat_id: tg.chatId,
+      const res = await this.api.sendMessage(target.botToken, {
+        chat_id: target.chatId,
         text,
         parse_mode: 'HTML',
-        reply_to_message_id: tg.messageId ? Number(tg.messageId) : undefined,
+        reply_to_message_id: target.replyToMessageId
+          ? Number(target.replyToMessageId)
+          : undefined,
       });
 
       this.runs.set(opts.runId, {
-        botToken,
-        chatId: tg.chatId,
+        botToken: target.botToken,
+        chatId: target.chatId,
         messageId: res.message_id,
         workflowName: opts.workflowName,
         steps: opts.steps,
@@ -295,16 +297,44 @@ export class TelegramWorkflowProgressService {
     };
   }
 
-  private async resolveBotToken(
+  private async resolveProgressTarget(
     userId: string,
     triggerId: string | null,
-  ): Promise<string | null> {
+    triggerType: WorkflowTriggerType | null,
+    triggerPayload: unknown,
+  ): Promise<{ botToken: string; chatId: string; replyToMessageId?: string } | null> {
     if (!triggerId) return null;
     const trigger = await this.prisma.workflowTrigger.findFirst({
-      where: { id: triggerId, userId, type: WorkflowTriggerType.TELEGRAM },
+      where: {
+        id: triggerId,
+        userId,
+        ...(triggerType ? { type: triggerType } : {}),
+      },
       include: { telegramBot: { select: { botToken: true, enabled: true } } },
     });
     if (!trigger?.telegramBot?.enabled) return null;
-    return trigger.telegramBot.botToken;
+    if (triggerType === WorkflowTriggerType.TELEGRAM) {
+      const tg = this.extractTelegramPayload(triggerPayload);
+      if (!tg?.chatId) return null;
+      return {
+        botToken: trigger.telegramBot.botToken,
+        chatId: tg.chatId,
+        ...(tg.messageId ? { replyToMessageId: tg.messageId } : {}),
+      };
+    }
+    if (triggerType === WorkflowTriggerType.SCHEDULE) {
+      const match =
+        trigger.matchConfig && typeof trigger.matchConfig === 'object'
+          ? (trigger.matchConfig as Record<string, unknown>)
+          : {};
+      const chatId =
+        typeof match.progressChatId === 'string' ? match.progressChatId.trim() : '';
+      if (!chatId) return null;
+      return {
+        botToken: trigger.telegramBot.botToken,
+        chatId,
+      };
+    }
+    return null;
   }
 }

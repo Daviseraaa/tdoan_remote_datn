@@ -829,6 +829,11 @@ export const vi = {
     triggerScheduleDaily: 'Mỗi ngày {hour}:{minute}',
     triggerScheduleInterval: 'Mỗi {minutes} phút',
     triggerTelegram: 'Telegram',
+    scheduleTelegramNotifyBot: 'Bot thông báo Telegram',
+    scheduleTelegramNotifyChatId: 'Chat ID nhận thông báo',
+    scheduleTelegramNotifyChatIdPlaceholder: 'Ví dụ: 123456789 hoặc -1001234567890',
+    scheduleTelegramNotifyHint:
+      'Nếu nhập bot và chat ID, workflow chạy theo lịch sẽ gửi message tiến trình Telegram giống khi khởi chạy từ Telegram.',
     triggerSaveHint: 'Lưu workflow để áp dụng cấu hình trigger. Xem danh sách tại',
     startsOnRun: 'Chạy khi bấm Run',
     never: 'Chưa bao giờ',

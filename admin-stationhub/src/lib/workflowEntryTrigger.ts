@@ -18,6 +18,7 @@ export type EntryTriggerDraft = {
   dailyMinute: number;
   runAtLocal: string;
   telegramBotId: string;
+  progressChatId: string;
   commandsText: string;
   telegramEvents: string[];
   variableArgsText: string;
@@ -40,6 +41,7 @@ export function defaultEntryTriggerDraft(): EntryTriggerDraft {
     dailyMinute: 0,
     runAtLocal: '',
     telegramBotId: '',
+    progressChatId: '',
     commandsText: '/run',
     telegramEvents: ['message', 'command', 'callback_query'],
     variableArgsText: '',
@@ -75,6 +77,7 @@ export function draftFromWorkflowTrigger(tr: WorkflowTrigger | null): EntryTrigg
     dailyMinute: tr.dailyMinute ?? base.dailyMinute,
     runAtLocal: toDatetimeLocal(tr.runAt),
     telegramBotId: tr.telegramBotId ?? '',
+    progressChatId: mc.progressChatId ?? '',
     commandsText: mc.commands?.length ? mc.commands.join(', ') : base.commandsText,
     telegramEvents: mc.events?.length ? mc.events : base.telegramEvents,
     variableArgsText: mc.variableArgs?.length ? mc.variableArgs.join(', ') : '',
@@ -135,6 +138,7 @@ function formOpts(workflowId: string, draft: EntryTriggerDraft) {
     dailyMinute: draft.dailyMinute,
     runAtLocal: draft.runAtLocal,
     telegramBotId: draft.telegramBotId,
+    progressChatId: draft.progressChatId,
     commandsText: draft.commandsText,
     telegramEvents: draft.telegramEvents,
     variableArgsText: draft.variableArgsText,
@@ -159,6 +163,10 @@ export async function persistEntryTrigger(
     if (!botId) {
       throw new Error(t('triggers.errBotRequired'));
     }
+  }
+
+  if (draft.type === 'SCHEDULE' && draft.progressChatId.trim() && !botId) {
+    throw new Error(t('triggers.errBotRequired'));
   }
 
   const withBot = { ...draft, telegramBotId: botId };
