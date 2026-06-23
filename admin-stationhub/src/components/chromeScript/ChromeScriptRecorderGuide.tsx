@@ -45,18 +45,22 @@ export function ChromeScriptRecorderGuide({ defaultOpen = true, className }: Pro
             <li>{t('chromeScripts.guideStep4')}</li>
             <li>{t('chromeScripts.guideStep5')}</li>
           </ol>
-          <div className="rounded-lg bg-[#0b0f14] border border-white/10 px-4 py-3 font-mono text-xs text-[#d4d4d4] space-y-3">
+          <div className="rounded-lg bg-[#0b0f14] border border-white/10 px-4 py-3 text-xs text-[#d4d4d4] space-y-3">
             <div>
-              <p className="text-on-surface-variant/80 mb-1">{t('chromeScripts.guideBuildLabel')}</p>
-              <code>npm run build:chrome-bridge</code>
-              <br />
-              <code className="mt-1 inline-block">npm run chrome-bridge:install</code>
+              <p className="text-on-surface-variant/80 mb-1 font-medium">
+                {t('chromeScripts.guideBuildLabel')}
+              </p>
+              <p className="text-on-surface-variant leading-relaxed">
+                {t('chromeScripts.guideInstallDetail')}
+              </p>
             </div>
             <div>
-              <p className="text-on-surface-variant/80 mb-1">{t('chromeScripts.guideExtensionLabel')}</p>
-              <code>chrome://extensions</code>
-              <span className="text-on-surface-variant"> → Load unpacked → </span>
-              <code>agent/chrome-extension</code>
+              <p className="text-on-surface-variant/80 mb-1 font-medium">
+                {t('chromeScripts.guideExtensionLabel')}
+              </p>
+              <p className="text-on-surface-variant leading-relaxed">
+                {t('chromeScripts.guideExtensionDetail')}
+              </p>
             </div>
           </div>
           <p className="text-amber-300/90 text-xs flex items-start gap-2">

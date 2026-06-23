@@ -14,13 +14,16 @@ const GRASS_URL =
 
 export function Hero() {
   return (
-    <section
-      className="relative min-h-[92svh] overflow-hidden bg-cover bg-center flex flex-col text-gray-900"
-      style={{ backgroundImage: `url(${HERO_BG})` }}
-    >
+    <section className="relative flex min-h-dvh flex-col overflow-hidden text-gray-900">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 -z-20 bg-cover bg-center bg-no-repeat"
+        style={{ backgroundImage: `url(${HERO_BG})` }}
+      />
+
       <Navbar variant="transparent" />
 
-      <div className="flex-1 min-h-8 sm:min-h-12 lg:min-h-16 shrink-0" />
+      <div className="flex-1 min-h-8 max-h-28 sm:max-h-36 lg:max-h-44 shrink-0" />
 
       <div className="relative z-20 px-5 sm:px-8 text-center flex flex-col items-center">
         <p className="animate-fade-up text-xs sm:text-sm font-medium uppercase tracking-[0.2em] text-gray-600">
@@ -57,9 +60,9 @@ export function Hero() {
         </p>
       </div>
 
-      <div className="flex-1 min-h-10 sm:min-h-12 lg:min-h-16 shrink-0" />
+      <div className="flex-1 min-h-10 max-h-32 sm:max-h-40 lg:max-h-48 shrink-0" />
 
-      <div className="animate-hero-rise [animation-delay:480ms] relative z-0 w-[92%] sm:w-[84%] lg:w-[72%] max-w-4xl mx-auto shrink-0 -mb-10 sm:-mb-20 lg:-mb-32 px-5 sm:px-0">
+      <div className="animate-hero-rise [animation-delay:480ms] relative z-0 w-[92%] sm:w-[84%] lg:w-[72%] max-w-4xl mx-auto shrink-0 px-5 sm:px-0 pb-10 sm:pb-16 lg:pb-24">
         <ScaledDashboard>
           <DashboardMockup />
         </ScaledDashboard>
@@ -68,7 +71,7 @@ export function Hero() {
       <img
         src={GRASS_URL}
         alt=""
-        className="pointer-events-none absolute bottom-0 left-0 z-10 w-full select-none"
+        className="pointer-events-none absolute bottom-0 left-0 z-10 w-full min-h-[10vh] max-h-[28vh] object-cover object-bottom select-none"
         draggable={false}
       />
     </section>

@@ -9,6 +9,8 @@
     "build:chrome-bridge": "node scripts/build-chrome-bridge.js",
     "build:desktop-recorder": "node scripts/build-desktop-recorder.js",
     "chrome-bridge:install": "cd desktop && npm run build && node dist/service/install-chrome-bridge.js",
+    "chrome-bridge:install:bat": "scripts\\install-chrome-bridge.bat",
+    "sync:brand-icon": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/sync-brand-icon.ps1",
     "build:desktop": "cd desktop && npm install && npm run build",
     "build": "npm run build:core && npm run build:desktop",
     "build:all": "npm run build:core && npm run build:cloak-runner && npm run build:chrome-bridge && npm run build:desktop",

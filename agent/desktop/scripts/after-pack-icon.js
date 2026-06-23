@@ -15,6 +15,14 @@ exports.default = async function afterPack(context) {
     `${context.packager.appInfo.productFilename}.exe`,
   );
 
-  await rcedit(exePath, { icon: iconPath });
+  await rcedit(exePath, {
+    icon: iconPath,
+    'version-string': {
+      ProductName: 'StationHub Agent',
+      FileDescription: 'StationHub Agent',
+      CompanyName: 'StationHub',
+      OriginalFilename: `${context.packager.appInfo.productFilename}.exe`,
+    },
+  });
   console.log('[after-pack-icon] embedded', iconPath, '->', exePath);
 };

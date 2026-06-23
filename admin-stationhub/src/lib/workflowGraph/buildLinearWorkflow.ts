@@ -1,14 +1,10 @@
 import type { Edge, Node } from '@xyflow/react';
 import { t } from '@/src/i18n/t';
 import type { CreateWorkflowDto } from '@/src/types/api';
-import { buildFlowEdge } from './layout';
+import { buildFlowEdge, H_BASE_Y, NODE_X_SPACING, TRIGGER_X } from './layout';
 import { flowToWorkflowPayload } from './serialize';
 import { WF_TRIGGER_ID, type WfNodeData } from './types';
 import type { BuiltWorkflowNode } from './chromeScriptImport';
-import { NODE_X_SPACING } from './chromeScriptImport';
-
-const TRIGGER_X = 48;
-const BASE_Y = 240;
 
 export function buildLinearWorkflowDto(
   name: string,
@@ -23,7 +19,7 @@ export function buildLinearWorkflowDto(
     deletable: false,
     selectable: true,
     draggable: false,
-    position: { x: TRIGGER_X, y: BASE_Y },
+    position: { x: TRIGGER_X, y: H_BASE_Y },
     data: {
       kind: 'trigger',
       label: t('workflows.manualTrigger'),
@@ -36,7 +32,7 @@ export function buildLinearWorkflowDto(
 
   const stepNodes: Node<WfNodeData>[] = built.map((item, i) => {
     const x = TRIGGER_X + (i + 1) * NODE_X_SPACING;
-    const y = BASE_Y;
+    const y = H_BASE_Y;
     return {
       id: item.stepKey,
       type: 'wfNode',

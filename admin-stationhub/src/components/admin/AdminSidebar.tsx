@@ -7,11 +7,11 @@ import {
   Cpu,
   GitBranch,
   History,
-  Terminal,
   LogOut,
   Menu,
   X,
 } from 'lucide-react';
+import { BrandLogo } from '@/src/components/BrandLogo';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@/src/lib/utils';
 import { useAuth } from '@/src/hooks/useAuth';
@@ -58,9 +58,7 @@ export function AdminSidebar() {
       >
         <div className="flex items-center justify-between gap-2 px-2 py-2">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="w-10 h-10 rounded-lg bg-primary-container flex items-center justify-center shrink-0">
-              <Terminal className="text-on-primary-container" size={24} />
-            </div>
+            <BrandLogo size={40} className="w-10 h-10" />
             <div className="min-w-0">
               <h1 className="font-bold tracking-tight text-primary truncate">{t('common.brand')}</h1>
               <p className="font-mono text-[10px] text-tertiary">{t('adminNav.badge')}</p>

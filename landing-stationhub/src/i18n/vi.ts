@@ -10,11 +10,12 @@ export const vi = {
     navDemo: 'Xem demo',
     navTelegram: 'Nhóm Telegram',
     navZalo: 'Nhóm Zalo',
+    navGitHub: 'GitHub',
     ctaStart: 'Bắt đầu miễn phí',
     ctaWatchDemo: 'Xem demo',
 
     heroEyebrow: 'Nền tảng vận hành máy trạm',
-    heroTitle: 'Quản lý nhiều máy tính từ một bảng điều khiển',
+    heroTitle: 'Tự động hóa công việc hàng ngày của bạn',
     heroSubtitle:
       'StationHub giúp bạn gửi lệnh, lập lịch và theo dõi kết quả trên Windows, macOS và Linux — kích hoạt từ trình duyệt hoặc Telegram',
     heroNote: 'Miễn phí đăng ký · Cài ứng dụng trên máy trong vài phút',

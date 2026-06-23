@@ -6,12 +6,15 @@ import type {
   WorkflowStepConfig,
 } from '@/src/types/api';
 import { t } from '@/src/i18n/t';
+import { loopNodeLabel } from './loopLabel';
 import { normalizeWorkflowGraph } from './legacy';
 import {
   buildFlowEdge,
   computeGraphPositions,
+  H_BASE_Y,
   isValidSavedLayout,
   resolvePosition,
+  TRIGGER_X,
 } from './layout';
 import {
   WF_HANDLE_DEFAULT,
@@ -39,7 +42,7 @@ export function stepLabel(step: WorkflowStep, config: WorkflowStepConfig): strin
     return t('workflows.nodeCondition');
   }
   if (step.type === 'LOOP') {
-    return t('workflows.nodeLoop', { count: config.loopCount ?? 3 });
+    return loopNodeLabel(config);
   }
   if (step.type === 'VARIABLE') {
     const mode = config.variableMode ?? 'set';
@@ -134,7 +137,9 @@ export function workflowToFlow(
       : [];
 
   const useAutoLayout = !isValidSavedLayout(steps);
-  const autoPositions = computeGraphPositions(stepIds, graphForLayout, orderFallback);
+  const autoPositions = useAutoLayout
+    ? computeGraphPositions(stepIds, graphForLayout, orderFallback)
+    : new Map<string, { x: number; y: number }>();
 
   const nodes: Node<WfNodeData>[] = [
     {
@@ -143,7 +148,9 @@ export function workflowToFlow(
       deletable: false,
       selectable: true,
       draggable: false,
-      position: autoPositions.get(WF_TRIGGER_ID) ?? { x: 48, y: 240 },
+      position: useAutoLayout
+        ? (autoPositions.get(WF_TRIGGER_ID) ?? { x: TRIGGER_X, y: H_BASE_Y })
+        : { x: TRIGGER_X, y: H_BASE_Y },
       data: {
         kind: 'trigger',
         label: t('workflows.manualTrigger'),

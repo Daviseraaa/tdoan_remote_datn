@@ -11,6 +11,7 @@ import {
 } from '@/src/lib/taskTemplatePayload';
 import { parseStepsFromJson as parseChromeStepsFromJson } from '@/src/lib/chromeScriptSteps';
 import { parseStepsFromJson as parseDesktopStepsFromJson } from '@/src/lib/desktopRecordingSteps';
+import { loopNodeLabel } from './loopLabel';
 import { t } from '@/src/i18n/t';
 import type { BuiltWorkflowNode } from './chromeScriptImport';
 import { buildWorkflowNodesFromChromeScript } from './chromeScriptImport';
@@ -30,7 +31,7 @@ function stepDisplayLabel(step: WorkflowStep, config: WorkflowStepConfig): strin
   }
   if (step.type === 'CONDITION') return t('workflows.nodeCondition');
   if (step.type === 'LOOP') {
-    return t('workflows.nodeLoop', { count: config.loopCount ?? 3 });
+    return loopNodeLabel(config);
   }
   if (step.type === 'VARIABLE') {
     const mode = config.variableMode ?? 'set';

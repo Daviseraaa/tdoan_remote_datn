@@ -3,6 +3,7 @@
 use serde_json::Value;
 use std::fs;
 use std::path::PathBuf;
+use std::time::Duration;
 
 fn extract_steps_from_file(text: &str) -> Result<Vec<Value>, String> {
     let v: Value = serde_json::from_str(text).map_err(|e| e.to_string())?;
@@ -26,6 +27,9 @@ pub async fn run_desktop_replay(path: PathBuf) -> Result<(), String> {
     if steps.is_empty() {
         return Err("steps rỗng".into());
     }
+
+    // Cho người dùng chuyển focus sang cửa sổ đích (recorder không mở console).
+    tokio::time::sleep(Duration::from_secs(2)).await;
 
     let result = crate::platform::windows::desktop::run_steps_json(
         Some(serde_json::json!({ "steps": steps })),

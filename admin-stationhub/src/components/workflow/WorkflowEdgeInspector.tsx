@@ -61,7 +61,7 @@ export function WorkflowEdgeInspector({
       : WF_HANDLE_TRUE;
 
   return (
-    <div className="flex-1 overflow-y-auto custom-scrollbar p-4 sm:p-5 space-y-3">
+    <div className="flex-1 overflow-y-auto custom-scrollbar p-4 sm:p-5 space-y-3 min-w-0 w-full">
       <WfWorkflowVariablesEditorSection
         workflowId={workflowId}
         workflowVariables={workflowVariables}
@@ -123,7 +123,17 @@ export function WorkflowEdgeInspector({
             </select>
           </div>
         ) : null}
+      </WfInspectorBlock>
 
+      <WfInspectorBlock tone="vars">
+        <WfStepVarsSection
+          upstream={upstreamOutputKeys}
+          workflowVarKeys={workflowVarKeys}
+          showTelegramVars={showTelegramVars}
+        />
+      </WfInspectorBlock>
+
+      <div className="pt-2 pb-1">
         <button
           type="button"
           onClick={onDelete}
@@ -135,15 +145,7 @@ export function WorkflowEdgeInspector({
           <Trash2 size={16} />
           {t('workflows.deleteEdge')}
         </button>
-      </WfInspectorBlock>
-
-      <WfInspectorBlock tone="vars">
-        <WfStepVarsSection
-          upstream={upstreamOutputKeys}
-          workflowVarKeys={workflowVarKeys}
-          showTelegramVars={showTelegramVars}
-        />
-      </WfInspectorBlock>
+      </div>
     </div>
   );
 }

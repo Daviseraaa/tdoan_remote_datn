@@ -2,6 +2,8 @@
 
 mod cli;
 mod convert;
+#[cfg(windows)]
+mod keyboard_win;
 mod gui;
 mod record_engine;
 mod replay;

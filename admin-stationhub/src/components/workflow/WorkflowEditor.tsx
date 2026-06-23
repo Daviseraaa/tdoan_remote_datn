@@ -25,6 +25,7 @@ import {
   Trash2,
   X,
   ArrowLeft,
+  AlignHorizontalSpaceAround,
 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { useMediaQuery } from '@/src/hooks/useMediaQuery';
@@ -44,6 +45,7 @@ import {
 import { parseTelegramVariableArgNames } from '@/src/lib/triggerForm';
 import { WorkflowEdgeInspector } from './WorkflowEdgeInspector';
 import { WorkflowExecutionPanel } from './WorkflowExecutionPanel';
+import { WfEditorShortcutsHint } from './WfEditorShortcutsHint';
 import { WfAgentSelect } from './WfAgentSelect';
 import { MsNumberInput } from './MsNumberInput';
 import {
@@ -59,10 +61,13 @@ import {
   buildWorkflowNodesFromDesktopRecording,
   buildWorkflowNodesFromTaskTemplate,
   buildWorkflowNodesFromWorkflow,
+  buildFlowEdge,
   chromeScriptStepToWfNodeData,
   desktopRecordingStepToWfNodeData,
   type BuiltWorkflowNode,
+  H_BASE_Y,
   NODE_X_SPACING,
+  normalizeGraphPositions,
   newTaskNodeData,
   workflowGraphFingerprint,
   workflowToFlow,
@@ -77,8 +82,16 @@ import {
   type UpstreamOutputKey,
   type WfNodeData,
   type WfRunStatus,
+  type WfGraphEdge,
 } from '@/src/lib/workflowGraph';
 import { t } from '@/src/i18n/t';
+import {
+  buildWorkflowConfigFile,
+  downloadWorkflowConfigFile,
+  parseWorkflowConfigFileText,
+} from '@/src/lib/workflowConfigFile';
+import type { WorkflowConfigFile } from '@/src/lib/workflowConfigFile';
+import { WfWorkflowFileActions } from './WfWorkflowFileActions';
 import {
   actionLabel as chromeActionLabel,
   newChromeStep,
@@ -131,11 +144,22 @@ type Props = {
   onBack?: () => void;
   onEditorPaneClick?: () => void;
   onDeleteWorkflow?: () => void;
+  onImportConfigFile?: (file: WorkflowConfigFile) => void;
+  onConfigFileError?: (message: string) => void;
   isFullscreen?: boolean;
 };
 
 const EDGE_STYLE = { stroke: 'rgba(164, 230, 255, 0.65)', strokeWidth: 2 };
 const EDGE_STYLE_SELECTED = { stroke: 'rgba(164, 230, 255, 1)', strokeWidth: 3 };
+
+const WF_CANVAS_CONTROLS_CLS = cn(
+  '!static !shadow-none',
+  '!bg-transparent !border-0',
+  '[&>button]:!bg-black/35 [&>button]:!border [&>button]:!border-white/15',
+  '[&>button]:!text-on-surface [&>button]:!rounded-lg [&>button]:backdrop-blur-sm',
+  '[&>button:hover]:!bg-white/12 [&>button:hover]:!border-white/25',
+  '[&>button_svg]:!fill-current',
+);
 
 function withEdgeSelection(eds: Edge[], selectedId: string | null): Edge[] {
   return eds.map((e) => ({
@@ -167,6 +191,8 @@ export function WorkflowEditor({
   onBack,
   onEditorPaneClick,
   onDeleteWorkflow,
+  onImportConfigFile,
+  onConfigFileError,
   isFullscreen = false,
 }: Props) {
   const isLgUp = useMediaQuery('(min-width: 1024px)');
@@ -345,16 +371,6 @@ export function WorkflowEditor({
       if (kind === 'loop' && handle !== WF_HANDLE_BODY && handle !== WF_HANDLE_DONE) {
         return;
       }
-      const label =
-        handle === WF_HANDLE_TRUE
-          ? t('workflows.branchTrue')
-          : handle === WF_HANDLE_FALSE
-            ? t('workflows.branchFalse')
-            : handle === WF_HANDLE_BODY
-              ? t('workflows.branchBody')
-              : handle === WF_HANDLE_DONE
-                ? t('workflows.branchDone')
-                : undefined;
       const dup = edges.some(
         (e) =>
           e.source === conn.source &&
@@ -362,20 +378,10 @@ export function WorkflowEditor({
           (e.sourceHandle ?? '') === (conn.sourceHandle ?? ''),
       );
       if (dup) return;
+      if (!conn.source || !conn.target) return;
 
-      setEdges((eds) =>
-        addEdge(
-          {
-            ...conn,
-            type: WF_EDGE_TYPE,
-            animated: false,
-            style: { stroke: 'rgba(164, 230, 255, 0.55)', strokeWidth: 2 },
-            label,
-            labelStyle: label ? { fill: '#a4e6ff', fontSize: 10, fontWeight: 700 } : undefined,
-          },
-          eds,
-        ),
-      );
+      const edgeId = `e-${conn.source}-${conn.target}-${conn.sourceHandle ?? 'd'}`;
+      setEdges((eds) => addEdge(buildFlowEdge(edgeId, conn.source, conn.target, conn.sourceHandle ?? undefined), eds));
       onDirty();
     },
     [setEdges, onDirty, nodes, edges],
@@ -387,12 +393,13 @@ export function WorkflowEditor({
         nds.map((n) => {
           if (!n.selected && n.id !== node.id) return n;
           const d = n.data as WfNodeData;
+          const pos = n.id === node.id ? node.position : n.position;
           return {
             ...n,
-            position: n.id === node.id ? node.position : n.position,
+            position: pos,
             data: {
               ...d,
-              config: { ...d.config, ui: { x: n.position.x, y: n.position.y } },
+              config: { ...d.config, ui: { x: pos.x, y: pos.y } },
             },
           };
         }),
@@ -407,7 +414,6 @@ export function WorkflowEditor({
       const edgeId = selEdges[selEdges.length - 1]?.id ?? null;
       setSelectedEdgeId(edgeId);
       setSelectedNodeId(null);
-      setPropertiesOpen(true);
       return;
     }
     setSelectedEdgeId(null);
@@ -418,7 +424,6 @@ export function WorkflowEditor({
 
     if (triggerOnly) {
       setSelectedNodeId(WF_TRIGGER_ID);
-      setPropertiesOpen(true);
       return;
     }
     if (wfNodes.length === 0) {
@@ -432,7 +437,6 @@ export function WorkflowEditor({
       return;
     }
     setSelectedNodeId(wfNodes[0]!.id);
-    setPropertiesOpen(true);
   }, []);
 
   const maxX = useMemo(() => {
@@ -449,12 +453,12 @@ export function WorkflowEditor({
       const stepKey = crypto.randomUUID();
       const id = stepKey;
       const stepCount = nodes.filter((n) => n.id !== WF_TRIGGER_ID).length;
-      let position = { x: maxX + 300, y: 220 + (stepCount % 4) * 48 };
+      let position = { x: maxX + NODE_X_SPACING, y: H_BASE_Y + (stepCount % 4) * 32 };
 
       if (chainFromSelected && chainAnchorId) {
         const src = nodes.find((n) => n.id === chainAnchorId);
         if (src) {
-          position = { x: src.position.x + 300, y: src.position.y };
+          position = { x: src.position.x + NODE_X_SPACING, y: src.position.y };
         }
       }
 
@@ -480,28 +484,7 @@ export function WorkflowEditor({
         const edgeId = `e-${chainAnchorId}-${id}-${handle ?? 'd'}`;
         setEdges((eds) => [
           ...eds,
-          {
-            id: edgeId,
-            source: chainAnchorId,
-            target: id,
-            sourceHandle: handle,
-            type: WF_EDGE_TYPE,
-            animated: false,
-            style: EDGE_STYLE,
-            label:
-              handle === WF_HANDLE_TRUE
-                ? t('workflows.branchTrue')
-                : handle === WF_HANDLE_FALSE
-                  ? t('workflows.branchFalse')
-                  : handle === WF_HANDLE_BODY
-                    ? t('workflows.branchBody')
-                    : handle === WF_HANDLE_DONE
-                      ? t('workflows.branchDone')
-                      : undefined,
-            labelStyle: handle
-              ? { fill: '#a4e6ff', fontSize: 10, fontWeight: 700 }
-              : undefined,
-          },
+          buildFlowEdge(edgeId, chainAnchorId, id, handle),
         ]);
         setSelectedEdgeId(null);
         setSelectedNodeId(id);
@@ -517,31 +500,8 @@ export function WorkflowEditor({
   );
 
   const makeWorkflowEdge = useCallback(
-    (source: string, target: string, sourceHandle?: string): Edge => {
-      const edgeId = `e-${source}-${target}-${sourceHandle ?? 'd'}`;
-      return {
-        id: edgeId,
-        source,
-        target,
-        sourceHandle,
-        type: WF_EDGE_TYPE,
-        animated: false,
-        style: EDGE_STYLE,
-        label:
-          sourceHandle === WF_HANDLE_TRUE
-            ? t('workflows.branchTrue')
-            : sourceHandle === WF_HANDLE_FALSE
-              ? t('workflows.branchFalse')
-              : sourceHandle === WF_HANDLE_BODY
-                ? t('workflows.branchBody')
-                : sourceHandle === WF_HANDLE_DONE
-                  ? t('workflows.branchDone')
-                  : undefined,
-        labelStyle: sourceHandle
-          ? { fill: '#a4e6ff', fontSize: 10, fontWeight: 700 }
-          : undefined,
-      };
-    },
+    (source: string, target: string, sourceHandle?: string): Edge =>
+      buildFlowEdge(`e-${source}-${target}-${sourceHandle ?? 'd'}`, source, target, sourceHandle),
     [],
   );
 
@@ -897,6 +857,11 @@ export function WorkflowEditor({
   const canDeleteNode = multiSelectCount > 0;
   const canDeleteEdge = Boolean(selectedEdgeId);
   const canDeleteSelection = canDeleteNode || canDeleteEdge;
+  const hideDeleteInToolbar =
+    multiSelectCount >= 1 ||
+    (propertiesOpen &&
+      (Boolean(selectedEdgeId) ||
+        (Boolean(selectedNodeId) && selectedNodeId !== WF_TRIGGER_ID)));
 
   const deleteSelectedNodes = useCallback(() => {
     const ids = new Set(selectedWfNodeIds);
@@ -960,6 +925,78 @@ export function WorkflowEditor({
 
   const handleSave = () => void onSave(currentPayload());
   const handleRun = () => void onRun(currentPayload());
+
+  const handleNormalizeLayout = useCallback(() => {
+    const stepNodes = nodes.filter((n) => n.id !== WF_TRIGGER_ID);
+    if (stepNodes.length === 0) return;
+
+    const stepIds = stepNodes.map((n) => n.id);
+    const orderFallback = new Map(stepIds.map((id, i) => [id, i]));
+    const graphEdges: WfGraphEdge[] = edges
+      .filter((e) => e.source && e.target)
+      .map((e) => ({
+        source: e.source,
+        target: e.target,
+        sourceHandle: e.sourceHandle ?? undefined,
+      }));
+
+    const nodeMeta = new Map(
+      stepNodes.map((n) => {
+        const d = n.data as WfNodeData;
+        return [n.id, { label: d.label, subtitle: d.stepType }] as const;
+      }),
+    );
+
+    const positions = normalizeGraphPositions(stepIds, graphEdges, orderFallback, nodeMeta);
+
+    setNodes((nds) =>
+      nds.map((n) => {
+        const pos = positions.get(n.id);
+        if (!pos) return n;
+        const d = n.data as WfNodeData;
+        return {
+          ...n,
+          position: { ...pos },
+          data: {
+            ...d,
+            config: { ...d.config, ui: { x: pos.x, y: pos.y } },
+          },
+        };
+      }),
+    );
+    setSelectedNodeId(null);
+    setSelectedEdgeId(null);
+    setPropertiesOpen(false);
+    onDirty();
+    requestAnimationFrame(() => {
+      rfInstance?.fitView({ padding: 0.15 });
+    });
+  }, [nodes, edges, setNodes, onDirty, rfInstance]);
+
+  const handleExportConfig = useCallback(() => {
+    const { steps, graph } = flowToWorkflowPayload(nodes as Node<WfNodeData>[], edges);
+    const file = buildWorkflowConfigFile(workflow, { steps, graph });
+    downloadWorkflowConfigFile(file);
+  }, [nodes, edges, workflow]);
+
+  const handleImportConfigFile = useCallback(
+    async (picked: File) => {
+      if (!onImportConfigFile) return;
+      try {
+        const text = await picked.text();
+        const parsed = parseWorkflowConfigFileText(text);
+        if (isDirty) {
+          const ok = window.confirm(t('workflows.configFile.importReplaceConfirm'));
+          if (!ok) return;
+        }
+        onImportConfigFile(parsed);
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : t('workflows.configFile.invalidShape');
+        onConfigFileError?.(msg);
+      }
+    },
+    [isDirty, onConfigFileError, onImportConfigFile],
+  );
 
   return (
     <div className="w-full min-h-[70dvh] lg:h-full lg:min-h-0 flex flex-col overflow-hidden bg-surface-container-lowest">
@@ -1074,7 +1111,15 @@ export function WorkflowEditor({
 
           <div className="hidden lg:block flex-1" />
 
-          {canDeleteSelection ? (
+          {onImportConfigFile ? (
+            <WfWorkflowFileActions
+              onExport={handleExportConfig}
+              onImportFile={handleImportConfigFile}
+              disabled={saving || running}
+            />
+          ) : null}
+
+          {canDeleteSelection && !hideDeleteInToolbar ? (
             <button
               type="button"
               onClick={deleteSelection}
@@ -1091,6 +1136,17 @@ export function WorkflowEditor({
               </span>
             </button>
           ) : null}
+
+          <button
+            type="button"
+            disabled={saving || running || nodes.filter((n) => n.id !== WF_TRIGGER_ID).length === 0}
+            onClick={handleNormalizeLayout}
+            title={t('workflows.normalizeLayoutHint')}
+            className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold border border-white/12 text-on-surface-variant hover:bg-white/5 hover:text-on-surface disabled:opacity-40 shrink-0"
+          >
+            <AlignHorizontalSpaceAround size={14} />
+            <span className="hidden sm:inline">{t('workflows.normalizeLayout')}</span>
+          </button>
 
           <button
             type="button"
@@ -1206,6 +1262,7 @@ export function WorkflowEditor({
               type: WF_EDGE_TYPE,
               animated: false,
               style: { stroke: 'rgba(164, 230, 255, 0.65)', strokeWidth: 2 },
+              interactionWidth: 24,
             }}
             connectionLineStyle={{
               stroke: 'rgba(164, 230, 255, 0.65)',
@@ -1219,11 +1276,9 @@ export function WorkflowEditor({
             panOnDrag
             onSelectionChange={onSelectionChange}
             onNodeClick={(_, node) => {
-              if (node.id === WF_TRIGGER_ID) {
-                setSelectedEdgeId(null);
-                setSelectedNodeId(WF_TRIGGER_ID);
-                setPropertiesOpen(true);
-              }
+              setSelectedEdgeId(null);
+              setSelectedNodeId(node.id);
+              setPropertiesOpen(true);
             }}
             onBeforeDelete={async ({ nodes: nodesToDelete, edges: edgesToDelete }) => ({
               nodes: nodesToDelete.filter((n) => n.id !== WF_TRIGGER_ID),
@@ -1266,10 +1321,14 @@ export function WorkflowEditor({
               setPropertiesOpen(true);
               setNodes((nds) => nds.map((n) => ({ ...n, selected: false })));
             }}
+            onNodeDragStart={() => setPropertiesOpen(false)}
             onNodeDragStop={onNodeDragStop}
             nodeTypes={workflowNodeTypes}
             onPaneClick={() => {
               onEditorPaneClick?.();
+              setSelectedNodeId(null);
+              setSelectedEdgeId(null);
+              setPropertiesOpen(false);
             }}
             fitView
             snapToGrid
@@ -1280,7 +1339,6 @@ export function WorkflowEditor({
             proOptions={{ hideAttribution: true }}
           >
             <Background gap={20} size={1} color="rgba(255,255,255,0.06)" />
-            <Controls showInteractive={false} className="!bg-surface-container-high !border-white/10" />
             <MiniMap
               className="!hidden md:!block !bg-surface-container-high/90 !border-white/10 !rounded-xl"
               nodeColor={(n) => {
@@ -1294,6 +1352,10 @@ export function WorkflowEditor({
               }}
               maskColor="rgba(0,0,0,0.6)"
             />
+            <Panel position="bottom-left" className="!m-2 !mb-2 flex flex-col items-start gap-2">
+              <Controls showInteractive={false} className={WF_CANVAS_CONTROLS_CLS} />
+              <WfEditorShortcutsHint />
+            </Panel>
             <Panel position="top-left" className="m-2">
               <button
                 type="button"
@@ -1362,6 +1424,7 @@ export function WorkflowEditor({
                   showTelegramVars={showTelegramVars}
                   onUpdate={updateSelectedNode}
                   onAgentChange={handleStepAgentChange}
+                  onDelete={deleteSelectedNodes}
                 onImportChromeScript={(script) =>
                   importChromeScript(script, {
                     anchorNodeId:

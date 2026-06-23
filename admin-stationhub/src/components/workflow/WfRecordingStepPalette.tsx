@@ -1,16 +1,5 @@
 import React from 'react';
-import {
-  AppWindow,
-  Camera,
-  Clock,
-  Command,
-  Eye,
-  Keyboard,
-  MousePointer2,
-  Move,
-  Plus,
-  ScrollText,
-} from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { t } from '@/src/i18n/t';
 import {
@@ -23,27 +12,7 @@ import {
   actionLabel as desktopActionLabel,
   type DesktopAction,
 } from '@/src/lib/desktopRecordingSteps';
-
-const CHROME_ICONS = {
-  MousePointer2,
-  Keyboard,
-  Clock,
-  Eye,
-  Camera,
-} as const;
-
-const DESKTOP_ICONS: Record<
-  DesktopAction,
-  React.ComponentType<{ size?: number; className?: string }>
-> = {
-  delay: Clock,
-  openApp: AppWindow,
-  move: Move,
-  click: MousePointer2,
-  typeText: Keyboard,
-  keyCombo: Command,
-  scroll: ScrollText,
-};
+import { chromeActionIcon, desktopActionIcon } from '@/src/lib/recordingStepIcons';
 
 type Props = {
   module: 'chrome' | 'desktop';
@@ -96,10 +65,10 @@ export function WfRecordingStepPalette({
   onAddDesktopStep,
 }: Props) {
   if (module === 'chrome') {
-    const items = CHROME_STEP_PALETTE.map(({ action, iconName }) => ({
+    const items = CHROME_STEP_PALETTE.map(({ action }) => ({
       action,
       label: chromeActionLabel(action),
-      icon: CHROME_ICONS[iconName],
+      icon: chromeActionIcon(action),
     }));
 
     return (
@@ -124,7 +93,7 @@ export function WfRecordingStepPalette({
         <div key={action}>
           <StepButton
             label={desktopActionLabel(action)}
-            icon={DESKTOP_ICONS[action]}
+            icon={desktopActionIcon(action)}
             compact={compact}
             onClick={() => onAddDesktopStep?.(action)}
           />

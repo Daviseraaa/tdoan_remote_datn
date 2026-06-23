@@ -56,6 +56,37 @@ export interface DesktopStep {
 
 export type OpenAppMode = 'path' | 'app' | 'query';
 
+export function parseOpenAppForm(
+  command: string | undefined,
+  payload: unknown,
+  storedMode?: OpenAppMode,
+): { mode: OpenAppMode; value: string } {
+  const p = payload as Record<string, unknown> | null | undefined;
+  const cmd = (command ?? '').trim();
+
+  const mode: OpenAppMode =
+    storedMode ??
+    (p && 'query' in p ? 'query' : p && 'app' in p ? 'app' : 'path');
+
+  if (mode === 'app') {
+    return { mode, value: p && 'app' in p ? String(p.app ?? '') : cmd };
+  }
+  if (mode === 'query') {
+    return { mode, value: p && 'query' in p ? String(p.query ?? '') : cmd };
+  }
+  return { mode: 'path', value: p && 'path' in p ? String(p.path ?? '') : cmd };
+}
+
+export function buildOpenAppTaskConfig(
+  mode: OpenAppMode,
+  value: string,
+): { command: string; payload: Record<string, unknown>; openAppMode: OpenAppMode } {
+  const v = value.trim();
+  const payload: Record<string, unknown> =
+    mode === 'path' ? { path: v } : mode === 'app' ? { app: v } : { query: v };
+  return { command: v, payload, openAppMode: mode };
+}
+
 export interface TemplateEditorState {
   name: string;
   type: TaskType;
@@ -331,19 +362,9 @@ export function parseTemplateToForm(tpl: TaskTemplate, agent: Agent | null): Tem
   };
 
   if (tpl.type === 'OPEN_APP') {
-    const p = tpl.payload as Record<string, unknown> | null;
-    if (p?.path) {
-      base.openAppMode = 'path';
-      base.openAppValue = String(p.path);
-    } else if (p?.app) {
-      base.openAppMode = 'app';
-      base.openAppValue = String(p.app);
-    } else if (p?.query) {
-      base.openAppMode = 'query';
-      base.openAppValue = String(p.query);
-    } else {
-      base.openAppValue = tpl.command ?? '';
-    }
+    const parsed = parseOpenAppForm(tpl.command ?? '', tpl.payload);
+    base.openAppMode = parsed.mode;
+    base.openAppValue = parsed.value;
     return base;
   }
 
@@ -434,14 +455,8 @@ export function buildTemplateDto(state: TemplateEditorState): CreateTaskTemplate
     case 'SYSTEM_INFO':
       return { ...base, command: 'collect' };
     case 'OPEN_APP': {
-      const v = state.openAppValue.trim();
-      const payload: Record<string, unknown> =
-        state.openAppMode === 'path'
-          ? { path: v }
-          : state.openAppMode === 'app'
-            ? { app: v }
-            : { query: v };
-      return { ...base, command: v, payload };
+      const built = buildOpenAppTaskConfig(state.openAppMode, state.openAppValue);
+      return { ...base, command: built.command, payload: built.payload, openAppMode: built.openAppMode };
     }
     case 'OPEN_BROWSER': {
       const form = parseOpenBrowserForm(

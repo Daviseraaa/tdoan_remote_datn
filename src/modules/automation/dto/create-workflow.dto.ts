@@ -48,6 +48,11 @@ export class WorkflowStepConfigDto {
   @IsNumber()
   timeout?: number;
 
+  @ApiPropertyOptional({ example: 5, description: 'Ưu tiên task agent 0–10' })
+  @IsOptional()
+  @IsNumber()
+  priority?: number;
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
@@ -90,6 +95,36 @@ export class WorkflowStepConfigDto {
   @IsOptional()
   @IsNumber()
   loopCount?: number;
+
+  @ApiPropertyOptional({ example: 'fixed', description: 'fixed | variable | array' })
+  @IsOptional()
+  @IsString()
+  loopMode?: string;
+
+  @ApiPropertyOptional({ example: 'loop_times' })
+  @IsOptional()
+  @IsString()
+  loopCountVar?: string;
+
+  @ApiPropertyOptional({ example: 'excel_rows' })
+  @IsOptional()
+  @IsString()
+  loopArrayVar?: string;
+
+  @ApiPropertyOptional({ example: 'loop_item' })
+  @IsOptional()
+  @IsString()
+  loopItemVar?: string;
+
+  @ApiPropertyOptional({ example: 'counter' })
+  @IsOptional()
+  @IsString()
+  conditionVariable?: string;
+
+  @ApiPropertyOptional({ example: '10' })
+  @IsOptional()
+  @IsString()
+  conditionCompareValue?: string;
 
   @ApiPropertyOptional({ example: 'set', description: 'create | read | set' })
   @IsOptional()
@@ -179,6 +214,14 @@ export class WorkflowStepConfigDto {
   @IsOptional()
   @IsString()
   outputKey?: string;
+
+  @ApiPropertyOptional({
+    example: 'path',
+    description: 'Chế độ OPEN_APP: path | app | query — lưu để khôi phục tab UI',
+  })
+  @IsOptional()
+  @IsString()
+  openAppMode?: string;
 }
 
 export class WorkflowStepDto {

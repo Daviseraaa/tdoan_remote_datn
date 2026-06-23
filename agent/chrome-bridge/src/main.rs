@@ -107,7 +107,7 @@ async fn handle_extension_to_agent(
             "v": 1,
             "requestId": req_id,
             "ok": false,
-            "error": "Agent offline — chạy StationHub agent (tray) để dùng automation. Ghi script vẫn lưu local khi dừng ghi."
+            "error": "StationHub Agent chưa chạy trên máy. Mở ứng dụng StationHub Agent (icon khay hệ thống) nếu bạn dùng tự động hóa từ máy chủ."
         });
         let _ = send_to_chrome(chrome_out, &err_body);
         return;
@@ -126,7 +126,7 @@ async fn handle_extension_to_agent(
             "v": 1,
             "requestId": req_id,
             "ok": false,
-            "error": "Mất kết nối agent pipe"
+            "error": "Mất kết nối StationHub Agent. Mở lại ứng dụng Agent trên máy."
         });
         let _ = send_to_chrome(chrome_out, &err_body);
     }

@@ -6,6 +6,38 @@ use crate::tasks::types::TaskOutcome;
 
 pub struct Handler;
 
+const MSG_DESKTOP_DISABLED: &str = "Tự động hóa desktop chưa bật trên máy agent. \
+Mở StationHub Agent → Cài đặt → tab Desktop → bật «Bật điều khiển desktop» → Lưu & áp dụng, rồi thử lại.";
+
+const MSG_DESKTOP_WINDOWS: &str = "Task desktop chỉ chạy trên máy agent Windows. \
+Đăng nhập Windows, mở StationHub Agent (icon khay hệ thống) rồi thử lại.";
+
+fn user_desktop_error(raw: &str) -> String {
+    let lower = raw.to_lowercase();
+    if lower.contains("desktop_automation") && lower.contains("tắt") {
+        return MSG_DESKTOP_DISABLED.into();
+    }
+    if lower.contains("task cancelled") {
+        return "Task đã bị hủy.".into();
+    }
+    if lower.contains("steps rỗng") || lower.contains("steps rong") {
+        return "Workflow không có bước desktop nào.".into();
+    }
+    if lower.contains("quá nhiều bước") {
+        return "Quá nhiều bước desktop — rút gọn workflow hoặc nhờ admin tăng giới hạn.".into();
+    }
+    if lower.contains("thiếu tọa độ") || lower.contains("click:") {
+        return "Không click được — mở đúng cửa sổ/ứng dụng như lúc ghi bản.".into();
+    }
+    if lower.contains("sendinput") {
+        return "Không gửi được thao tác chuột/phím — thử lại khi cửa sổ đích đang mở và không bị che.".into();
+    }
+    if !raw.is_empty() && raw.len() <= 200 && !raw.contains("DESKTOP_AUTOMATION_ENABLED") {
+        return raw.to_string();
+    }
+    "Thực thi desktop thất bại. Mở đúng cửa sổ/ứng dụng như khi ghi bản và thử lại.".into()
+}
+
 fn extract_steps_value(t: &TaskExecute) -> Option<Value> {
     if let Some(Value::Object(p)) = &t.payload {
         if let Some(s) = p.get("steps") {
@@ -37,10 +69,7 @@ impl TaskHandler for Handler {
             return (
                 false,
                 -1,
-                Some(
-                    "DESKTOP_AUTOMATION bị tắt. Đặt DESKTOP_AUTOMATION_ENABLED=true."
-                        .into(),
-                ),
+                Some(MSG_DESKTOP_DISABLED.into()),
                 None,
             );
         }
@@ -49,7 +78,7 @@ impl TaskHandler for Handler {
             return (
                 false,
                 -1,
-                Some("DESKTOP_AUTOMATION chỉ trên Windows".into()),
+                Some(MSG_DESKTOP_WINDOWS.into()),
                 None,
             );
         }
@@ -60,7 +89,7 @@ impl TaskHandler for Handler {
                 return (
                     false,
                     -1,
-                    Some("Không đọc được steps".into()),
+                    Some("Không đọc được các bước desktop trong task.".into()),
                     None,
                 );
             }
@@ -90,14 +119,14 @@ impl TaskHandler for Handler {
         };
 
         if steps_arr.is_empty() {
-            return (false, -1, Some("steps rỗng".into()), None);
+            return (false, -1, Some("Workflow không có bước desktop nào.".into()), None);
         }
         if steps_arr.len() > ctx.config.desktop_automation_max_steps {
             return (
                 false,
                 -1,
                 Some(format!(
-                    "Quá nhiều bước ({} > {})",
+                    "Quá nhiều bước desktop ({} — tối đa {}).",
                     steps_arr.len(),
                     ctx.config.desktop_automation_max_steps
                 )),
@@ -149,7 +178,7 @@ impl TaskHandler for Handler {
             return (
                 false,
                 -1,
-                Some("Task cancelled".into()),
+                Some("Task đã bị hủy.".into()),
                 Some(serde_json::json!({ "cancelled": true })),
             );
         }
@@ -165,7 +194,7 @@ impl TaskHandler for Handler {
                     (
                         false,
                         -1,
-                        Some("Task cancelled".into()),
+                        Some("Task đã bị hủy.".into()),
                         Some(serde_json::json!({ "cancelled": true })),
                     )
                 } else {
@@ -177,11 +206,11 @@ impl TaskHandler for Handler {
                     (
                         false,
                         -1,
-                        Some("Task cancelled".into()),
+                        Some("Task đã bị hủy.".into()),
                         Some(serde_json::json!({ "cancelled": true })),
                     )
                 } else {
-                    (false, -1, Some(e), None)
+                    (false, -1, Some(user_desktop_error(&e)), None)
                 }
             }
         }

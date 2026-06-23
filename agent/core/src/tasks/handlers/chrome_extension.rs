@@ -98,14 +98,14 @@ impl TaskHandler for Handler {
 
     async fn run(&self, ctx: &TaskContext<'_>, task: &TaskExecute) -> TaskOutcome {
         if !crate::config::settings::chrome_extension_enabled_now() {
-            let path = crate::config::env_load::default_config_path();
             return (
                 false,
                 -1,
-                Some(format!(
-                    "CHROME_EXTENSION bị tắt. Đặt CHROME_EXTENSION_ENABLED=true trong {} rồi Lưu cài đặt (hoặc restart agent).",
-                    path.display()
-                )),
+                Some(
+                    "Chrome extension chưa bật trên máy agent. \
+                     Mở StationHub Agent → Cài đặt → bật Chrome extension, lưu và thử lại."
+                        .into(),
+                ),
                 None,
             );
         }

@@ -118,7 +118,7 @@ btnStop.addEventListener('click', async () => {
     return;
   }
   const path = res?.data?.savedPath;
-  setMsg(path ? `Đã lưu: ${path}` : `Đã lưu (${res?.data?.id || ''})`);
+  setMsg(path ? 'Đã lưu script trên máy này.' : 'Đã lưu script.');
   await refresh();
 });
 

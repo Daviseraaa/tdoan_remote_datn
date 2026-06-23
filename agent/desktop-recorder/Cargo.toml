@@ -4,6 +4,9 @@ version = "0.1.0"
 edition = "2021"
 description = "StationHub desktop automation recorder (Windows)"
 
+[build-dependencies]
+winres = "0.1"
+
 [[bin]]
 name = "stationhub-desktop-recorder"
 path = "src/main.rs"
@@ -16,15 +19,18 @@ uuid = { version = "1.11", features = ["v4"] }
 chrono = "0.4"
 eframe = { version = "0.29", default-features = true }
 egui-phosphor = { version = "0.7.3", features = ["regular", "fill"] }
+image = { version = "0.25", default-features = false, features = ["ico"] }
 
 [target.'cfg(windows)'.dependencies]
 stationhub-windows-uia = { path = "../stationhub-windows-uia" }
 windows-sys = { version = "0.59", features = [
   "Win32_System_Console",
+  "Win32_UI_Input_KeyboardAndMouse",
   "Win32_UI_WindowsAndMessaging",
 ] }
 
 [profile.release]
 lto = true
 codegen-units = 1
-strip = true
+# Giữ resource .ico (winres) — strip=true có thể làm mất icon trên Windows.
+strip = "debuginfo"

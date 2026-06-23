@@ -7,6 +7,11 @@ import { filterAgentsByCluster } from '@/src/lib/agentFilters';
 import { t } from '@/src/i18n/t';
 import type { ExecuteWorkflowResult, Workflow, WorkflowStep } from '@/src/types/api';
 import type { WorkflowGraphV2, WfRunStatus } from '@/src/lib/workflowGraph';
+import { H_BASE_Y, H_STEP_X, TRIGGER_X } from '@/src/lib/workflowGraph/layout';
+import {
+  prepareImportedWorkflowBundle,
+  type WorkflowConfigFile,
+} from '@/src/lib/workflowConfigFile';
 import {
   buildRunStatusFromStepRuns,
   stepRunsToExecuteResult,
@@ -99,6 +104,41 @@ export function useWorkflowEditor(workflowId: string) {
   }, [agents, detail, workflowId, isDirty, graphReloadToken]);
 
   const markDirty = useCallback(() => setIsDirty(true), []);
+
+  const importFromConfigFile = useCallback(
+    (file: WorkflowConfigFile) => {
+      const known = new Set(agents.map((a) => a.id));
+      const agentId =
+        defaultAgentId && known.has(defaultAgentId)
+          ? defaultAgentId
+          : (agents[0]?.id ?? '');
+      if (!agentId) {
+        throw new Error(t('workflows.noAgents'));
+      }
+
+      const bundle = prepareImportedWorkflowBundle(file, agentId, known);
+      setDraft((d) =>
+        d
+          ? {
+              ...d,
+              name: bundle.name?.trim() || d.name,
+              description: bundle.description ?? d.description,
+              variables: bundle.variables ?? {},
+              stepDelayMs: bundle.stepDelayMs ?? 0,
+              closeOpenedOnFinish: bundle.closeOpenedOnFinish ?? false,
+              cronExpression: bundle.cronExpression ?? d.cronExpression,
+              steps: bundle.steps,
+              graph: bundle.graph,
+            }
+          : d,
+      );
+      setIsDirty(true);
+      setGraphReloadToken((n) => n + 1);
+      setExecutionResult(null);
+      setRunStatusByStepId({});
+    },
+    [agents, defaultAgentId],
+  );
 
   const patchMeta = useCallback(
     (
@@ -238,7 +278,35 @@ export function useWorkflowEditor(workflowId: string) {
     executionResult,
     runStatusByStepId,
     graphReloadToken,
+    importFromConfigFile,
   };
+}
+
+export async function createWorkflowFromConfigFile(
+  create: ReturnType<typeof useWorkflowMutations>['create'],
+  agents: { id: string }[],
+  file: WorkflowConfigFile,
+): Promise<Workflow> {
+  const agentId = agents[0]?.id;
+  if (!agentId) {
+    throw new Error(t('workflows.noAgents'));
+  }
+  const bundle = prepareImportedWorkflowBundle(
+    file,
+    agentId,
+    new Set(agents.map((a) => a.id)),
+  );
+  return create.mutateAsync({
+    name: bundle.name?.trim() || t('workflows.untitled'),
+    description: bundle.description,
+    variables: bundle.variables,
+    stepDelayMs: bundle.stepDelayMs ?? 0,
+    closeOpenedOnFinish: bundle.closeOpenedOnFinish ?? false,
+    cronExpression: bundle.cronExpression,
+    isActive: false,
+    graph: bundle.graph,
+    steps: bundle.steps,
+  });
 }
 
 export async function createDefaultWorkflow(
@@ -268,7 +336,7 @@ export async function createDefaultWorkflow(
           delayMs: 1000,
           stepKey: 'step-delay-1',
           title: t('workflows.nodeDelay', { ms: 1000 }),
-          ui: { x: 348, y: 220 },
+          ui: { x: TRIGGER_X + H_STEP_X, y: H_BASE_Y },
         },
         onFailure: 'STOP',
       },
@@ -281,7 +349,7 @@ export async function createDefaultWorkflow(
           agentId,
           taskType: 'COMMAND',
           title: t('taskType.COMMAND'),
-          ui: { x: 648, y: 220 },
+          ui: { x: TRIGGER_X + H_STEP_X * 2, y: H_BASE_Y },
         },
         onFailure: 'STOP',
       },

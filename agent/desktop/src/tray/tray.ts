@@ -1,6 +1,5 @@
 import { app, Tray, Menu, nativeImage, dialog } from 'electron';
-import { spawn, type ChildProcess } from 'child_process';
-import { execFileSync } from 'child_process';
+import { spawn, type ChildProcess, execFileSync } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
 import { agentSpawnEnv } from '../shared/build-config';
@@ -15,6 +14,7 @@ import {
   resolveCloakRunnerScript,
   resolveConfigPath,
   resolveCoreExe,
+  writeAgentCorePointer,
 } from '../shared/paths';
 import {
   appendUserLogLine,
@@ -24,6 +24,7 @@ import {
 } from '../shared/agent-status';
 import { formatUserLog, type UiLogLevel } from '../shared/log-filter';
 import { resolveAppIconPath } from '../shared/app-icon';
+import { ensureDefaultAutostart } from '../shared/login-item';
 import { showSettingsWindow } from '../main/settings-window';
 import { installDatnNativeWindowsService, NATIVE_SVC_NAME } from '../service/native-windows-service';
 import { uninstallDatnNativeWindowsService } from '../service/native-windows-service';
@@ -92,6 +93,7 @@ export function startRustAgent() {
     pushLog('ERROR', `Thiếu ${exe} — chạy npm run build:core từ thư mục agent/`);
     return;
   }
+  writeAgentCorePointer(exe);
   if (rustAgent && rustAgent.exitCode === null && !rustAgent.killed) {
     return;
   }
@@ -325,7 +327,9 @@ function createTrayIcon(): Tray {
 }
 
 export function startTrayApp(): void {
+  app.setName('StationHub Agent');
   app.whenReady().then(() => {
+    ensureDefaultAutostart();
     tray = createTrayIcon();
     tray.setToolTip('StationHub Agent');
     tray.setContextMenu(buildMenu());

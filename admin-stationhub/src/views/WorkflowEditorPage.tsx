@@ -79,6 +79,14 @@ export default function WorkflowEditorPage() {
             graphReloadToken={w.graphReloadToken}
             onBack={handleBack}
             onDeleteWorkflow={() => w.setShowDelete(true)}
+            onImportConfigFile={(file) => {
+              try {
+                w.importFromConfigFile(file);
+              } catch (e) {
+                w.setError(e instanceof Error ? e.message : t('workflows.configFile.invalidShape'));
+              }
+            }}
+            onConfigFileError={w.setError}
             isFullscreen
           />
         </div>

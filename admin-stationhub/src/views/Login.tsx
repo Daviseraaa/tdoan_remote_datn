@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link, Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { Terminal, AlertCircle } from 'lucide-react';
+import { AlertCircle } from 'lucide-react';
+import { BrandLogo } from '@/src/components/BrandLogo';
 import { useAuth } from '@/src/hooks/useAuth';
 import { apiErrorMessage } from '@/src/lib/api';
 import { isAuthenticated } from '@/src/lib/auth';
@@ -74,9 +75,7 @@ export default function Login() {
       <div className="absolute bottom-[-10%] left-[-10%] w-[40%] h-[40%] bg-tertiary/5 blur-[120px] rounded-full" />
       <div className="relative w-full max-w-md glass-card rounded-3xl p-10 border border-white/10 shadow-2xl">
         <div className="flex items-center gap-3 mb-8">
-          <div className="w-12 h-12 rounded-lg bg-primary-container flex items-center justify-center">
-            <Terminal className="text-on-primary-container" size={24} />
-          </div>
+          <BrandLogo size={48} className="w-12 h-12" />
           <div>
             <h1 className="font-bold text-xl text-primary">{t('common.brand')}</h1>
             <p className="font-mono text-[10px] text-on-surface-variant opacity-60">{t('login.subtitle')}</p>

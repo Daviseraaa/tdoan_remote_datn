@@ -27,7 +27,11 @@ import {
   resolvePayload,
   resolveTemplateString,
   resolveVariableValueTemplate,
+  evaluateWorkflowVariableCondition,
+  resolveWorkflowLoopState,
+  resolveLoopItemVarName,
   setWorkflowVar,
+  type WorkflowVariableConditionMode,
   type WorkflowRunScope,
   type WorkflowVariableMode,
 } from './workflow-variables';
@@ -80,15 +84,22 @@ export interface WorkflowStepConfig {
   command?: string;
   payload?: Record<string, unknown>;
   timeout?: number;
+  priority?: number;
   delayMs?: number;
   /** Chờ sau bước (ms); ghi đè workflow.stepDelayMs nếu set */
   delayAfterMs?: number;
   title?: string;
   ui?: { x: number; y: number };
   graphEdges?: WorkflowGraphEdgeStored[] | WorkflowGraphEdge[];
-  conditionMode?: 'last_exit_success' | 'last_exit_failed' | 'last_exit_code_eq';
+  conditionMode?: 'last_exit_success' | 'last_exit_failed' | 'last_exit_code_eq' | string;
   loopCount?: number;
+  loopMode?: 'fixed' | 'variable' | 'array';
+  loopCountVar?: string;
+  loopArrayVar?: string;
+  loopItemVar?: string;
   conditionExitCode?: number;
+  conditionVariable?: string;
+  conditionCompareValue?: string;
   variableMode?: WorkflowVariableMode;
   variableName?: string;
   variableValue?: string;
@@ -97,6 +108,8 @@ export interface WorkflowStepConfig {
   sheetName?: string;
   hasHeader?: boolean;
   outputKey?: string;
+  /** OPEN_APP — path | app | query; chỉ UI, không ảnh hưởng runtime */
+  openAppMode?: string;
 }
 
 export interface WorkflowStepResult {
@@ -166,6 +179,13 @@ function evaluateCondition(
   ctx: StepContext,
 ): boolean {
   const mode = config.conditionMode ?? 'last_exit_success';
+  if (typeof mode === 'string' && mode.startsWith('var_')) {
+    return evaluateWorkflowVariableCondition(
+      mode as WorkflowVariableConditionMode,
+      config,
+      ctx.scope,
+    );
+  }
   if (mode === 'last_exit_failed') return ctx.failed;
   if (mode === 'last_exit_code_eq') {
     return (ctx.exitCode ?? -1) === (config.conditionExitCode ?? 0);
@@ -367,6 +387,12 @@ function resolveCommand(taskType: TaskType, config: WorkflowStepConfig): string 
   if (taskType === TaskType.CLOSE_APP) return cmd || 'close';
   if (taskType === TaskType.TELEGRAM_SEND) return cmd || 'send';
   return cmd;
+}
+
+function resolveStepTaskPriority(config: WorkflowStepConfig): number {
+  const p = Number(config.priority);
+  if (!Number.isFinite(p)) return 0;
+  return Math.max(0, Math.min(10, Math.floor(p)));
 }
 
 type OpenedTracker = { pids: number[]; agentId?: string };
@@ -701,7 +727,8 @@ export class AutomationService {
 
     if (step.type === StepType.LOOP) {
       await trackStart();
-      const count = Math.max(1, Math.min(1000, Number(config.loopCount) || 3));
+      const loopState = resolveWorkflowLoopState(config, ctx.scope);
+      const count = loopState.count;
       const rawLoopIdx = ctx.scope.workflow._loopIndex;
       const loopIndexMap =
         rawLoopIdx &&
@@ -711,23 +738,40 @@ export class AutomationService {
           : {};
       const currentIndex = loopIndexMap[step.id] ?? 0;
       const outputKey = resolveOutputKey(config, step.order, step.id);
+      const currentItem =
+        loopState.items !== null ? loopState.items[currentIndex] : undefined;
+      const loopJsonBase: Record<string, unknown> = {
+        loopIndex: currentIndex,
+        loopCount: count,
+      };
+      if (currentItem !== undefined) {
+        loopJsonBase.loopItem = currentItem;
+      }
 
       if (currentIndex < count) {
         loopIndexMap[step.id] = currentIndex + 1;
-        const scopeWithLoop = {
+        let scopeWithLoop: WorkflowRunScope = {
           ...ctx.scope,
           workflow: { ...ctx.scope.workflow, _loopIndex: loopIndexMap },
         };
+        if (config.loopMode === 'array' && loopState.items) {
+          const itemVar = resolveLoopItemVarName(config);
+          scopeWithLoop = setWorkflowVar(
+            scopeWithLoop,
+            itemVar,
+            loopState.items[currentIndex],
+          );
+        }
         const nextScope = publishStepOutput(scopeWithLoop, outputKey, {
           exitCode: 0,
           failed: false,
           stepId: step.id,
           order: step.order,
-          json: { loopIndex: currentIndex, loopCount: count },
+          json: loopJsonBase,
         });
         const loopOut = {
           branch: HANDLE_BODY,
-          json: { loopIndex: currentIndex, loopCount: count },
+          json: loopJsonBase,
         };
         await trackEnd(StepRunStatus.COMPLETED, { output: loopOut });
         return {
@@ -748,16 +792,20 @@ export class AutomationService {
         ...ctx.scope,
         workflow: { ...ctx.scope.workflow, _loopIndex: loopIndexMap },
       };
+      const loopDoneJson = {
+        ...loopJsonBase,
+        completed: true,
+      };
       const nextScope = publishStepOutput(scopeAfterLoop, outputKey, {
         exitCode: 0,
         failed: false,
         stepId: step.id,
         order: step.order,
-        json: { loopIndex: currentIndex, loopCount: count, completed: true },
+        json: loopDoneJson,
       });
       const loopDoneOut = {
         branch: HANDLE_DONE,
-        json: { loopIndex: currentIndex, loopCount: count, completed: true },
+        json: loopDoneJson,
       };
       await trackEnd(StepRunStatus.COMPLETED, { output: loopDoneOut });
       return {
@@ -877,6 +925,7 @@ export class AutomationService {
           agentId,
           payload: excelPayload,
           timeout: timeoutMs,
+          priority: resolveStepTaskPriority(config),
         },
         runId ? { workflowRunId: runId } : undefined,
       );
@@ -1145,6 +1194,7 @@ export class AutomationService {
         agentId: config.agentId,
         payload,
         timeout: timeoutMs,
+        priority: resolveStepTaskPriority(config),
       },
       runId ? { workflowRunId: runId } : undefined,
     );

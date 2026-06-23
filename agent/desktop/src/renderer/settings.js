@@ -1,5 +1,7 @@
 /* global stationhubSettings */
 
+const ADVANCED_GROUP = 'Nâng cao';
+
 const TAB_META = {
   'Kết nối': { label: 'Kết nối', icon: '⬡', special: 'connection' },
   'Task / Shell': { label: 'Task/Shell', icon: '⌘', desc: 'Timeout, output và shell mặc định.' },
@@ -16,6 +18,12 @@ const TAB_META = {
     label: 'Remote',
     icon: '◉',
     desc: 'RustDesk — ID/mật khẩu và đường dẫn trên máy agent.',
+  },
+  [ADVANCED_GROUP]: {
+    label: 'Nâng cao',
+    icon: '⚙',
+    desc: 'Khởi động cùng Windows và tuỳ chọn hệ thống.',
+    special: 'advanced',
   },
 };
 
@@ -142,6 +150,35 @@ function renderField(f) {
   return field;
 }
 
+function wireAutostartToggle(root) {
+  const autostartToggle = root.querySelector('#autostartToggle');
+  if (!autostartToggle) return;
+  autostartToggle.addEventListener('change', async () => {
+    const api = window.stationhubSettings;
+    const want = autostartToggle.checked;
+    if (!api?.setAutostart) {
+      autostartToggle.checked = !want;
+      setFooter('Không gọi được cài đặt khởi động', 'warn');
+      return;
+    }
+    autostartToggle.disabled = true;
+    const res = await api.setAutostart(want);
+    autostartToggle.disabled = false;
+    if (!res?.ok) {
+      autostartToggle.checked = !want;
+      setFooter(res?.error || 'Không đổi được cài đặt khởi động', 'warn');
+      return;
+    }
+    autostartToggle.checked = res.enabled;
+    setFooter(
+      res.enabled
+        ? 'Đã bật — Agent tự chạy khi đăng nhập Windows'
+        : 'Đã tắt tự chạy khi đăng nhập',
+      'ok',
+    );
+  });
+}
+
 function renderConnectionPanel() {
   const panel = document.createElement('section');
   panel.className = 'panel active';
@@ -226,6 +263,36 @@ function renderConnectionPanel() {
   return panel;
 }
 
+function renderAdvancedPanel() {
+  const meta = TAB_META[ADVANCED_GROUP];
+  const panel = document.createElement('section');
+  panel.className = 'panel';
+  panel.dataset.group = ADVANCED_GROUP;
+  panel.innerHTML = `
+    <div class="panel-intro">
+      <h2>${esc(meta.label)}</h2>
+      ${meta.desc ? `<p>${esc(meta.desc)}</p>` : ''}
+    </div>
+    <div class="field-grid">
+      <div class="field">
+        <div class="toggle-row">
+          <div>
+            <div class="field-key">Khởi động</div>
+            <div class="field-label">Chạy khi đăng nhập Windows</div>
+            <div class="field-hint">Agent mở tray và kết nối server sau khi bạn đăng nhập Windows.</div>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" id="autostartToggle" />
+            <span class="toggle-track"></span>
+          </label>
+        </div>
+      </div>
+    </div>`;
+
+  wireAutostartToggle(panel);
+  return panel;
+}
+
 function renderFieldsPanel(group) {
   const meta = TAB_META[group] || { label: group, desc: '' };
   const fields = state.fields.filter((f) => f.group === group);
@@ -272,6 +339,22 @@ function collect() {
     else values[el.name] = el.value;
   });
   return values;
+}
+
+function applyValuesToForm(values) {
+  const keyEl = document.getElementById('agentKeyInput');
+  if (keyEl && values.AGENT_KEY !== undefined) keyEl.value = values.AGENT_KEY;
+
+  document.querySelectorAll('.panel input, .panel select').forEach((el) => {
+    if (!el.name || el.id === 'agentKeyInput') return;
+    const v = values[el.name];
+    if (v === undefined) return;
+    if (el.type === 'checkbox') {
+      el.checked = ['1', 'true', 'yes', 'on'].includes(String(v).toLowerCase());
+    } else {
+      el.value = v;
+    }
+  });
 }
 
 function formatTime(iso) {
@@ -369,6 +452,17 @@ function buildUi() {
       panels.append(renderFieldsPanel(g));
     }
   });
+
+  const advMeta = TAB_META[ADVANCED_GROUP];
+  const advBtn = document.createElement('button');
+  advBtn.type = 'button';
+  advBtn.className =
+    'tab-btn' + (state.activeTab === ADVANCED_GROUP ? ' active' : '');
+  advBtn.dataset.group = ADVANCED_GROUP;
+  advBtn.innerHTML = `<span class="tab-icon">${advMeta.icon || '•'}</span><span>${esc(advMeta.label)}</span>`;
+  advBtn.addEventListener('click', () => switchTab(ADVANCED_GROUP));
+  tabs.append(advBtn);
+  panels.append(renderAdvancedPanel());
 }
 
 async function init() {
@@ -391,6 +485,12 @@ async function init() {
 
     buildUi();
     await refreshStatus();
+
+    const autostartToggle = document.getElementById('autostartToggle');
+    if (autostartToggle && api.getAutostart) {
+      const { enabled } = await api.getAutostart();
+      autostartToggle.checked = enabled;
+    }
 
     state.statusPoll = setInterval(() => {
       void refreshStatus();
@@ -422,7 +522,8 @@ $('#saveBtn').addEventListener('click', async () => {
   }
 
   state.dirty = false;
-  state.values = collect();
+  state.values = res.values;
+  applyValuesToForm(state.values);
   setFooter('Đã lưu — agent đang khởi động lại', 'ok');
   api.notifySaved();
   setTimeout(() => void refreshStatus(), 800);

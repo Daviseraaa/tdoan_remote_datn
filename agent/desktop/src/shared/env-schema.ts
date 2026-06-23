@@ -70,7 +70,7 @@ export const ENV_FIELDS: readonly EnvFieldDef[] = [
     type: 'boolean',
     group: 'Desktop automation',
     default: 'false',
-    hint: 'Chuột/phím từ xa — chỉ bật trên máy tin cậy',
+    hint: 'Bắt buộc để chạy task/workflow desktop từ console — chỉ bật trên máy tin cậy',
   },
   {
     key: 'SCREEN_CAPTURE_ENABLED',

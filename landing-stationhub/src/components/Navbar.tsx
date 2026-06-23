@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, X } from 'lucide-react';
+import { Github, Menu, X } from 'lucide-react';
 import { Logo } from './Logo';
 import { TelegramIcon, ZaloIcon } from './CommunityIcons';
 import { consoleUrl } from '@/src/lib/consoleUrl';
-import { telegramGroupUrl, zaloGroupUrl } from '@/src/lib/links';
+import { githubUrl, telegramGroupUrl, zaloGroupUrl } from '@/src/lib/links';
 import { t } from '@/src/i18n/t';
 
 type Props = {
@@ -22,6 +22,7 @@ export function Navbar({ variant = 'solid' }: Props) {
   const { pathname } = useLocation();
   const telegram = telegramGroupUrl();
   const zalo = zaloGroupUrl();
+  const github = githubUrl();
 
   const isActive = (path: string) => pathname === path || pathname.startsWith(`${path}/`);
 
@@ -30,10 +31,32 @@ export function Navbar({ variant = 'solid' }: Props) {
       ? 'absolute inset-x-0 top-0 z-30'
       : 'sticky top-0 z-30 border-b border-gray-200/70 bg-white/90 backdrop-blur-md';
 
-  const navLinks = [
-    { to: '/docs', label: t('landing.navDocs') },
+  const navLinks: { to: string; label: string; newTab?: boolean }[] = [
+    { to: '/docs', label: t('landing.navDocs'), newTab: true },
     { to: '/demo', label: t('landing.navDemo') },
-  ] as const;
+  ];
+
+  const renderNavLink = (
+    { to, label, newTab }: { to: string; label: string; newTab?: boolean },
+    className: string,
+    onClick?: () => void,
+  ) =>
+    newTab ? (
+      <a
+        key={to}
+        href={to}
+        target="_blank"
+        rel="noopener noreferrer"
+        className={className}
+        onClick={onClick}
+      >
+        {label}
+      </a>
+    ) : (
+      <Link key={to} to={to} className={className} onClick={onClick}>
+        {label}
+      </Link>
+    );
 
   return (
     <header className={`${headerClass} relative w-full`}>
@@ -79,15 +102,12 @@ export function Navbar({ variant = 'solid' }: Props) {
           </Link>
 
           <nav className="flex items-center justify-center gap-8 w-full shrink-0">
-            {navLinks.map(({ to, label }) => (
-              <Link
-                key={to}
-                to={to}
-                className={`${NAV_LINK} ${isActive(to) ? 'text-gray-900 font-medium' : ''}`}
-              >
-                {label}
-              </Link>
-            ))}
+            {navLinks.map((link) =>
+              renderNavLink(
+                link,
+                `${NAV_LINK} ${!link.newTab && isActive(link.to) ? 'text-gray-900 font-medium' : ''}`,
+              ),
+            )}
           </nav>
 
           <div className="flex items-center justify-end gap-4 w-full shrink-0 justify-self-end">
@@ -114,6 +134,15 @@ export function Navbar({ variant = 'solid' }: Props) {
               </a>
             ) : null}
             <a
+              href={github}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={COMMUNITY_LINK}
+            >
+              <Github className="w-4 h-4 shrink-0" />
+              {t('landing.navGitHub')}
+            </a>
+            <a
               href={consoleUrl('/register')}
               className="inline-flex whitespace-nowrap bg-gray-900 text-white text-[15px] lg:text-base font-medium px-5 py-2.5 rounded-full hover:bg-gray-800 transition-colors shrink-0"
             >
@@ -125,16 +154,13 @@ export function Navbar({ variant = 'solid' }: Props) {
 
       {mobileOpen ? (
         <div className="lg:hidden absolute left-4 right-4 top-full rounded-2xl bg-white shadow-xl ring-1 ring-gray-200 px-5 py-3 mt-1 z-40">
-          {navLinks.map(({ to, label }) => (
-            <Link
-              key={to}
-              to={to}
-              className="block py-2.5 text-base text-gray-700 hover:text-gray-900 border-b border-gray-100"
-              onClick={() => setMobileOpen(false)}
-            >
-              {label}
-            </Link>
-          ))}
+          {navLinks.map((link) =>
+            renderNavLink(
+              link,
+              'block py-2.5 text-base text-gray-700 hover:text-gray-900 border-b border-gray-100',
+              () => setMobileOpen(false),
+            ),
+          )}
           {telegram ? (
             <a
               href={telegram}
@@ -159,6 +185,16 @@ export function Navbar({ variant = 'solid' }: Props) {
               {t('landing.navZalo')}
             </a>
           ) : null}
+          <a
+            href={github}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 py-2.5 text-base text-gray-700 hover:text-gray-900 border-b border-gray-100"
+            onClick={() => setMobileOpen(false)}
+          >
+            <Github className="w-4 h-4" />
+            {t('landing.navGitHub')}
+          </a>
           <a
             href={consoleUrl('/register')}
             className="block py-2.5 text-base font-medium text-gray-900 sm:hidden"

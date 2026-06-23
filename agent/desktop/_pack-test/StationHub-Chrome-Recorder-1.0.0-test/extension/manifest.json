@@ -1,0 +1,46 @@
+{
+  "manifest_version": 3,
+  "name": "StationHub Agent Bridge",
+  "version": "1.0.0",
+  "description": "Đọc DOM và thao tác tab Chrome cho StationHub Agent (Native Messaging).",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAwekpjvN/c/sc6zbjK+18gNefeHV7aSBYxfJAlY9bYLLOHIV9Ig5URU/JaLq7CM/byNeaIiFKbRzYXfAe3dZC7VhLPOhE+2/X22wwxOXPrD0n+M6V8qk8ET0qB41NfnsBMeyzjzmX4JiG0CBjD++egMEJV25LSjS3jzehR4R9VfIVm4YMjbt0vdQs9Q4q3S+SJDI+Ldsd/FG+15zOBY5ncmI2xdU/n0+lBKCy4GIT9a4+upMkwZzqT7sghSglXAFSK7/A3wGMmsKNvQeXclleEc2ThuqkB6ClXnZ8XjCrKVwLVeTpbPre0G721Qakaf/LsnopjDOZJoRq2SzWWnobZQIDAQAB",
+  "permissions": [
+    "nativeMessaging",
+    "scripting",
+    "activeTab",
+    "tabs"
+  ],
+  "host_permissions": [
+    "http://*/*",
+    "https://*/*"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "http://*/*",
+        "https://*/*"
+      ],
+      "js": ["content/stationhub-content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_title": "StationHub Agent Bridge",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}

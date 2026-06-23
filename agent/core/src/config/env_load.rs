@@ -101,6 +101,73 @@ fn pin_critical_keys_from_file(path: &Path) {
     }
 }
 
+fn unescape_env_value(raw: &str) -> String {
+    let mut out = String::with_capacity(raw.len());
+    let mut chars = raw.chars().peekable();
+    while let Some(c) = chars.next() {
+        if c == '\\' {
+            if let Some(&next) = chars.peek() {
+                chars.next();
+                match next {
+                    '\\' => out.push('\\'),
+                    '"' => out.push('"'),
+                    'n' => out.push('\n'),
+                    'r' => out.push('\r'),
+                    't' => out.push('\t'),
+                    other => out.push(other),
+                }
+                continue;
+            }
+        }
+        out.push(c);
+    }
+    out
+}
+
+fn collapse_backslashes(segment: &str) -> String {
+    let mut out = String::with_capacity(segment.len());
+    let mut chars = segment.chars().peekable();
+    while let Some(c) = chars.next() {
+        if c == '\\' {
+            out.push('\\');
+            while chars.peek() == Some(&'\\') {
+                chars.next();
+            }
+        } else {
+            out.push(c);
+        }
+    }
+    out
+}
+
+fn normalize_windows_path(value: &str) -> String {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        return String::new();
+    }
+    let bytes = trimmed.as_bytes();
+    if trimmed.len() >= 2 && bytes[1] == b':' {
+        let rest = collapse_backslashes(&trimmed[2..].replace('/', "\\"));
+        return format!("{}:{rest}", &trimmed[..1]);
+    }
+    collapse_backslashes(&trimmed.replace('/', "\\"))
+}
+
+fn is_path_env_key(key: &str) -> bool {
+    key.ends_with("_PATH")
+        || key.ends_with("_DIR")
+        || key.contains("PROFILE")
+        || key == "CLOAK_RUNNER_SCRIPT"
+}
+
+fn normalize_env_value(key: &str, value: String) -> String {
+    if is_path_env_key(key) {
+        normalize_windows_path(&value)
+    } else {
+        value
+    }
+}
+
 fn read_key_from_file(path: &Path, key: &str) -> Option<String> {
     let content = std::fs::read_to_string(path).ok()?;
     for line in content.lines() {
@@ -111,15 +178,16 @@ fn read_key_from_file(path: &Path, key: &str) -> Option<String> {
         let Some((k, v)) = t.split_once('=') else {
             continue;
         };
-        if k.trim() == key {
-            let mut val = v.trim().to_string();
-            if (val.starts_with('"') && val.ends_with('"'))
-                || (val.starts_with('\'') && val.ends_with('\''))
-            {
-                val = val[1..val.len() - 1].to_string();
-            }
-            return Some(val);
+        if k.trim() != key {
+            continue;
         }
+        let mut val = v.trim().to_string();
+        if (val.starts_with('"') && val.ends_with('"'))
+            || (val.starts_with('\'') && val.ends_with('\''))
+        {
+            val = unescape_env_value(&val[1..val.len() - 1]);
+        }
+        return Some(normalize_env_value(key, val));
     }
     None
 }

@@ -6,6 +6,7 @@ import type {
 } from '@/src/types/api';
 import { t } from '@/src/i18n/t';
 import type { WfNodeData } from './types';
+import { loopNodeLabel } from './loopLabel';
 
 export function newTaskNodeData(
   taskType: TaskType,
@@ -61,6 +62,7 @@ export function newTaskNodeData(
                     }
                   : undefined,
       timeout: 60000,
+      priority: 5,
       stepKey,
       ui: position,
     },
@@ -169,6 +171,7 @@ export function newExcelNodeData(
       hasHeader: true,
       agentId: defaultAgentId,
       timeout: 120000,
+      priority: 5,
       stepKey,
       ui: position,
     },
@@ -182,15 +185,17 @@ export function newLoopNodeData(
   stepKey: string,
 ): WfNodeData {
   const loopCount = 3;
+  const config = {
+    loopMode: 'fixed' as const,
+    loopCount,
+    stepKey,
+    ui: position,
+  };
   return {
     kind: 'loop',
-    label: t('workflows.nodeLoop', { count: loopCount }),
+    label: loopNodeLabel(config),
     stepType: 'LOOP',
-    config: {
-      loopCount,
-      stepKey,
-      ui: position,
-    },
+    config,
     onFailure: 'STOP',
     runStatus: 'idle',
   };

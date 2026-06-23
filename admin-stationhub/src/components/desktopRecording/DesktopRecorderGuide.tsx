@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronDown, ChevronUp, Circle, Terminal } from 'lucide-react';
+import { ChevronDown, ChevronUp, Circle, Monitor } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { t } from '@/src/i18n/t';
 
@@ -24,7 +24,7 @@ export function DesktopRecorderGuide({ defaultOpen = true, className }: Props) {
         className="w-full flex items-center gap-3 px-5 py-4 text-left hover:bg-white/5 transition-colors"
       >
         <div className="w-10 h-10 rounded-lg bg-primary/15 flex items-center justify-center shrink-0">
-          <Terminal size={20} className="text-primary" />
+          <Monitor size={20} className="text-primary" />
         </div>
         <div className="flex-1 min-w-0">
           <p className="font-bold text-on-surface text-sm">{t('desktopRecordings.guideTitle')}</p>
@@ -45,15 +45,22 @@ export function DesktopRecorderGuide({ defaultOpen = true, className }: Props) {
             <li>{t('desktopRecordings.guideStep4')}</li>
             <li>{t('desktopRecordings.guideStep5')}</li>
           </ol>
-          <div className="rounded-lg bg-[#0b0f14] border border-white/10 px-4 py-3 font-mono text-xs text-[#d4d4d4] space-y-3">
+          <div className="rounded-lg bg-[#0b0f14] border border-white/10 px-4 py-3 text-xs text-[#d4d4d4] space-y-3">
             <div>
-              <p className="text-on-surface-variant/80 mb-1">{t('desktopRecordings.guideGuiLabel')}</p>
-              <code>stationhub-desktop-recorder.exe</code>
-              <span className="text-on-surface-variant"> — double-click hoặc chạy không tham số</span>
+              <p className="text-on-surface-variant/80 mb-1 font-medium">
+                {t('desktopRecordings.guideGuiLabel')}
+              </p>
+              <p className="text-on-surface-variant leading-relaxed">
+                {t('desktopRecordings.guideGuiDetail')}
+              </p>
             </div>
             <div>
-              <p className="text-on-surface-variant/80 mb-1">{t('desktopRecordings.guideCmdLabel')}</p>
-              <code>stationhub-desktop-recorder.exe record --name &quot;Ten ban ghi&quot;</code>
+              <p className="text-on-surface-variant/80 mb-1 font-medium">
+                {t('desktopRecordings.guideCmdLabel')}
+              </p>
+              <p className="text-on-surface-variant leading-relaxed">
+                {t('desktopRecordings.guideCmdDetail')}
+              </p>
             </div>
             <p className="text-amber-300/90 flex items-center gap-2">
               <Circle size={8} className="fill-current" />

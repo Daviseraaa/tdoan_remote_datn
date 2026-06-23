@@ -1,7 +1,7 @@
 export const vi = {
   common: {
     brand: 'StationHub Console',
-    version: 'v2.4.0-stable',
+    version: 'v1.0.0-stable',
     emDash: '—',
     yes: 'Có',
     no: 'Không',
@@ -248,8 +248,10 @@ export const vi = {
     commandPlaceholder: 'vd. ipconfig /all',
     scriptPlaceholder: 'Đường dẫn script hoặc nội dung…',
     systemInfoHint: 'Agent sẽ thu thập thông tin phần cứng và OS — không cần nhập lệnh.',
-    desktopWindowsOnly: 'DESKTOP_AUTOMATION chỉ chạy trên agent Windows với DESKTOP_AUTOMATION_ENABLED=true.',
-    desktopBanner: 'Cần agent Windows và bật desktop automation trên máy agent.',
+    desktopWindowsOnly:
+      'Trên máy agent: mở StationHub Agent → Cài đặt → tab Desktop → bật «Bật điều khiển desktop» → Lưu & áp dụng. Cần Windows và đăng nhập user.',
+    desktopBanner:
+      'Task desktop chạy trên máy agent Windows. Bật «Bật điều khiển desktop» trong Cài đặt Agent trước khi chạy workflow.',
     openAppPath: 'Đường dẫn',
     openAppApp: 'Tên app',
     openAppQuery: 'Tìm kiếm',
@@ -674,7 +676,7 @@ export const vi = {
     lastWakeAt: 'WoL gần nhất: {time}',
     useNicMac: 'Bấm để dùng MAC này cho WoL',
     remoteAccessNoNics:
-      'Agent chưa báo card mạng — rebuild core (`npm run build:core`) và khởi động lại agent.',
+      'Agent chưa báo card mạng — khởi động lại StationHub Agent trên máy (icon khay hệ thống).',
     remoteAccessNoWolMac:
       'Chưa tự chọn được MAC WoL (thường do chỉ có Bluetooth). Bấm card Wi‑Fi/Ethernet bên dưới rồi Lưu.',
     remoteAccessNoBroadcast:
@@ -810,6 +812,20 @@ export const vi = {
     statusIdle: 'Rảnh',
     loadingDetail: 'Đang tải chi tiết…',
     saveWorkflow: 'Lưu',
+    normalizeLayout: 'Chuẩn hóa',
+    normalizeLayoutHint: 'Sắp xếp lại khoảng cách và nhánh trên canvas',
+    configFile: {
+      export: 'Xuất file',
+      import: 'Nhập file',
+      exportHint: 'Tải file .stationhub-workflow.json để chia sẻ hoặc sao lưu',
+      importHint: 'Chọn file workflow đã xuất (.stationhub-workflow.json)',
+      importReplaceConfirm:
+        'Nhập file sẽ thay toàn bộ các bước và sơ đồ workflow hiện tại (tên/mô tả lấy từ file). Tiếp tục?',
+      invalidJson: 'File không phải JSON hợp lệ.',
+      invalidShape: 'File không đúng định dạng workflow StationHub.',
+      unsupportedVersion: 'Phiên bản file không được hỗ trợ — cần bản mới hơn của console.',
+      stepsRequired: 'File workflow phải có ít nhất một bước.',
+    },
     deleteWorkflow: 'Xóa',
     deleteConfirm: 'Xóa "{name}"? {irreversible}',
     runWorkflow: 'Chạy',
@@ -912,7 +928,7 @@ export const vi = {
     chromeExtensionAdvancedJsonHint:
       'Chỉ dùng khi cần nhiều bước liên tiếp. Thường chỉ cần Hành động + Lọc tab phía trên — không gõ snapshotDom vào đây.',
     chromeExtensionBanner:
-      'Bật CHROME_EXTENSION_ENABLED=true trên agent. Cài extension và chạy npm run chrome-bridge:install.',
+      'Cần cài extension Chrome trên máy agent (gói StationHub Chrome Recorder) và bật Chrome extension trong Cài đặt Agent.',
     chromeScriptImport: 'Import từ thư viện script',
     chromeScriptImportPlaceholder: '— Chọn script đã đồng bộ —',
     chromeScriptImportHint:
@@ -920,12 +936,22 @@ export const vi = {
     paletteChromeScripts: 'Chrome scripts',
     chromeExtensionReplayMode:
       'Đang chạy chế độ replay nhiều bước (command JSON). Chỉnh steps trong ô JSON bên dưới hoặc import lại.',
+    importedChromeStepHint:
+      'Bước import từ Chrome Recorder — chỉnh selector, text, thời gian chờ… bên dưới. Mỗi node là một bước.',
+    importedDesktopStepHint:
+      'Bước import từ Desktop Recorder — chỉnh tọa độ, nội dung gõ, phím… bên dưới. Mỗi node là một bước.',
     chromeExtensionStepsJson: 'Steps replay (JSON)',
     chromeExtensionStepsJsonHint: 'Mảng các bước click/fill/delay — khớp format extension ghi.',
     nodeDelay: 'Chờ {ms} ms',
     nodeTelegram: 'Telegram',
     paletteTelegram: 'Telegram',
     telegramAction: 'Hành động',
+    telegramAction_send_message: 'Gửi tin nhắn',
+    telegramAction_send_photo: 'Gửi ảnh',
+    telegramAction_send_document: 'Gửi tài liệu',
+    telegramAction_reply_message: 'Trả lời tin nhắn',
+    telegramAction_edit_message: 'Sửa tin nhắn',
+    telegramAction_inline_keyboard: 'Bàn phím inline',
     telegramChatId: 'Chat ID',
     telegramText: 'Nội dung',
     telegramBotId: 'Bot Telegram',
@@ -939,7 +965,7 @@ export const vi = {
     cronPlaceholder: '0 8 * * *',
     stepDelayMs: 'Delay (ms)',
     stepDelayMsHint: 'Chờ sau mỗi bước trước khi bước kế tiếp trên nhánh được chạy.',
-    closeOpenedOnFinish: 'Đóng app đã mở khi chạy xong',
+    closeOpenedOnFinish: 'Đóng app đã mở',
     closeOpenedOnFinishHint:
       'Tự đóng app/browser được mở bởi OPEN_APP hoặc OPEN_BROWSER sau khi workflow hoàn tất (thành công hoặc lỗi).',
     delayAfterStep: 'Delay sau bước (ms)',
@@ -964,16 +990,48 @@ export const vi = {
     stepResultCompleted: 'Hoàn thành',
     stepResultFailed: 'Thất bại',
     onFailure: 'Khi lỗi',
+    onFailure_STOP: 'Dừng workflow',
+    onFailure_SKIP: 'Bỏ qua bước',
+    onFailure_RETRY: 'Thử lại bước',
+    priorityHint: '0–10 — số cao hơn được agent xử lý trước trong hàng đợi.',
+    desktopAutomationGuide:
+      'Thêm từng bước (Click, Gõ chữ, …) bằng palette «Bước desktop» bên trái, hoặc import Desktop Recording / template. JSON nâng cao chỉ khi cần chuỗi nhiều bước.',
+    desktopAutomationJsonAdvanced: 'JSON nâng cao (nhiều bước)',
+    telegramPhotoUrl: 'URL ảnh',
+    telegramDocumentUrl: 'URL / đường dẫn tài liệu',
+    telegramReplyToMessageId: 'Trả lời message ID',
+    telegramMessageId: 'Message ID cần sửa',
+    telegramInlineKeyboard: 'Bàn phím inline (JSON)',
+    telegramInlineKeyboardHint: 'Mảng hàng nút — mỗi nút: text, callback_data hoặc url.',
+    telegramParseMode: 'Định dạng văn bản',
+    telegramParseModeDefault: 'Mặc định (plain)',
     conditionDisabled: 'Điều kiện — sắp có',
     nodeCondition: 'Điều kiện IF',
     nodeLoop: 'Lặp ×{count}',
+    nodeLoopVar: 'Lặp theo {{var}}',
+    nodeLoopArray: 'Lặp mảng {{var}}',
     branchTrue: 'Đúng',
     branchFalse: 'Sai',
     branchBody: 'Thân',
     branchDone: 'Xong',
     loopCount: 'Số lần lặp',
+    loopMode: 'Chế độ lặp',
+    loopMode_fixed: 'Số lần cố định',
+    loopMode_variable: 'Theo biến workflow',
+    loopMode_array: 'Theo mảng workflow',
+    loopCountVar: 'Biến số lần lặp',
+    loopCountVarPlaceholder: 'vd. loop_times',
+    loopCountVarHint: 'Biến workflow chứa số nguyên 1–1000. Có thể dùng {{workflow.ten_bien}}.',
+    loopArrayVar: 'Biến mảng',
+    loopArrayVarPlaceholder: 'vd. excel_rows',
+    loopArrayVarHint:
+      'Biến workflow chứa mảng (vd. kết quả đọc Excel). Mỗi vòng gán phần tử hiện tại vào biến bên dưới.',
+    loopItemVar: 'Biến phần tử hiện tại',
+    loopItemVarPlaceholder: 'loop_item',
+    loopItemVarHint:
+      'Trong thân vòng lặp dùng {{workflow.loop_item}} (hoặc tên bạn đặt). Chỉ số vòng: output json.loopIndex của node Lặp.',
     loopHint:
-      'Nối cổng Thân vào các bước trong vòng; bước cuối nối ngược lại node Lặp. Cổng Xong tiếp tục sau khi hết lần lặp.',
+      'Nối cổng Thân vào các bước trong vòng; bước cuối nối ngược lại node Lặp. Cổng Xong tiếp tục sau khi hết lần lặp. Chế độ mảng: số vòng = độ dài mảng (tối đa 1000).',
     edgeLoopBranch: 'Nhánh vòng lặp',
     nodeVarCreate: 'Tạo biến',
     nodeVarRead: 'Đọc biến',
@@ -999,6 +1057,19 @@ export const vi = {
     conditionMode_last_exit_success: 'Bước trước thành công (exit 0)',
     conditionMode_last_exit_failed: 'Bước trước thất bại',
     conditionMode_last_exit_code_eq: 'Exit code bước trước bằng',
+    conditionMode_var_eq: 'Biến bằng',
+    conditionMode_var_ne: 'Biến khác',
+    conditionMode_var_gt: 'Biến lớn hơn',
+    conditionMode_var_gte: 'Biến lớn hơn hoặc bằng',
+    conditionMode_var_lt: 'Biến nhỏ hơn',
+    conditionMode_var_lte: 'Biến nhỏ hơn hoặc bằng',
+    conditionMode_var_empty: 'Biến rỗng',
+    conditionMode_var_not_empty: 'Biến có giá trị',
+    conditionVariable: 'Biến so sánh',
+    conditionVariablePlaceholder: 'ten_bien',
+    conditionVariableHint: 'Tên biến workflow hoặc {{workflow.ten_bien}} / {{steps.key.field}}.',
+    conditionCompareValue: 'Giá trị so sánh',
+    conditionCompareValuePlaceholder: 'vd. 1, true, {{workflow.nguong}}',
     conditionHint: 'Nối nhánh xanh (Đúng) / đỏ (Sai) từ node điều kiện sang các bước tiếp theo.',
     payloadJson: 'Payload (JSON)',
     openAppMode: 'Chế độ mở app',
@@ -1006,6 +1077,10 @@ export const vi = {
     noAgents: 'Chưa có agent. Đăng ký agent trước.',
     deleteNode: 'Xóa bước',
     deleteNodeShortcut: 'Delete hoặc Backspace',
+    shortcuts: {
+      delete: 'xóa bước / kết nối',
+      multiSelect: 'chọn nhiều node',
+    },
     edgeInspectorTitle: 'Kết nối',
     edgeFrom: 'Từ',
     edgeTo: 'Đến',
@@ -1020,7 +1095,7 @@ export const vi = {
       'Chưa có kết nối. Kéo từ Trigger hoặc từ bước trước sang bước tiếp theo.',
     graphLegacyConverted:
       'Đã chuyển graph cũ sang định dạng mới — bấm Lưu để ghi v2.',
-    isActive: 'Kích hoạt workflow',
+    isActive: 'Kích hoạt',
     inactive: 'Tắt',
     stepCount: '{n} bước',
     count: '{n} workflow',
@@ -1195,7 +1270,7 @@ export const vi = {
     executionHistory: 'Lịch sử kích hoạt',
     noExecutions: 'Chưa có lần chạy nào.',
     lastStatus: 'Trạng thái lần cuối',
-    workflowInactiveHint: 'Workflow đang tắt — bật «Kích hoạt workflow» trong trình soạn Workflow.',
+    workflowInactiveHint: 'Workflow đang tắt — bật «Kích hoạt» trong trình soạn Workflow.',
     openWorkflows: 'Mở Workflow',
     tabTriggers: 'Trigger',
     tabBots: 'Bot Telegram',
@@ -1364,7 +1439,7 @@ export const vi = {
   desktopRecordings: {
     title: 'Desktop recordings',
     subtitle:
-      'Ghi thao tác desktop bằng stationhub-desktop-recorder.exe → lưu local trên agent → Đồng bộ từ agent.',
+      'Ghi thao tác desktop bằng StationHub Desktop Recorder → lưu trên máy agent → Đồng bộ từ agent.',
     syncFromAgent: 'Đồng bộ từ agent',
     syncAgent: 'Agent để đồng bộ',
     allAgents: 'Tất cả agents',
@@ -1372,8 +1447,9 @@ export const vi = {
     syncSuccess:
       'Đồng bộ xong ({agent}): +{inserted} mới, {updated} cập nhật, {skipped} bỏ qua / {total} từ agent.',
     empty:
-      'Chưa có recording trên server. Chạy stationhub-desktop-recorder.exe record trên máy agent rồi đồng bộ.',
-    emptyHint: 'Recorder: agent\\bin\\stationhub-desktop-recorder.exe record — nhấn F12 để dừng và lưu.',
+      'Chưa có recording trên server. Cài Desktop Recorder trên máy agent, ghi bản mới rồi đồng bộ.',
+    emptyHint:
+      'Mở Desktop Recorder → Bắt đầu ghi → thao tác → Dừng & lưu. Chạy lại cần đã cài đầy đủ qua Cai-dat.bat.',
     selectHint: 'Bấm recording để xem chi tiết và tạo task template.',
     viewTitle: 'Xem desktop recording',
     readOnlyHint:
@@ -1409,16 +1485,21 @@ export const vi = {
     jsonPreview: 'Xem JSON steps',
     guideTitle: 'Cách ghi bằng Desktop Recorder',
     guideSubtitle: 'Chạy trên máy agent (Windows), lưu local rồi đồng bộ lên đây.',
-    guideStep1: 'Build recorder: trong thư mục agent chạy npm run build:desktop-recorder.',
+    guideStep1:
+      'Trên máy agent: giải nén gói StationHub Desktop Recorder (zip) → chạy Cai-dat.bat (cần đủ cả hai file .exe trong gói).',
     guideStep2:
-      'Trên máy agent: chạy stationhub-desktop-recorder.exe (GUI) — danh sách bản ghi, «Bắt đầu ghi», «Dừng & lưu».',
-    guideStep3: 'Hoặc CLI: stationhub-desktop-recorder.exe record --name "Tên bản ghi".',
-    guideStep4: 'Thao tác chuột/phím khi đang ghi — F12 hoặc nút Dừng & lưu trong GUI.',
+      'Mở Desktop Recorder tại %ProgramData%\\StationHub\\bin\\stationhub-desktop-recorder.exe — có thể tạo shortcut Desktop.',
+    guideStep3: 'Chọn bản ghi → «Chạy lại» để thử trên máy (chỉ hoạt động sau khi Cai-dat.bat báo [OK]).',
+    guideStep4: 'Khi đang ghi: thao tác chuột/phím — phím F12 hoặc nút Dừng & lưu trong ứng dụng.',
     guideStep5: 'Console → Desktop recordings → chọn agent online → «Đồng bộ từ agent» → tạo template hoặc workflow.',
-    guideGuiLabel: 'Giao diện (khuyến nghị)',
-    guideCmdLabel: 'Dòng lệnh (tùy chọn)',
-    guideStopKey: 'F12 = dừng ghi và lưu',
-    guidePath: 'File local: %ProgramData%\\StationHub\\desktop-recordings\\{id}.json',
+    guideGuiLabel: 'Mở ứng dụng',
+    guideGuiDetail:
+      'StationHub Desktop Recorder — sau Cai-dat.bat mở từ %ProgramData%\\StationHub\\bin\\ (không phải thư mục giải nén zip).',
+    guideCmdLabel: 'Chạy lại bản ghi',
+    guideCmdDetail:
+      '«Chạy lại» dùng stationhub-agent-native.exe đã copy vào %ProgramData%\\StationHub\\bin\\ — cần chạy Cai-dat.bat thành công trước.',
+    guideStopKey: 'Phím F12 hoặc nút Dừng & lưu = kết thúc và lưu bản ghi',
+    guidePath: 'Bản ghi lưu tại %ProgramData%\\StationHub\\desktop-recordings\\ trên máy agent.',
   },
   chromeScripts: {
     title: 'Chrome scripts',
@@ -1471,20 +1552,24 @@ export const vi = {
     guideTitle: 'Cách ghi Chrome script',
     guideSubtitle: 'Dùng extension Chrome trên máy agent — lưu local, không cần agent online khi dừng ghi.',
     guideStep1:
-      'Trên máy agent: build bridge và cài Native Messaging (một lần).',
+      'Trên máy agent: giải nén gói StationHub Chrome Recorder (zip) → chạy Cai-dat.bat → đợi [OK] Da dang ky Native Messaging.',
     guideStep2:
-      'Chrome → chrome://extensions → Bật Developer mode → Load unpacked → chọn thư mục agent/chrome-extension.',
+      'Tự mở Chrome, gõ chrome://extensions → bật Chế độ nhà phát triển → Tải extension đã giải nén → chọn thư mục extension trong gói zip.',
     guideStep3:
-      'Mở tab cần ghi → bấm icon extension StationHub → «Bắt đầu ghi» (badge đỏ hiện số bước).',
+      'Tắt Chrome hẳn (chuột phải icon Chrome → Thoát) rồi mở lại — bắt buộc sau bước cài.',
     guideStep4:
-      'Click, nhập text, chọn trên trang → popup → «Dừng & lưu» (cần stationhub-chrome-bridge.exe).',
+      'Mở tab cần ghi → bấm icon extension StationHub → «Bắt đầu ghi» (badge đỏ hiện số bước).',
     guideStep5:
-      'Console → Chrome scripts → chọn agent online → «Đồng bộ từ agent» → tạo task template hoặc workflow.',
-    guideBuildLabel: 'Build & cài bridge (PowerShell trong agent/)',
-    guideExtensionLabel: 'Cài extension',
+      'Popup extension → «Dừng & lưu» → Console → Chrome scripts → chọn agent online → «Đồng bộ từ agent» → tạo template hoặc workflow.',
+    guideBuildLabel: 'Cài đặt trên máy agent (một lần)',
+    guideInstallDetail:
+      'Cai-dat.bat copy bridge vào %ProgramData%\\StationHub\\bin\\ và đăng ký Native Messaging. Không tự mở Chrome — bạn vào chrome://extensions thủ công. Chạy task từ server cần StationHub Agent (tray) đang bật.',
+    guideExtensionLabel: 'Cài extension Chrome',
+    guideExtensionDetail:
+      'chrome://extensions → Tải extension đã giải nén → thư mục extension trong gói zip → tắt Chrome hẳn rồi mở lại.',
     guideNote:
-      'Ghi file local không bắt buộc agent tray online; chạy lại script qua task/workflow cần agent + CHROME_EXTENSION_ENABLED=true.',
-    guidePath: 'File local: %ProgramData%\\StationHub\\chrome-scripts\\{id}.json',
+      'Ghi script không cần Agent online; chạy workflow/task từ console cần Agent đang chạy và extension đã cài đúng.',
+    guidePath: 'Script lưu tại %ProgramData%\\StationHub\\chrome-scripts\\ trên máy agent.',
   },
   chromeScriptStep: {
     action_click: 'Click',
@@ -1521,17 +1606,17 @@ export const vi = {
     overviewItemChrome: 'Chrome scripts',
     overviewItemDesktop: 'Desktop recordings',
     installTitle: 'Cài đặt agent (Windows)',
-    installSubtitle: 'Build và chạy stationhub-agent-native trên máy cần điều khiển.',
-    installRequirements: 'Yêu cầu: Windows 10/11 x64, Rust toolchain, Node.js 20+.',
-    installStep1: 'Clone repo → mở thư mục agent/.',
-    installStep2: 'npm install → npm run build (core + desktop tray) hoặc npm run build:core nếu chỉ cần runtime.',
-    installStep3: 'Cấu hình %ProgramData%\\StationHub\\agent.env (hoặc dùng app tray StationHub Agent để ghi file).',
-    installStep4: 'Chạy tray app hoặc .\\bin\\stationhub-agent-native.exe agent — agent hiện online trên trang Agent.',
+    installSubtitle: 'Tải bộ cài StationHub Agent và cấu hình trên máy cần điều khiển.',
+    installRequirements: 'Yêu cầu: Windows 10/11 x64.',
+    installStep1: 'Tải và chạy StationHub Agent Setup từ trang tải về / gói release.',
+    installStep2: 'Mở StationHub Agent (icon khay hệ thống) → Cài đặt → nhập Agent Key từ console.',
+    installStep3: 'Bật các tính năng cần dùng (Chrome extension, desktop automation…) trong Cài đặt.',
+    installStep4: 'Trang Agents trên console — máy hiện online là cài đặt thành công.',
     installCodeBlock:
-      'cd agent\nnpm install\nnpm run build\n.\\bin\\stationhub-agent-native.exe agent',
-    installEnvHint: 'Ví dụ biến trong agent.env (bật tính năng cần dùng):',
+      'Tải: StationHub-Agent-Setup.exe\nCài xong → mở tray → Cài đặt → dán Agent Key',
+    installEnvHint: 'Agent Key lấy tại console → Agents → thêm / xem agent. Không chỉnh file cấu hình thủ công trừ khi IT hướng dẫn.',
     installEnvExample:
-      'WS_URL=wss://your-server/ws/agent\nAGENT_TOKEN=...\nCHROME_EXTENSION_ENABLED=true\nDESKTOP_AUTOMATION_ENABLED=true\nSCREEN_CAPTURE_ENABLED=true',
+      'Agent Key: sao chép từ console\nServer: đã cấu hình sẵn trong bản cài',
     usageTitle: 'Sử dụng admin console',
     usageSubtitle: 'Luồng làm việc phổ biến sau khi agent đã online.',
     usageStep1: 'Agents — xác nhận máy online; triển khai agent mới nếu cần.',
@@ -1542,9 +1627,9 @@ export const vi = {
     usageSyncHint:
       'Đồng bộ script/recording: agent phải online → chọn đúng agent → «Đồng bộ từ agent». File ghi local trên máy agent không cần tray online lúc dừng ghi.',
     chromeIntro:
-      'Ghi thao tác trên Chrome bằng extension + Native Messaging. Sau khi ghi, đồng bộ lên server tại trang Chrome scripts.',
+      'Ghi thao tác trên Chrome bằng extension (gói StationHub Chrome Recorder). Sau khi ghi, đồng bộ lên server tại trang Chrome scripts.',
     desktopIntro:
-      'Ghi chuột/phím trên Windows bằng stationhub-desktop-recorder.exe. Sau khi ghi, đồng bộ tại trang Desktop recordings.',
+      'Ghi chuột/phím trên Windows bằng StationHub Desktop Recorder. Sau khi ghi, đồng bộ tại trang Desktop recordings.',
     openChromeScripts: 'Mở trang Chrome scripts',
     openDesktopRecordings: 'Mở trang Desktop recordings',
     seeAlso: 'Xem hướng dẫn trong Tài liệu',

@@ -289,6 +289,7 @@ fn type_unicode_text(text: &str) -> Result<(), String> {
                 send_inputs(&[down])?;
                 send_inputs(&[up])?;
             }
+            std::thread::sleep(Duration::from_millis(2));
         }
     }
     Ok(())

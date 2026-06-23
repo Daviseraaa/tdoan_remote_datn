@@ -1,6 +1,7 @@
 use eframe::egui;
 
 mod app;
+mod icon;
 mod list_panel;
 mod settings;
 mod side_panel;
@@ -15,6 +16,7 @@ use theme::{TOOLBAR_H, TOOLBAR_W, TOOLTIP_GUTTER};
 pub fn run() -> eframe::Result<()> {
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
+            .with_icon(icon::app_icon())
             .with_inner_size([TOOLBAR_W + TOOLTIP_GUTTER, TOOLBAR_H])
             .with_min_inner_size([TOOLBAR_W + TOOLTIP_GUTTER, TOOLBAR_H])
             .with_decorations(false)

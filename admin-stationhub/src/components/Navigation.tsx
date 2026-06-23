@@ -11,12 +11,10 @@ import {
   MousePointer2,
   History, 
   Settings, 
-  Terminal,
   Search,
   Bell,
   Wifi,
   HelpCircle,
-  PlusCircle,
   ChevronRight,
   LogOut,
   ExternalLink,
@@ -27,6 +25,7 @@ import {
   CreditCard,
 } from 'lucide-react';
 import { SubscriptionBanner } from '@/src/components/SubscriptionBanner';
+import { BrandLogo } from '@/src/components/BrandLogo';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@/src/lib/utils';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
@@ -39,7 +38,6 @@ import * as billingApi from '@/src/api/billing';
 import { t } from '@/src/i18n/t';
 
 export function Sidebar() {
-  const navigate = useNavigate();
   const location = useLocation();
   const { isAdmin } = useAuth();
   const { navOpen, closeNav } = useNavLayout();
@@ -83,9 +81,7 @@ export function Sidebar() {
       >
         <div className="flex items-center justify-between gap-2 px-2 py-2">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="w-10 h-10 rounded-lg bg-primary-container flex items-center justify-center shadow-lg shadow-primary-container/20 shrink-0">
-              <Terminal className="text-on-primary-container" size={24} />
-            </div>
+            <BrandLogo size={40} className="w-10 h-10" />
             <div className="min-w-0">
               <h1 className="font-bold tracking-tight text-primary leading-tight truncate">{t('common.brand')}</h1>
               <p className="font-mono text-[10px] text-on-surface-variant opacity-60">{t('common.version')}</p>
@@ -132,18 +128,6 @@ export function Sidebar() {
         </nav>
 
         <div className="mt-auto border-t border-white/5 pt-4 flex flex-col gap-1 shrink-0">
-          <button
-            type="button"
-            onClick={() => {
-              closeNav();
-              navigate('/agents');
-            }}
-            className="w-full py-3 mb-4 bg-primary text-on-primary rounded-xl font-bold flex items-center justify-center gap-2 hover:brightness-110 active:scale-[0.98] transition-all shadow-lg shadow-primary/20"
-          >
-            <PlusCircle size={18} />
-            <span>{t('nav.deployAgent')}</span>
-          </button>
-          
           <a href="#" className="flex items-center gap-3 px-4 py-2 text-on-surface-variant hover:text-on-surface transition-colors text-xs font-mono">
             <Headphones size={16} />
             <span>{t('nav.support')}</span>

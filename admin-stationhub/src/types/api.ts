@@ -310,7 +310,34 @@ export interface TaskTemplate {
 export type WorkflowConditionMode =
   | 'last_exit_success'
   | 'last_exit_failed'
-  | 'last_exit_code_eq';
+  | 'last_exit_code_eq'
+  | 'var_eq'
+  | 'var_ne'
+  | 'var_gt'
+  | 'var_gte'
+  | 'var_lt'
+  | 'var_lte'
+  | 'var_empty'
+  | 'var_not_empty';
+
+export type WorkflowLoopMode = 'fixed' | 'variable' | 'array';
+
+export const DEFAULT_LOOP_ITEM_VAR = 'loop_item';
+
+export const VAR_CONDITION_MODES: WorkflowConditionMode[] = [
+  'var_eq',
+  'var_ne',
+  'var_gt',
+  'var_gte',
+  'var_lt',
+  'var_lte',
+  'var_empty',
+  'var_not_empty',
+];
+
+export function isVarConditionMode(mode?: WorkflowConditionMode): boolean {
+  return mode?.startsWith('var_') ?? false;
+}
 
 export type WorkflowGraphEdge = {
   source: string;
@@ -333,6 +360,8 @@ export interface WorkflowStepConfig {
   command?: string;
   payload?: Record<string, unknown>;
   timeout?: number;
+  /** Ưu tiên task agent (0–10) */
+  priority?: number;
   delayMs?: number;
   /** Chờ sau bước (ms); ghi đè stepDelayMs workflow */
   delayAfterMs?: number;
@@ -346,8 +375,22 @@ export interface WorkflowStepConfig {
   graphEdges?: WorkflowGraphEdgeStored[] | WorkflowGraphEdge[];
   conditionMode?: WorkflowConditionMode;
   conditionExitCode?: number;
-  /** Số lần lặp thân vòng (node LOOP) */
+  /** Tên biến workflow hoặc {{workflow.*}} — dùng với conditionMode var_* */
+  conditionVariable?: string;
+  /** Giá trị so sánh — hỗ trợ template */
+  conditionCompareValue?: string;
+  /** Số lần lặp cố định (loopMode=fixed) */
   loopCount?: number;
+  /** fixed = loopCount; variable = đọc từ loopCountVar */
+  loopMode?: WorkflowLoopMode;
+  /** Biến workflow chứa số lần lặp (1–1000) */
+  loopCountVar?: string;
+  /** Biến workflow chứa mảng (loopMode=array) */
+  loopArrayVar?: string;
+  /** Tên biến gán phần tử hiện tại mỗi vòng (mặc định loop_item) */
+  loopItemVar?: string;
+  /** OPEN_APP: path | app | query */
+  openAppMode?: 'path' | 'app' | 'query';
   variableMode?: WorkflowVariableMode;
   variableName?: string;
   variableValue?: string;
@@ -364,7 +407,10 @@ export interface WorkflowStepConfig {
   documentUrl?: string;
   replyToMessageId?: number | string;
   messageId?: number | string;
-  /** Node trigger canvas — MANUAL | SCHEDULE | TELEGRAM (UI only) */
+  inlineKeyboard?: Array<Array<{ text: string; callback_data?: string; url?: string }>>;
+  parseMode?: 'HTML' | 'Markdown' | 'MarkdownV2';
+  /** Ưu tiên task agent (0–10) */
+  priority?: number;
   triggerType?: 'MANUAL' | 'SCHEDULE' | 'TELEGRAM';
 }
 

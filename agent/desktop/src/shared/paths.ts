@@ -22,6 +22,17 @@ export function programDataConfigPath(): string {
   return path.join(pd, 'StationHub', 'agent.env');
 }
 
+export function programDataStationHubDir(): string {
+  return path.dirname(programDataConfigPath());
+}
+
+/** Ghi đường dẫn core đang chạy — Desktop Recorder dùng khi «Chạy lại». */
+export function writeAgentCorePointer(exePath: string): void {
+  const dir = programDataStationHubDir();
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, 'agent-core.path'), exePath, 'utf8');
+}
+
 /** File config đang dùng / nơi ghi mặc định. */
 export function resolveConfigPath(): string {
   if (process.env.STATIONHUB_AGENT_CONFIG?.trim()) {

@@ -11,33 +11,26 @@ import {
   WF_TRIGGER_ID,
   type WfGraphEdge,
 } from './types';
+import {
+  WF_NODE_LABEL_INSET,
+  WF_NODE_LAYOUT_ROW_STEP_Y,
+  WF_NODE_LAYOUT_STEP_X,
+  type WfLayoutNodeMeta,
+} from './nodeLayout';
+import { layoutWithDagre } from './dagreLayout';
 
-const H_STEP_X = 320;
+const H_STEP_X = WF_NODE_LAYOUT_STEP_X;
 const H_BASE_Y = 240;
 const TRIGGER_X = 48;
-const BRANCH_Y_OFFSET = 130;
-const ROW_GAP_Y = 100;
+const ROW_GAP_Y = WF_NODE_LAYOUT_ROW_STEP_Y;
 
-type AdjOut = { targetId: string; handle: string };
+export type { WfLayoutNodeMeta };
 
 function parseConfig(raw: unknown): WorkflowStepConfig {
   if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
     return raw as WorkflowStepConfig;
   }
   return {};
-}
-
-function buildAdjacency(graphEdges: WfGraphEdge[]): Map<string, AdjOut[]> {
-  const adj = new Map<string, AdjOut[]>();
-  for (const e of graphEdges) {
-    const list = adj.get(e.source) ?? [];
-    list.push({
-      targetId: e.target,
-      handle: e.sourceHandle ?? WF_HANDLE_DEFAULT,
-    });
-    adj.set(e.source, list);
-  }
-  return adj;
 }
 
 export function buildFlowEdge(
@@ -55,6 +48,7 @@ export function buildFlowEdge(
     type: WF_EDGE_TYPE,
     animated: false,
     style: { stroke: 'rgba(164, 230, 255, 0.65)', strokeWidth: 2 },
+    interactionWidth: 24,
     label: edgeLabel(handle),
     labelStyle: { fill: '#a4e6ff', fontSize: 10, fontWeight: 700 },
   };
@@ -68,9 +62,9 @@ function edgeLabel(handle?: string): string | undefined {
   return undefined;
 }
 
-const MIN_STEP_X_FROM_ORIGIN = TRIGGER_X + H_STEP_X - 80;
-const MIN_NODE_GAP_X = 240;
-const MIN_NODE_GAP_Y = 90;
+const MIN_STEP_X_FROM_ORIGIN = TRIGGER_X + H_STEP_X - WF_NODE_LABEL_INSET;
+const MIN_NODE_GAP_X = WF_NODE_LAYOUT_STEP_X - WF_NODE_LABEL_INSET;
+const MIN_NODE_GAP_Y = WF_NODE_LAYOUT_ROW_STEP_Y - 16;
 
 function readStepUi(step: WorkflowStep): { x: number; y: number } | null {
   const ui = parseConfig(step.config).ui;
@@ -80,28 +74,34 @@ function readStepUi(step: WorkflowStep): { x: number; y: number } | null {
 }
 
 export function isValidSavedLayout(steps: WorkflowStep[]): boolean {
-  const points = steps
-    .map((s) => readStepUi(s))
-    .filter((p): p is { x: number; y: number } => p !== null);
+  if (steps.length === 0) return false;
 
-  if (points.length === 0) return false;
+  const points = steps.map((s) => readStepUi(s));
 
-  for (const p of points) {
+  if (points.every((p) => p !== null)) {
+    return true;
+  }
+
+  const validPoints = points.filter((p): p is { x: number; y: number } => p !== null);
+  if (validPoints.length === 0) return false;
+
+  for (const p of validPoints) {
     if (p.x < MIN_STEP_X_FROM_ORIGIN) return false;
   }
 
-  for (let i = 0; i < points.length; i++) {
-    for (let j = i + 1; j < points.length; j++) {
-      const dx = Math.abs(points[i].x - points[j].x);
-      const dy = Math.abs(points[i].y - points[j].y);
+  for (let i = 0; i < validPoints.length; i++) {
+    for (let j = i + 1; j < validPoints.length; j++) {
+      const dx = Math.abs(validPoints[i].x - validPoints[j].x);
+      const dy = Math.abs(validPoints[i].y - validPoints[j].y);
       if (dx < MIN_NODE_GAP_X && dy < MIN_NODE_GAP_Y) return false;
     }
   }
 
-  if (points.length >= 2) {
-    const xs = points.map((p) => p.x);
+  if (validPoints.length >= 2) {
+    const xs = validPoints.map((p) => p.x);
     const spanX = Math.max(...xs) - Math.min(...xs);
-    if (spanX < Math.min(200, (points.length - 1) * 160)) return false;
+    const minSpan = (validPoints.length - 1) * Math.max(MIN_NODE_GAP_X, H_STEP_X * 0.7);
+    if (spanX < minSpan) return false;
   }
 
   return true;
@@ -111,76 +111,13 @@ export function computeGraphPositions(
   stepIds: string[],
   graphEdges: WfGraphEdge[],
   orderFallback: Map<string, number>,
+  nodeMeta?: Map<string, WfLayoutNodeMeta>,
 ): Map<string, { x: number; y: number }> {
-  const positions = new Map<string, { x: number; y: number }>();
-  positions.set(WF_TRIGGER_ID, { x: TRIGGER_X, y: H_BASE_Y });
-
-  const adj = buildAdjacency(graphEdges);
-  const level = new Map<string, number>();
-  level.set(WF_TRIGGER_ID, 0);
-  const queue = [WF_TRIGGER_ID];
-
-  while (queue.length) {
-    const id = queue.shift()!;
-    const depth = level.get(id)!;
-    for (const { targetId } of adj.get(id) ?? []) {
-      if (!stepIds.includes(targetId) && targetId !== WF_TRIGGER_ID) continue;
-      const next = depth + 1;
-      const prev = level.get(targetId);
-      if (prev === undefined || next > prev) {
-        level.set(targetId, next);
-        queue.push(targetId);
-      }
-    }
-  }
-
-  for (const id of stepIds) {
-    if (!level.has(id)) {
-      level.set(id, orderFallback.get(id) ?? 1);
-    }
-  }
-
-  const byLevel = new Map<number, string[]>();
-  for (const id of stepIds) {
-    const l = level.get(id) ?? 1;
-    const list = byLevel.get(l) ?? [];
-    list.push(id);
-    byLevel.set(l, list);
-  }
-
-  for (const [lvl, ids] of byLevel) {
-    const sorted = [...ids].sort(
-      (a, b) => (orderFallback.get(a) ?? 0) - (orderFallback.get(b) ?? 0),
-    );
-    sorted.forEach((id, idx) => {
-      const x = TRIGGER_X + lvl * H_STEP_X;
-      const y = H_BASE_Y + (idx - (sorted.length - 1) / 2) * ROW_GAP_Y;
-      positions.set(id, { x, y });
-    });
-  }
-
-  for (const e of graphEdges) {
-    if (e.source === WF_TRIGGER_ID) continue;
-    const parent = positions.get(e.source);
-    const child = positions.get(e.target);
-    if (!parent || !child) continue;
-
-    const childX = Math.max(parent.x + H_STEP_X, child.x);
-    let childY = child.y;
-
-    if (e.sourceHandle === WF_HANDLE_TRUE) {
-      childY = parent.y - BRANCH_Y_OFFSET;
-    } else if (e.sourceHandle === WF_HANDLE_FALSE) {
-      childY = parent.y + BRANCH_Y_OFFSET;
-    } else {
-      childY = parent.y;
-    }
-
-    positions.set(e.target, { x: childX, y: childY });
-  }
-
-  return positions;
+  return layoutWithDagre(stepIds, graphEdges, orderFallback, nodeMeta);
 }
+
+/** Sắp xếp lại vị trí node (dagre LR). */
+export const normalizeGraphPositions = computeGraphPositions;
 
 export function resolvePosition(
   id: string,
@@ -199,9 +136,12 @@ export function resolvePosition(
   return auto.get(id) ?? { x: TRIGGER_X + H_STEP_X * (index + 1), y: H_BASE_Y };
 }
 
+const NODE_X_SPACING = H_STEP_X;
+
 export {
   H_STEP_X,
   H_BASE_Y,
   TRIGGER_X,
   ROW_GAP_Y,
+  NODE_X_SPACING,
 };

@@ -1,6 +1,6 @@
 # Icon StationHub Agent
 
-File chính: **`icon.ico`** (Windows).
+File chính: **`icon.ico`** (Windows) — đồng bộ từ `landing-stationhub/public/favicon.ico`.
 
 | File | Dùng cho |
 |------|----------|

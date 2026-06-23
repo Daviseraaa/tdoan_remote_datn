@@ -6,25 +6,26 @@ import { formatWorkflowVar } from '@/src/lib/workflowGraph';
 type Props = {
   varName: string;
   className?: string;
+  compact?: boolean;
 };
 
-export function WfWorkflowVarBadge({ varName, className }: Props) {
+export function WfWorkflowVarBadge({ varName, className, compact }: Props) {
   const ref = formatWorkflowVar(varName);
 
   return (
-    <div className={cn('flex flex-col items-center pointer-events-none', className)}>
+    <div className={cn('pointer-events-none', compact ? 'inline-flex' : 'flex flex-col items-center', className)}>
       <div
         className={cn(
-          'flex items-center gap-1 px-2.5 py-1 rounded-lg',
-          'border border-emerald-400/50 bg-emerald-400/15 shadow-md shadow-emerald-400/10',
-          'text-[9px] font-mono font-bold text-emerald-300 max-w-[220px]',
+          'inline-flex items-center gap-1 rounded-md border border-emerald-400/50 bg-emerald-400/15',
+          'font-mono font-bold text-emerald-300 whitespace-nowrap',
+          compact ? 'px-1.5 py-0.5 max-w-[100px] text-[8px] leading-none' : 'px-2.5 py-1 max-w-[220px] text-[9px] shadow-md shadow-emerald-400/10',
         )}
         title={t('workflows.workflowVarBadgeTitle', { ref })}
       >
-        <Braces size={11} className="shrink-0 opacity-80" />
+        <Braces size={compact ? 9 : 11} className="shrink-0 opacity-80" />
         <span className="truncate">{varName}</span>
       </div>
-      <div className="w-px h-2 bg-emerald-400/40" aria-hidden />
+      {!compact ? <div className="w-px h-2 bg-emerald-400/40" aria-hidden /> : null}
     </div>
   );
 }

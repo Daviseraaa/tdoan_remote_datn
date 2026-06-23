@@ -228,7 +228,7 @@ impl RecorderState {
         Some(parts)
     }
 
-    fn on_key_press(&mut self, key: Key) {
+    fn on_key_press(&mut self, key: Key, key_name: Option<&str>) {
         if key == Key::F12 {
             return;
         }
@@ -256,6 +256,21 @@ impl RecorderState {
                 self.push_key_combo(keys);
             }
             return;
+        }
+
+        #[cfg(windows)]
+        {
+            use crate::keyboard_win::{KeyModifiers, text_from_key_press};
+            let mods = KeyModifiers {
+                shift: self.modifiers.shift,
+                ctrl: self.modifiers.ctrl,
+                alt: self.modifiers.alt,
+                meta: self.modifiers.meta,
+            };
+            if let Some(text) = text_from_key_press(key, &mods, key_name) {
+                self.text_buf.push_str(&text);
+                return;
+            }
         }
 
         if let Some(ch) = Self::printable_key_char(key, self.modifiers.shift) {
@@ -320,7 +335,7 @@ impl RecorderState {
                     "amount": amount,
                 }));
             }
-            EventType::KeyPress(key) => self.on_key_press(key),
+            EventType::KeyPress(key) => self.on_key_press(key, event.name.as_deref()),
             EventType::KeyRelease(key) => {
                 self.update_modifiers(key, false);
             }

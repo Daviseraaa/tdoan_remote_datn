@@ -1,5 +1,11 @@
 import { buildResponse, parseRequest } from './lib/protocol.js';
 
+const MSG_BRIDGE_OFFLINE =
+  'Chưa kết nối phần mềm trên máy. Chạy Cai-dat.bat trong gói cài đặt, tắt hết Chrome rồi mở lại.';
+
+const MSG_SAVE_TIMEOUT =
+  'Lưu script quá lâu. Chạy lại Cai-dat.bat, tắt hết Chrome rồi thử lại.';
+
 const HOST_NAME = 'com.stationhub.chrome_bridge';
 const RECONNECT_MS = 2000;
 
@@ -169,11 +175,7 @@ function defaultScriptName() {
 function postRecordingComplete(script) {
   return new Promise((resolve, reject) => {
     if (!nativePort) {
-      reject(
-        new Error(
-          'Native bridge chưa kết nối — chạy: npm run chrome-bridge:install rồi reload extension',
-        ),
-      );
+      reject(new Error(MSG_BRIDGE_OFFLINE));
       return;
     }
     if (pendingRecordingSave) {
@@ -191,11 +193,7 @@ function postRecordingComplete(script) {
     setTimeout(() => {
       if (!pendingRecordingSave) return;
       pendingRecordingSave = null;
-      reject(
-        new Error(
-          'Timeout lưu script — rebuild chrome-bridge (npm run build:chrome-bridge), cài lại native host, reload extension. Agent không bắt buộc để ghi file local.',
-        ),
-      );
+      reject(new Error(MSG_SAVE_TIMEOUT));
     }, 30000);
   });
 }
@@ -243,7 +241,7 @@ function makeRequestId() {
 function callBridge(actionType, body, timeoutMs = 30000) {
   return new Promise((resolve, reject) => {
     if (!nativePort) {
-      reject(new Error('Native bridge chưa kết nối'));
+      reject(new Error(MSG_BRIDGE_OFFLINE));
       return;
     }
     const requestId = makeRequestId();

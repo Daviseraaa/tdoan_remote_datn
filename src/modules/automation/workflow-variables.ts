@@ -454,6 +454,143 @@ export function formatWorkflowValue(value: unknown): string {
   return formatValue(value);
 }
 
+export type WorkflowVariableConditionMode =
+  | 'var_eq'
+  | 'var_ne'
+  | 'var_gt'
+  | 'var_gte'
+  | 'var_lt'
+  | 'var_lte'
+  | 'var_empty'
+  | 'var_not_empty';
+
+function isWorkflowValueEmpty(value: unknown): boolean {
+  return value === null || value === undefined || value === '';
+}
+
+function workflowValuesEqual(left: unknown, right: unknown): boolean {
+  if (left === right) return true;
+  if (typeof left === 'boolean' || typeof right === 'boolean') {
+    return Boolean(left) === Boolean(right);
+  }
+  const ln = Number(left);
+  const rn = Number(right);
+  if (Number.isFinite(ln) && Number.isFinite(rn)) return ln === rn;
+  return String(left) === String(right);
+}
+
+function workflowCompareNumber(left: unknown, right: unknown): number {
+  const ln = Number(left);
+  const rn = Number(right);
+  if (!Number.isFinite(ln) || !Number.isFinite(rn)) return NaN;
+  return ln - rn;
+}
+
+/** Đọc biến từ tên thuần, {{workflow.x}} hoặc {{steps.*}} */
+export function resolveConfigVariableRef(
+  raw: string | undefined,
+  scope: WorkflowRunScope,
+): unknown {
+  const input = (raw ?? '').trim();
+  if (!input) return undefined;
+  if (input.includes('{{')) {
+    return resolveVariableValueTemplate(input, scope);
+  }
+  try {
+    return getWorkflowVar(scope, normalizeVariableName(input));
+  } catch {
+    return getByPath(scope.workflow, input);
+  }
+}
+
+export function evaluateWorkflowVariableCondition(
+  mode: WorkflowVariableConditionMode,
+  config: { conditionVariable?: string; conditionCompareValue?: string },
+  scope: WorkflowRunScope,
+): boolean {
+  const left = resolveConfigVariableRef(config.conditionVariable, scope);
+  const right = resolveVariableValueTemplate(config.conditionCompareValue ?? '', scope);
+
+  switch (mode) {
+    case 'var_eq':
+      return workflowValuesEqual(left, right);
+    case 'var_ne':
+      return !workflowValuesEqual(left, right);
+    case 'var_gt':
+      return workflowCompareNumber(left, right) > 0;
+    case 'var_gte':
+      return workflowCompareNumber(left, right) >= 0;
+    case 'var_lt':
+      return workflowCompareNumber(left, right) < 0;
+    case 'var_lte':
+      return workflowCompareNumber(left, right) <= 0;
+    case 'var_empty':
+      return isWorkflowValueEmpty(left);
+    case 'var_not_empty':
+      return !isWorkflowValueEmpty(left);
+    default:
+      return false;
+  }
+}
+
+export function clampWorkflowLoopCount(n: number): number {
+  return Math.max(1, Math.min(1000, Math.floor(n)));
+}
+
+export function resolveWorkflowLoopCount(
+  config: {
+    loopMode?: string;
+    loopCount?: number;
+    loopCountVar?: string;
+  },
+  scope: WorkflowRunScope,
+): number {
+  if (config.loopMode === 'variable') {
+    const raw = resolveConfigVariableRef(config.loopCountVar, scope);
+    const n = Number(raw);
+    if (Number.isFinite(n)) return clampWorkflowLoopCount(n);
+    return clampWorkflowLoopCount(Number(config.loopCount) || 3);
+  }
+  return clampWorkflowLoopCount(Number(config.loopCount) || 3);
+}
+
+const MAX_LOOP_ARRAY_ITEMS = 1000;
+export const DEFAULT_LOOP_ITEM_VAR = 'loop_item';
+
+export function resolveWorkflowLoopArray(
+  config: { loopArrayVar?: string },
+  scope: WorkflowRunScope,
+): unknown[] {
+  const raw = resolveConfigVariableRef(config.loopArrayVar, scope);
+  if (!Array.isArray(raw)) return [];
+  return raw.slice(0, MAX_LOOP_ARRAY_ITEMS);
+}
+
+export function resolveLoopItemVarName(config: { loopItemVar?: string }): string {
+  const raw = (config.loopItemVar ?? DEFAULT_LOOP_ITEM_VAR).trim() || DEFAULT_LOOP_ITEM_VAR;
+  try {
+    return normalizeVariableName(raw);
+  } catch {
+    return DEFAULT_LOOP_ITEM_VAR;
+  }
+}
+
+export function resolveWorkflowLoopState(
+  config: {
+    loopMode?: string;
+    loopCount?: number;
+    loopCountVar?: string;
+    loopArrayVar?: string;
+  },
+  scope: WorkflowRunScope,
+): { count: number; items: unknown[] | null } {
+  if (config.loopMode === 'array') {
+    const items = resolveWorkflowLoopArray(config, scope);
+    return { count: items.length, items };
+  }
+  return { count: resolveWorkflowLoopCount(config, scope), items: null };
+}
+
 /** Bỏ biến nội bộ (_openedPids, _loopIndex, …) trước khi lưu snapshot lần chạy. */
 export function stripInternalWorkflowVars(
   workflow: Record<string, unknown>,

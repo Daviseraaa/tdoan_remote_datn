@@ -1,6 +1,7 @@
 {
   "name": "stationhub-agent-desktop",
   "version": "1.0.0",
+  "author": "StationHub",
   "description": "StationHub Agent — desktop control panel (config, tray, service)",
   "main": "dist/main/index.js",
   "scripts": {

@@ -4,16 +4,17 @@ import type {
   DesktopRecording,
   TaskTemplate,
   TaskType,
-  TelegramStepAction,
   Workflow,
   WorkflowConditionMode,
+  WorkflowLoopMode,
   WorkflowStepOnFailure,
 } from '@/src/types/api';
+import { VAR_CONDITION_MODES, isVarConditionMode } from '@/src/types/api';
+import { Trash2 } from 'lucide-react';
 import type { WfNodeData } from '@/src/lib/workflowGraph';
 import { WF_TRIGGER_ID } from '@/src/lib/workflowGraph';
 import { t } from '@/src/i18n/t';
 import { WfAgentSelect } from './WfAgentSelect';
-import { WfTelegramBotSelect } from './WfTelegramBotSelect';
 import { WfInspectorBlock } from './WfInspectorLayout';
 import { WfStepVarsSection } from './WfStepVarsSection';
 import { WfWorkflowVariablesEditorSection, WfNodeExportSection } from './WfVarsInspectorFooter';
@@ -22,6 +23,7 @@ import {
   nodeExportsStepVariables,
   nodePublishesWorkflowVar,
   workflowVarNameInputValue,
+  loopNodeLabel,
 } from '@/src/lib/workflowGraph';
 import {
   ScreenCaptureOptionsFields,
@@ -31,9 +33,22 @@ import { OpenBrowserConfigFields } from './OpenBrowserConfigFields';
 import { CloseAppConfigFields } from './CloseAppConfigFields';
 import { TelegramSendConfigFields } from './TelegramSendConfigFields';
 import { HttpRequestConfigFields } from './HttpRequestConfigFields';
-import { isChromeReplayCommand } from '@/src/lib/workflowGraph';
+import { WfOpenAppConfigFields } from './WfOpenAppConfigFields';
+import { WfSystemInfoConfigFields } from './WfSystemInfoConfigFields';
+import { WfShellCommandConfigFields } from './WfShellCommandConfigFields';
+import { WfExcelConfigFields } from './WfExcelConfigFields';
+import { WfChromeExtensionConfigFields } from './WfChromeExtensionConfigFields';
+import { WfDesktopAutomationConfigFields } from './WfDesktopAutomationConfigFields';
+import { WfTelegramNodeConfigFields } from './WfTelegramNodeConfigFields';
+import { WfTaskTimingFields } from './WfTaskTimingFields';
+import { buildOpenAppTaskConfig, parseOpenAppForm, type OpenAppMode } from '@/src/lib/taskTemplatePayload';
+import { isChromeReplayCommand, isChromePayloadStepMode, desktopStepsFromWfPayload } from '@/src/lib/workflowGraph';
 import { WfImportMenu } from './WfImportMenu';
 import { MsNumberInput } from './MsNumberInput';
+import {
+  WfChromeImportedStepFields,
+  WfDesktopImportedStepFields,
+} from './WfImportedRecordingStepFields';
 
 const ON_FAILURE: WorkflowStepOnFailure[] = ['STOP', 'SKIP', 'RETRY'];
 
@@ -41,15 +56,7 @@ const CONDITION_MODES: WorkflowConditionMode[] = [
   'last_exit_success',
   'last_exit_failed',
   'last_exit_code_eq',
-];
-
-const TELEGRAM_ACTIONS: TelegramStepAction[] = [
-  'send_message',
-  'send_photo',
-  'send_document',
-  'reply_message',
-  'edit_message',
-  'inline_keyboard',
+  ...VAR_CONDITION_MODES,
 ];
 
 type Props = {
@@ -70,6 +77,7 @@ type Props = {
   onImportDesktopRecording?: (recording: DesktopRecording) => void;
   onImportTaskTemplate?: (template: TaskTemplate) => void;
   onImportWorkflow?: (workflow: Workflow) => void;
+  onDelete?: () => void;
 };
 
 export function WorkflowStepInspector({
@@ -89,6 +97,7 @@ export function WorkflowStepInspector({
   onImportDesktopRecording,
   onImportTaskTemplate,
   onImportWorkflow,
+  onDelete,
 }: Props) {
   if (!inspectorNodeId || !data || inspectorNodeId === WF_TRIGGER_ID || data.kind === 'trigger') {
     return (
@@ -104,22 +113,14 @@ export function WorkflowStepInspector({
     onUpdate({ config: { ...cfg, ...p } });
   };
 
-  const chromePayloadBase = (): Record<string, unknown> => {
-    const p = (cfg.payload as Record<string, unknown> | undefined) ?? {};
-    return {
-      maxNodes: 200,
-      ...p,
-      action: typeof p.action === 'string' ? p.action : 'snapshotDom',
-    };
-  };
+  const openAppForm =
+    data.taskType === 'OPEN_APP'
+      ? parseOpenAppForm(cfg.command, cfg.payload, cfg.openAppMode as OpenAppMode | undefined)
+      : null;
 
-  const patchChromePayload = (patch: Record<string, unknown>) => {
-    patchConfig({
-      payload: { ...chromePayloadBase(), ...patch },
-      command: '[]',
-      taskType: 'CHROME_EXTENSION',
-    });
-  };
+  const chromeReplayMode = isChromeReplayCommand(cfg.command, cfg.payload);
+  const chromePayloadStepMode = isChromePayloadStepMode(cfg.payload);
+  const desktopPayloadSteps = desktopStepsFromWfPayload(cfg.payload);
 
   const hasExport = Boolean(
     inspectorNodeId &&
@@ -174,54 +175,7 @@ export function WorkflowStepInspector({
 
       <WfInspectorBlock tone="config" className="space-y-4">
       {data.kind === 'telegram' ? (
-        <>
-          <div>
-            <label className="text-[10px] font-mono font-bold uppercase text-on-surface-variant">
-              {t('workflows.telegramAction')}
-            </label>
-            <select
-              value={(cfg.action as TelegramStepAction) ?? 'send_message'}
-              onChange={(e) => patchConfig({ action: e.target.value as TelegramStepAction })}
-              className="w-full mt-1 px-4 py-3 rounded-xl bg-surface-container-low border border-white/10 text-sm"
-            >
-              {TELEGRAM_ACTIONS.map((a) => (
-                <option key={a} value={a}>
-                  {a}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="text-[10px] font-mono font-bold uppercase text-on-surface-variant">
-              {t('triggers.selectBot')}
-            </label>
-            <WfTelegramBotSelect
-              value={cfg.telegramBotId ?? ''}
-              onChange={(id) => patchConfig({ telegramBotId: id || undefined })}
-            />
-          </div>
-          <div>
-            <label className="text-[10px] font-mono font-bold uppercase text-on-surface-variant">
-              {t('workflows.telegramChatId')}
-            </label>
-            <input
-              value={cfg.chatId ?? '{{telegram.chatId}}'}
-              onChange={(e) => patchConfig({ chatId: e.target.value })}
-              className="w-full mt-1 px-4 py-3 rounded-xl bg-surface-container-low border border-white/10 font-mono text-sm"
-            />
-          </div>
-          <div>
-            <label className="text-[10px] font-mono font-bold uppercase text-on-surface-variant">
-              {t('workflows.telegramText')}
-            </label>
-            <textarea
-              value={cfg.text ?? ''}
-              onChange={(e) => patchConfig({ text: e.target.value })}
-              rows={4}
-              className="w-full mt-1 px-4 py-3 rounded-xl bg-surface-container-low border border-white/10 font-mono text-sm"
-            />
-          </div>
-        </>
+        <WfTelegramNodeConfigFields config={cfg} onPatch={patchConfig} />
       ) : null}
 
       {data.kind === 'condition' ? (
@@ -257,25 +211,147 @@ export function WorkflowStepInspector({
               />
             </div>
           ) : null}
+          {isVarConditionMode(cfg.conditionMode as WorkflowConditionMode) ? (
+            <>
+              <div>
+                <label className="text-[10px] font-mono font-bold uppercase text-on-surface-variant">
+                  {t('workflows.conditionVariable')}
+                </label>
+                <input
+                  value={workflowVarNameInputValue('variable', cfg.conditionVariable)}
+                  onChange={(e) => patchConfig({ conditionVariable: e.target.value.trim() })}
+                  placeholder={t('workflows.conditionVariablePlaceholder')}
+                  className="w-full mt-1 px-4 py-3 rounded-xl bg-surface-container-low border border-white/10 font-mono text-sm"
+                />
+                <p className="text-[10px] text-on-surface-variant/70 mt-1">
+                  {t('workflows.conditionVariableHint')}
+                </p>
+              </div>
+              {cfg.conditionMode !== 'var_empty' && cfg.conditionMode !== 'var_not_empty' ? (
+                <div>
+                  <label className="text-[10px] font-mono font-bold uppercase text-on-surface-variant">
+                    {t('workflows.conditionCompareValue')}
+                  </label>
+                  <input
+                    value={cfg.conditionCompareValue ?? ''}
+                    onChange={(e) => patchConfig({ conditionCompareValue: e.target.value })}
+                    placeholder={t('workflows.conditionCompareValuePlaceholder')}
+                    className="w-full mt-1 px-4 py-3 rounded-xl bg-surface-container-low border border-white/10 font-mono text-sm"
+                  />
+                </div>
+              ) : null}
+            </>
+          ) : null}
+          <p className="text-[10px] text-on-surface-variant/70">{t('workflows.conditionHint')}</p>
         </>
       ) : data.kind === 'loop' ? (
-        <div>
+        <>
+          <div>
             <label className="text-[10px] font-mono font-bold uppercase text-on-surface-variant">
-              {t('workflows.loopCount')}
+              {t('workflows.loopMode')}
             </label>
-            <input
-              type="number"
-              min={1}
-              max={1000}
-              value={cfg.loopCount ?? 3}
+            <select
+              value={(cfg.loopMode as WorkflowLoopMode) ?? 'fixed'}
               onChange={(e) => {
-                const count = Math.max(1, Math.min(1000, Number(e.target.value) || 3));
-                patchConfig({ loopCount: count });
-                onUpdate({ label: t('workflows.nodeLoop', { count }) });
+                const loopMode = e.target.value as WorkflowLoopMode;
+                onUpdate({
+                  label: loopNodeLabel({ ...cfg, loopMode }),
+                  config: { ...cfg, loopMode },
+                });
               }}
-              className="w-full mt-1 px-4 py-3 rounded-xl bg-surface-container-low border border-white/10"
-            />
+              className="w-full mt-1 px-4 py-3 rounded-xl bg-surface-container-low border border-white/10 text-sm"
+            >
+              <option value="fixed">{t('workflows.loopMode_fixed')}</option>
+              <option value="variable">{t('workflows.loopMode_variable')}</option>
+              <option value="array">{t('workflows.loopMode_array')}</option>
+            </select>
           </div>
+          {(cfg.loopMode ?? 'fixed') === 'variable' ? (
+            <div>
+              <label className="text-[10px] font-mono font-bold uppercase text-on-surface-variant">
+                {t('workflows.loopCountVar')}
+              </label>
+              <input
+                value={workflowVarNameInputValue('variable', cfg.loopCountVar)}
+                onChange={(e) => {
+                  const loopCountVar = e.target.value.trim();
+                  onUpdate({
+                    label: loopNodeLabel({ ...cfg, loopMode: 'variable', loopCountVar }),
+                    config: { ...cfg, loopMode: 'variable', loopCountVar },
+                  });
+                }}
+                placeholder={t('workflows.loopCountVarPlaceholder')}
+                className="w-full mt-1 px-4 py-3 rounded-xl bg-surface-container-low border border-white/10 font-mono text-sm"
+              />
+              <p className="text-[10px] text-on-surface-variant/70 mt-1">
+                {t('workflows.loopCountVarHint')}
+              </p>
+            </div>
+          ) : (cfg.loopMode ?? 'fixed') === 'array' ? (
+            <>
+              <div>
+                <label className="text-[10px] font-mono font-bold uppercase text-on-surface-variant">
+                  {t('workflows.loopArrayVar')}
+                </label>
+                <input
+                  value={workflowVarNameInputValue('variable', cfg.loopArrayVar)}
+                  onChange={(e) => {
+                    const loopArrayVar = e.target.value.trim();
+                    onUpdate({
+                      label: loopNodeLabel({ ...cfg, loopMode: 'array', loopArrayVar }),
+                      config: { ...cfg, loopMode: 'array', loopArrayVar },
+                    });
+                  }}
+                  placeholder={t('workflows.loopArrayVarPlaceholder')}
+                  className="w-full mt-1 px-4 py-3 rounded-xl bg-surface-container-low border border-white/10 font-mono text-sm"
+                />
+                <p className="text-[10px] text-on-surface-variant/70 mt-1">
+                  {t('workflows.loopArrayVarHint')}
+                </p>
+              </div>
+              <div>
+                <label className="text-[10px] font-mono font-bold uppercase text-on-surface-variant">
+                  {t('workflows.loopItemVar')}
+                </label>
+                <input
+                  value={cfg.loopItemVar ?? ''}
+                  onChange={(e) => {
+                    const loopItemVar = e.target.value.trim();
+                    onUpdate({
+                      config: { ...cfg, loopMode: 'array', loopItemVar: loopItemVar || undefined },
+                    });
+                  }}
+                  placeholder={t('workflows.loopItemVarPlaceholder')}
+                  className="w-full mt-1 px-4 py-3 rounded-xl bg-surface-container-low border border-white/10 font-mono text-sm"
+                />
+                <p className="text-[10px] text-on-surface-variant/70 mt-1">
+                  {t('workflows.loopItemVarHint')}
+                </p>
+              </div>
+            </>
+          ) : (
+            <div>
+              <label className="text-[10px] font-mono font-bold uppercase text-on-surface-variant">
+                {t('workflows.loopCount')}
+              </label>
+              <input
+                type="number"
+                min={1}
+                max={1000}
+                value={cfg.loopCount ?? 3}
+                onChange={(e) => {
+                  const count = Math.max(1, Math.min(1000, Number(e.target.value) || 3));
+                  onUpdate({
+                    label: loopNodeLabel({ ...cfg, loopMode: 'fixed', loopCount: count }),
+                    config: { ...cfg, loopMode: 'fixed', loopCount: count },
+                  });
+                }}
+                className="w-full mt-1 px-4 py-3 rounded-xl bg-surface-container-low border border-white/10"
+              />
+            </div>
+          )}
+          <p className="text-[10px] text-on-surface-variant/70">{t('workflows.loopHint')}</p>
+        </>
       ) : data.kind === 'variable' ? (
         <>
           {(cfg.variableMode ?? 'set') === 'read' ? (
@@ -311,57 +387,26 @@ export function WorkflowStepInspector({
         </>
       ) : data.kind === 'excel' ? (
         <>
-          <WfAgentSelect
+          <WfExcelConfigFields
+            mode={cfg.excelMode ?? 'read'}
+            agentId={cfg.agentId}
             agents={agents}
-            value={cfg.agentId ?? ''}
-            onChange={(agentId) => {
+            filePath={cfg.filePath}
+            sheetName={cfg.sheetName}
+            hasHeader={cfg.hasHeader}
+            variableName={cfg.variableName}
+            variableValue={cfg.variableValue}
+            onAgentChange={(agentId) => {
               patchConfig({ agentId });
               onAgentChange?.(agentId);
             }}
+            onPatch={(p) => patchConfig(p)}
           />
-          <div>
-            <label className="text-[10px] font-mono font-bold uppercase text-on-surface-variant">
-              {t('workflows.excelFilePath')}
-            </label>
-            <input
-              value={cfg.filePath ?? ''}
-              onChange={(e) => {
-                const v = e.target.value.trim();
-                patchConfig({ filePath: v || undefined });
-              }}
-              className="w-full mt-1 px-4 py-3 rounded-xl bg-surface-container-low border border-white/10 font-mono text-sm"
-              placeholder="C:\\data\\report.xlsx"
-            />
-          </div>
-          <div>
-            <label className="text-[10px] font-mono font-bold uppercase text-on-surface-variant">
-              {t('workflows.excelSheet')}
-            </label>
-            <input
-              value={
-                !cfg.sheetName?.trim() || cfg.sheetName.trim() === 'Sheet1'
-                  ? ''
-                  : cfg.sheetName
-              }
-              onChange={(e) => {
-                const v = e.target.value.trim();
-                patchConfig({ sheetName: v || undefined });
-              }}
-              placeholder="Sheet1"
-              className="w-full mt-1 px-4 py-3 rounded-xl bg-surface-container-low border border-white/10 font-mono text-sm"
-            />
-          </div>
-          {(cfg.excelMode ?? 'read') === 'read' ? (
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={cfg.hasHeader !== false}
-                onChange={(e) => patchConfig({ hasHeader: e.target.checked })}
-                className="rounded border-white/20"
-              />
-              {t('workflows.excelHasHeader')}
-            </label>
-          ) : null}
+          <WfTaskTimingFields
+            timeout={cfg.timeout}
+            priority={cfg.priority}
+            onPatch={(p) => patchConfig(p)}
+          />
         </>
       ) : data.kind === 'delay' ? (
         <div>
@@ -402,6 +447,28 @@ export function WorkflowStepInspector({
             </p>
           </div>
 
+          {data.taskType === 'SYSTEM_INFO' ? <WfSystemInfoConfigFields /> : null}
+
+          {data.taskType === 'COMMAND' ? (
+            <WfShellCommandConfigFields
+              taskType="COMMAND"
+              command={cfg.command ?? ''}
+              agents={agents}
+              agentId={cfg.agentId}
+              onChange={(command) => patchConfig({ command })}
+            />
+          ) : null}
+
+          {data.taskType === 'SCRIPT' ? (
+            <WfShellCommandConfigFields
+              taskType="SCRIPT"
+              command={cfg.command ?? ''}
+              agents={agents}
+              agentId={cfg.agentId}
+              onChange={(command) => patchConfig({ command })}
+            />
+          ) : null}
+
           {data.taskType === 'HTTP_REQUEST' ? (
             <HttpRequestConfigFields config={cfg} onPatch={patchConfig} />
           ) : null}
@@ -439,12 +506,16 @@ export function WorkflowStepInspector({
           ) : null}
 
           {data.taskType !== 'SYSTEM_INFO' &&
+          data.taskType !== 'COMMAND' &&
+          data.taskType !== 'SCRIPT' &&
+          data.taskType !== 'OPEN_APP' &&
           data.taskType !== 'CHROME_EXTENSION' &&
           data.taskType !== 'SCREEN_CAPTURE' &&
           data.taskType !== 'HTTP_REQUEST' &&
           data.taskType !== 'OPEN_BROWSER' &&
           data.taskType !== 'CLOSE_APP' &&
-          data.taskType !== 'TELEGRAM_SEND' ? (
+          data.taskType !== 'TELEGRAM_SEND' &&
+          data.taskType !== 'DESKTOP_AUTOMATION' ? (
             <div>
               <label className="text-[10px] font-mono font-bold uppercase text-on-surface-variant">
                 {t('workflows.command')}
@@ -477,24 +548,34 @@ export function WorkflowStepInspector({
             />
           ) : null}
 
-          {data.taskType === 'OPEN_APP' ? (
-            <div>
-              <label className="text-[10px] font-mono font-bold uppercase text-on-surface-variant">
-                {t('workflows.payloadJson')}
-              </label>
-              <textarea
-                value={JSON.stringify(cfg.payload ?? {}, null, 2)}
-                onChange={(e) => {
-                  try {
-                    patchConfig({ payload: JSON.parse(e.target.value) as Record<string, unknown> });
-                  } catch {
-                    /* ignore invalid json while typing */
-                  }
-                }}
-                rows={4}
-                className="w-full mt-1 px-4 py-3 rounded-xl bg-surface-container-low border border-white/10 font-mono text-xs"
-              />
-            </div>
+          {openAppForm ? (
+            <WfOpenAppConfigFields
+              mode={openAppForm.mode}
+              value={openAppForm.value}
+              onChange={(mode, value) => {
+                const built = buildOpenAppTaskConfig(mode, value);
+                patchConfig({
+                  command: built.command,
+                  payload: built.payload,
+                  openAppMode: built.openAppMode,
+                });
+              }}
+            />
+          ) : null}
+
+          {data.taskType === 'DESKTOP_AUTOMATION' && desktopPayloadSteps.length > 0 ? (
+            <WfDesktopImportedStepFields
+              payload={cfg.payload}
+              onPatch={(p) => patchConfig(p)}
+            />
+          ) : data.taskType === 'DESKTOP_AUTOMATION' ? (
+            <WfDesktopAutomationConfigFields
+              command={cfg.command}
+              payload={cfg.payload}
+              onPatch={(p) => patchConfig(p)}
+              onImportDesktopRecording={onImportDesktopRecording}
+              onImportTaskTemplate={onImportTaskTemplate}
+            />
           ) : null}
 
           {data.taskType === 'CHROME_EXTENSION' ? (
@@ -506,102 +587,69 @@ export function WorkflowStepInspector({
                 onImportTaskTemplate={(tpl) => onImportTaskTemplate?.(tpl)}
                 onImportWorkflow={(wf) => onImportWorkflow?.(wf)}
               />
-              {isChromeReplayCommand(cfg.command) ? (
+              {chromePayloadStepMode ? (
+                <WfChromeImportedStepFields
+                  payload={cfg.payload}
+                  command={cfg.command}
+                  timeout={cfg.timeout}
+                  onPatch={(p) => patchConfig(p)}
+                />
+              ) : null}
+              {chromeReplayMode ? (
                 <p className="text-[10px] text-primary/90 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2">
                   {t('workflows.chromeExtensionReplayMode')}
                 </p>
               ) : null}
-              {!isChromeReplayCommand(cfg.command) ? (
-              <>
-              <div>
-                <label className="text-[10px] font-mono font-bold uppercase text-on-surface-variant">
-                  {t('workflows.chromeExtensionAction')}
-                </label>
-                <select
-                  value={String(chromePayloadBase().action ?? 'snapshotDom')}
-                  onChange={(e) => patchChromePayload({ action: e.target.value })}
-                  className="w-full mt-1 px-4 py-2.5 rounded-xl bg-surface-container-low border border-white/10 text-sm"
-                >
-                  <option value="snapshotDom">snapshotDom</option>
-                  <option value="click">click</option>
-                  <option value="fill">fill</option>
-                  <option value="waitFor">waitFor</option>
-                </select>
-              </div>
-              <div>
-                <label className="text-[10px] font-mono font-bold uppercase text-on-surface-variant">
-                  {t('workflows.chromeExtensionSelector')}
-                </label>
-                <input
-                  type="text"
-                  value={String(chromePayloadBase().selector ?? '')}
-                  onChange={(e) => patchChromePayload({ selector: e.target.value })}
-                  className="w-full mt-1 px-4 py-2.5 rounded-xl bg-surface-container-low border border-white/10 font-mono text-sm"
+              {!chromeReplayMode && !chromePayloadStepMode ? (
+                <WfChromeExtensionConfigFields
+                  payload={cfg.payload}
+                  timeout={cfg.timeout}
+                  onPatch={(p) => patchConfig(p)}
                 />
-              </div>
-              {chromePayloadBase().action === 'fill' ? (
-                <div>
-                  <label className="text-[10px] font-mono font-bold uppercase text-on-surface-variant">
-                    {t('workflows.chromeExtensionFillText')}
-                  </label>
-                  <input
-                    type="text"
-                    value={String(chromePayloadBase().text ?? '')}
-                    onChange={(e) => patchChromePayload({ text: e.target.value })}
-                    className="w-full mt-1 px-4 py-2.5 rounded-xl bg-surface-container-low border border-white/10 text-sm"
-                  />
-                </div>
               ) : null}
-              </>
-              ) : null}
+              {chromeReplayMode ? (
               <div>
                 <label className="text-[10px] font-mono font-bold uppercase text-on-surface-variant">
-                  {t('workflows.chromeExtensionUrlPattern')}
-                </label>
-                <input
-                  type="text"
-                  value={String(chromePayloadBase().urlPattern ?? '')}
-                  onChange={(e) => patchChromePayload({ urlPattern: e.target.value })}
-                  placeholder="https://example.com/*"
-                  className="w-full mt-1 px-4 py-2.5 rounded-xl bg-surface-container-low border border-white/10 font-mono text-sm"
-                />
-              </div>
-              <div>
-                <label className="text-[10px] font-mono font-bold uppercase text-on-surface-variant">
-                  {isChromeReplayCommand(cfg.command)
-                    ? t('workflows.chromeExtensionStepsJson')
-                    : t('workflows.chromeExtensionAdvancedJson')}
+                  {t('workflows.chromeExtensionStepsJson')}
                 </label>
                 <textarea
-                  value={
-                    isChromeReplayCommand(cfg.command)
-                      ? (cfg.command ?? '')
-                      : (cfg.command ?? '').trim().startsWith('[') ||
-                          (cfg.command ?? '').trim().startsWith('{')
-                        ? (cfg.command ?? '')
-                        : ''
-                  }
+                  value={cfg.command ?? ''}
                   onChange={(e) => patchConfig({ command: e.target.value })}
-                  rows={isChromeReplayCommand(cfg.command) ? 10 : 5}
+                  rows={10}
                   placeholder={t('workflows.chromeExtensionStepsHint')}
                   className="w-full mt-1 px-4 py-3 rounded-xl bg-surface-container-low border border-white/10 font-mono text-xs"
                 />
               </div>
+              ) : !chromePayloadStepMode ? (
+              <details className="rounded-xl border border-white/10 bg-black/10 px-3 py-2">
+                <summary className="text-[10px] font-mono font-bold uppercase text-on-surface-variant cursor-pointer">
+                  {t('workflows.chromeExtensionAdvancedJson')}
+                </summary>
+                <p className="text-[10px] text-on-surface-variant mt-2 mb-2">
+                  {t('workflows.chromeExtensionAdvancedJsonHint')}
+                </p>
+                <textarea
+                  value={
+                    (cfg.command ?? '').trim().startsWith('[') ||
+                    (cfg.command ?? '').trim().startsWith('{')
+                      ? (cfg.command ?? '')
+                      : ''
+                  }
+                  onChange={(e) => patchConfig({ command: e.target.value })}
+                  rows={5}
+                  placeholder={t('workflows.chromeExtensionStepsHint')}
+                  className="w-full px-3 py-2 rounded-lg bg-surface-container-low border border-white/10 font-mono text-xs"
+                />
+              </details>
+              ) : null}
             </div>
           ) : null}
 
-          <div>
-            <label className="text-[10px] font-mono font-bold uppercase text-on-surface-variant">
-              {t('tasks.timeoutMs')}
-            </label>
-            <input
-              type="number"
-              min={5000}
-              value={cfg.timeout ?? 60000}
-              onChange={(e) => patchConfig({ timeout: Number(e.target.value) })}
-              className="w-full mt-1 px-4 py-3 rounded-xl bg-surface-container-low border border-white/10"
-            />
-          </div>
+          <WfTaskTimingFields
+            timeout={cfg.timeout}
+            priority={cfg.priority}
+            onPatch={(p) => patchConfig(p)}
+          />
         </>
       ) : null}
 
@@ -638,7 +686,7 @@ export function WorkflowStepInspector({
         >
           {ON_FAILURE.map((v) => (
             <option key={v} value={v}>
-              {v}
+              {t(`workflows.onFailure_${v}` as 'workflows.onFailure_STOP')}
             </option>
           ))}
         </select>
@@ -654,6 +702,19 @@ export function WorkflowStepInspector({
           showTelegramVars={showTelegramVars}
         />
       </WfInspectorBlock>
+
+      {onDelete ? (
+        <div className="pt-2 pb-1">
+          <button
+            type="button"
+            onClick={onDelete}
+            className="w-full py-3 rounded-xl border border-error/30 text-error font-bold text-sm flex items-center justify-center gap-2 hover:bg-error/10"
+          >
+            <Trash2 size={16} />
+            {t('workflows.deleteNode')}
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }

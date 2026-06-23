@@ -14,3 +14,10 @@ export function zaloGroupUrl(): string | null {
   const url = env('VITE_ZALO_GROUP_URL');
   return url || null;
 }
+
+const DEFAULT_GITHUB_URL = 'https://github.com/Daviseraaa/StationHub';
+
+export function githubUrl(): string {
+  const url = env('VITE_GITHUB_URL');
+  return url || DEFAULT_GITHUB_URL;
+}

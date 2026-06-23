@@ -1,11 +1,16 @@
 import {
   buildStepOutput,
+  evaluateWorkflowVariableCondition,
   extractExcelRowsFromTaskResult,
   mergeScopes,
   parseTaskResult,
   publishStepOutput,
   resolveOutputKey,
   resolveTemplateString,
+  resolveWorkflowLoopCount,
+  resolveWorkflowLoopState,
+  resolveWorkflowLoopArray,
+  resolveLoopItemVarName,
   scopeFromContext,
 } from './workflow-variables';
 
@@ -173,5 +178,67 @@ describe('workflow-variables', () => {
       rows: [{ a: 1 }],
       sheet: 'Sheet1',
     });
+  });
+
+  it('evaluates variable conditions', () => {
+    const scope = scopeFromContext({ count: 5, flag: true, empty: '' }, {});
+    expect(
+      evaluateWorkflowVariableCondition(
+        'var_eq',
+        { conditionVariable: 'count', conditionCompareValue: '5' },
+        scope,
+      ),
+    ).toBe(true);
+    expect(
+      evaluateWorkflowVariableCondition(
+        'var_gt',
+        { conditionVariable: 'count', conditionCompareValue: '3' },
+        scope,
+      ),
+    ).toBe(true);
+    expect(
+      evaluateWorkflowVariableCondition(
+        'var_empty',
+        { conditionVariable: 'empty' },
+        scope,
+      ),
+    ).toBe(true);
+    expect(
+      evaluateWorkflowVariableCondition(
+        'var_not_empty',
+        { conditionVariable: 'flag' },
+        scope,
+      ),
+    ).toBe(true);
+  });
+
+  it('resolves loop count from variable', () => {
+    const scope = scopeFromContext({ loop_times: 7 }, {});
+    expect(
+      resolveWorkflowLoopCount({ loopMode: 'variable', loopCountVar: 'loop_times' }, scope),
+    ).toBe(7);
+    expect(resolveWorkflowLoopCount({ loopMode: 'fixed', loopCount: 4 }, scope)).toBe(4);
+  });
+
+  it('resolves loop state from array variable', () => {
+    const scope = scopeFromContext({ rows: [{ id: 1 }, { id: 2 }, { id: 3 }] }, {});
+    const state = resolveWorkflowLoopState(
+      { loopMode: 'array', loopArrayVar: 'rows' },
+      scope,
+    );
+    expect(state.count).toBe(3);
+    expect(state.items).toEqual([{ id: 1 }, { id: 2 }, { id: 3 }]);
+    expect(
+      resolveWorkflowLoopArray({ loopArrayVar: 'rows' }, scope).length,
+    ).toBe(3);
+    expect(resolveLoopItemVarName({})).toBe('loop_item');
+    expect(resolveLoopItemVarName({ loopItemVar: 'current_row' })).toBe('current_row');
+  });
+
+  it('treats non-array loop variable as empty', () => {
+    const scope = scopeFromContext({ rows: 'not-array' }, {});
+    expect(
+      resolveWorkflowLoopState({ loopMode: 'array', loopArrayVar: 'rows' }, scope).count,
+    ).toBe(0);
   });
 });

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertCircle,
   Filter,
@@ -7,6 +7,7 @@ import {
   Loader2,
   Plus,
   Search,
+  Upload,
   X,
 } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -16,7 +17,8 @@ import { WorkflowRunHistoryRow } from '@/src/components/workflow/WorkflowRunHist
 import { Pagination } from '@/src/components/Pagination';
 import { TaskEmptyState } from '@/src/components/tasks/TaskEmptyState';
 import { useAgentsList } from '@/src/hooks/useAgents';
-import { createDefaultWorkflow } from '@/src/hooks/useWorkflowEditor';
+import { createDefaultWorkflow, createWorkflowFromConfigFile } from '@/src/hooks/useWorkflowEditor';
+import { parseWorkflowConfigFileText } from '@/src/lib/workflowConfigFile';
 import { useWorkflowRunsList } from '@/src/hooks/useWorkflowRuns';
 import { useWorkflowMutations, useWorkflowsList } from '@/src/hooks/useWorkflows';
 import { filterAgentsByCluster } from '@/src/lib/agentFilters';
@@ -48,6 +50,7 @@ export default function Workflows() {
   const [statusFilter, setStatusFilter] = useState<WorkflowRunStatus | ''>('');
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
   const [error, setError] = useState('');
+  const importInputRef = useRef<HTMLInputElement>(null);
 
   const { data: listData, isLoading: listLoading } = useWorkflowsList({
     page,
@@ -99,6 +102,22 @@ export default function Workflows() {
     } catch (err) {
       setError(apiErrorMessage(err));
     }
+  };
+
+  const handleImportConfig = async (file: File) => {
+    setError('');
+    try {
+      const text = await file.text();
+      const parsed = parseWorkflowConfigFileText(text);
+      const created = await createWorkflowFromConfigFile(create, agents, parsed);
+      navigate(`/workflows/${created.id}/edit`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : apiErrorMessage(err));
+    }
+  };
+
+  const pickImportFile = () => {
+    importInputRef.current?.click();
   };
 
   const handleRun = async (id: string) => {
@@ -155,15 +174,38 @@ export default function Workflows() {
           </p>
         </div>
         {tab === 'list' ? (
-          <button
-            type="button"
-            onClick={() => void handleCreate()}
-            disabled={create.isPending}
-            className="inline-flex items-center gap-2 px-4 py-2.5 bg-primary text-on-primary rounded-xl text-sm font-bold disabled:opacity-50"
-          >
-            {create.isPending ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} />}
-            {create.isPending ? t('workflows.creating') : t('workflows.newWorkflow')}
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              ref={importInputRef}
+              type="file"
+              accept=".json,application/json,.stationhub-workflow.json"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                e.target.value = '';
+                if (file) void handleImportConfig(file);
+              }}
+            />
+            <button
+              type="button"
+              onClick={pickImportFile}
+              disabled={create.isPending}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border border-white/10 hover:bg-white/5 disabled:opacity-50"
+              title={t('workflows.configFile.importHint')}
+            >
+              <Upload size={18} />
+              {t('workflows.configFile.import')}
+            </button>
+            <button
+              type="button"
+              onClick={() => void handleCreate()}
+              disabled={create.isPending}
+              className="inline-flex items-center gap-2 px-4 py-2.5 bg-primary text-on-primary rounded-xl text-sm font-bold disabled:opacity-50"
+            >
+              {create.isPending ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} />}
+              {create.isPending ? t('workflows.creating') : t('workflows.newWorkflow')}
+            </button>
+          </div>
         ) : (
           <span className="text-[10px] font-mono text-on-surface-variant px-2">
             {t('workflows.historyCount', { n: String(historyTotal) })}

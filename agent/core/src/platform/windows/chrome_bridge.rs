@@ -51,10 +51,34 @@ pub async fn wait_for_bridge_connected(timeout_ms: u64) -> Result<(), String> {
     }
     let secs = timeout_ms / 1000;
     Err(format!(
-        "Chrome bridge offline sau {secs}s — mở Chrome, bật extension StationHub (chrome://extensions), reload extension. \
-         Kiểm tra native host: npm run chrome-bridge:install. Agent chạy qua tray (không chỉ Windows Service). \
-         Trên extension: F12 service worker — log phải có bridgeConnected agentPipe:true."
+        "Không kết nối được extension Chrome sau {secs} giây.\n\n\
+         Trên máy agent:\n\
+         1. Giải nén gói StationHub Chrome Recorder và chạy Cai-dat.bat\n\
+         2. Chrome → chrome://extensions → bật extension StationHub\n\
+         3. Tắt Chrome hẳn (Thoát) rồi mở lại\n\
+         4. Mở StationHub Agent (icon khay hệ thống) — không chỉ Windows Service"
     ))
+}
+
+const MSG_BRIDGE_OFFLINE: &str = "Chrome extension chưa sẵn sàng trên máy agent. \
+Chạy Cai-dat.bat từ gói cài đặt, bật extension trên Chrome, tắt Chrome hẳn rồi mở lại. \
+StationHub Agent phải đang chạy (icon khay hệ thống).";
+
+fn user_bridge_error(raw: &str) -> String {
+    let lower = raw.to_lowercase();
+    if lower.contains("timeout") {
+        return "Thao tác trên trang quá lâu — trang có thể chưa tải xong hoặc phần tử không còn trên màn hình.".into();
+    }
+    if lower.contains("no matching tab") || lower.contains("no matching") {
+        return "Không tìm thấy tab trình duyệt phù hợp. Mở đúng trang web trước khi chạy.".into();
+    }
+    if lower.contains("content script") {
+        return "Không thao tác được trên tab này. Thử mở lại trang hoặc dùng trang http/https.".into();
+    }
+    if !raw.is_empty() && raw.len() <= 180 && !raw.contains("pipe") && !raw.contains("bridge task") {
+        return raw.to_string();
+    }
+    MSG_BRIDGE_OFFLINE.to_string()
 }
 
 /// Chạy lại danh sách bước Chrome extension (click / fill / delay / …).
@@ -109,7 +133,12 @@ pub async fn replay_steps(
                 }));
             }
             Err(e) => {
-                return Err(format!("step {} ({}): {}", idx, action, e));
+                return Err(format!(
+                    "Bước {} ({}): {}",
+                    idx + 1,
+                    action,
+                    user_bridge_error(&e)
+                ));
             }
         }
     }
@@ -123,10 +152,7 @@ pub async fn replay_steps(
 pub async fn execute(action: &str, payload: Value, wait_ms: u64) -> Result<Value, String> {
     let tx = {
         let g = state().lock().await;
-        g.cmd_tx.clone().ok_or_else(|| {
-            "Chrome bridge offline — chrome-bridge chưa nối pipe agent (xem wait_for_bridge_connected)."
-                .to_string()
-        })?
+        g.cmd_tx.clone().ok_or_else(|| MSG_BRIDGE_OFFLINE.to_string())?
     };
 
     let request_id = format!(
@@ -151,14 +177,14 @@ pub async fn execute(action: &str, payload: Value, wait_ms: u64) -> Result<Value
         reply: reply_tx,
     })
     .await
-    .map_err(|_| "bridge task stopped".to_string())?;
+    .map_err(|_| MSG_BRIDGE_OFFLINE.to_string())?;
 
     let dur = Duration::from_millis(wait_ms.max(1000).min(300_000));
     match timeout(dur, reply_rx).await {
         Ok(Ok(Ok(v))) => Ok(v),
-        Ok(Ok(Err(e))) => Err(e),
-        Ok(Err(_)) => Err("bridge response channel closed".into()),
-        Err(_) => Err(format!("timeout after {}ms", wait_ms)),
+        Ok(Ok(Err(e))) => Err(user_bridge_error(&e)),
+        Ok(Err(_)) => Err(MSG_BRIDGE_OFFLINE.to_string()),
+        Err(_) => Err(user_bridge_error(&format!("timeout after {wait_ms}ms"))),
     }
 }
 
@@ -206,7 +232,7 @@ pub async fn run_chrome_bridge_pipe_forever() -> std::io::Result<()> {
                         || write_half.flush().await.is_err()
                     {
                         if let Some(tx) = pending.remove(&request_id) {
-                            let _ = tx.send(Err("pipe write failed".into()));
+                            let _ = tx.send(Err(MSG_BRIDGE_OFFLINE.to_string()));
                         }
                         break;
                     }
@@ -258,7 +284,7 @@ pub async fn run_chrome_bridge_pipe_forever() -> std::io::Result<()> {
         }
         log::warn!("[chrome-bridge] extension host disconnected from agent pipe");
         for (_, tx) in pending.drain() {
-            let _ = tx.send(Err("bridge disconnected".into()));
+            let _ = tx.send(Err(MSG_BRIDGE_OFFLINE.to_string()));
         }
     }
 }

@@ -208,7 +208,7 @@ impl RecorderApp {
         let (tx, rx) = mpsc::channel();
         self.replay_rx = Some(rx);
         self.busy = BusyMode::Replaying;
-        self.show_toast(format!("Đang chạy lại «{name}»…"), true);
+        self.show_toast(format!("Chạy lại «{name}» — chuyển sang cửa sổ đích trong 2 giây"), true);
 
         std::thread::spawn(move || {
             let outcome = run_replay(&path);

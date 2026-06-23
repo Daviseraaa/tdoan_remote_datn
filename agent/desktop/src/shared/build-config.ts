@@ -14,7 +14,7 @@ export type BuildEnvKey = (typeof BUILD_ENV_KEYS)[number];
 
 export const BUILD_ENV: Record<BuildEnvKey, string> = {
   SERVER_WS_URL: 'wss://api.stationhub.io.vn',
-  AGENT_VERSION: '1.1.0',
+  AGENT_VERSION: '1.0.0',
   PUBLIC_IP_LOOKUP_URL: 'https://api.ipify.org',
   LOG_LEVEL: 'info',
 };

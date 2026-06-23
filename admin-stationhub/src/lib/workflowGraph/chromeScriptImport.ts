@@ -13,7 +13,7 @@ export type BuiltWorkflowNode = {
   data: WfNodeData;
 };
 
-const NODE_X_SPACING = 300;
+export { NODE_X_SPACING } from './layout';
 
 export function scriptUrlPattern(script: ChromeScript): string | undefined {
   const raw = script.startUrl?.trim();
@@ -78,7 +78,7 @@ export function chromeScriptStepToWfNodeData(
     config: {
       agentId,
       taskType: 'CHROME_EXTENSION',
-      command: '[]',
+      command: '',
       payload,
       title: label,
       timeout,
@@ -111,9 +111,23 @@ export function buildWorkflowNodesFromChromeScript(
   });
 }
 
-export { NODE_X_SPACING };
+export function isChromeReplayCommand(command?: string, payload?: unknown): boolean {
+  const p = payload as Record<string, unknown> | null | undefined;
+  if (p && typeof p.action === 'string') return false;
 
-export function isChromeReplayCommand(command?: string): boolean {
   const cmd = (command ?? '').trim();
-  return cmd.startsWith('[') || cmd.startsWith('{');
+  if (!cmd.startsWith('[') && !cmd.startsWith('{')) return false;
+  if (cmd === '[]' || cmd === '{}') return false;
+
+  try {
+    const v = JSON.parse(cmd) as unknown;
+    if (Array.isArray(v)) return v.length > 0;
+    if (v && typeof v === 'object') {
+      const steps = (v as { steps?: unknown[] }).steps;
+      return Array.isArray(steps) && steps.length > 0;
+    }
+  } catch {
+    return cmd.length > 2;
+  }
+  return false;
 }
