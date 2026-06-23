@@ -23,10 +23,7 @@ export type EntryTriggerDraft = {
   variableArgsText: string;
 };
 
-/** Patch trigger canvas — `variableArgsCommitted` = blur ô tham số lệnh. */
-export type EntryTriggerPatch = Partial<EntryTriggerDraft> & {
-  variableArgsCommitted?: boolean;
-};
+export type EntryTriggerPatch = Partial<EntryTriggerDraft>;
 
 export function defaultEntryTriggerDraft(): EntryTriggerDraft {
   return {
@@ -85,10 +82,16 @@ export function draftFromWorkflowTrigger(tr: WorkflowTrigger | null): EntryTrigg
 }
 
 /** Trigger “điểm vào” ưu tiên bản ghi mới nhất (API đã sort desc). */
-export function pickEntryTrigger(triggers: WorkflowTrigger[]): WorkflowTrigger | null {
-  if (!triggers.length) return null;
-  const auto = triggers.find((tr) => tr.type === 'SCHEDULE' || tr.type === 'TELEGRAM');
-  return auto ?? triggers[0];
+export function pickEntryTrigger(
+  triggers: WorkflowTrigger[],
+  workflowId?: string,
+): WorkflowTrigger | null {
+  const scoped = workflowId
+    ? triggers.filter((tr) => tr.workflow?.id === workflowId)
+    : triggers;
+  if (!scoped.length) return null;
+  const auto = scoped.find((tr) => tr.type === 'SCHEDULE' || tr.type === 'TELEGRAM');
+  return auto ?? scoped[0];
 }
 
 export function entryTriggerNodeLabel(draft: EntryTriggerDraft): string {

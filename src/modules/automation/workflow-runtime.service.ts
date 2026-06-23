@@ -23,7 +23,11 @@ import { TelegramWorkflowProgressService } from '../triggers/telegram/telegram-w
 import { AutomationService, type WorkflowStepResult } from './automation.service';
 import { getStartStepIds, buildAdjacency } from './workflow-runtime/graph-utils';
 import { resolveWorkflowGraphEdges } from './workflow-graph';
-import { stripInternalWorkflowVars } from './workflow-variables';
+import {
+  createWorkflowRunEnvelope,
+  mergeWorkflowRunEnvelopeVars,
+  stripInternalWorkflowVars,
+} from './workflow-variables';
 
 @Injectable()
 export class WorkflowRuntimeService {
@@ -86,15 +90,11 @@ export class WorkflowRuntimeService {
       select: { variables: true },
     });
     const prev =
-      run?.variables &&
-      typeof run.variables === 'object' &&
-      !Array.isArray(run.variables)
-        ? { ...(run.variables as Record<string, unknown>) }
-        : {};
+      run?.variables ?? {};
 
     await this.prisma.workflowRun.update({
       where: { id: workflowRunId },
-      data: { variables: { ...prev, ...snap } as object },
+      data: { variables: mergeWorkflowRunEnvelopeVars(prev, snap) as object },
     });
   }
 
@@ -132,7 +132,10 @@ export class WorkflowRuntimeService {
         workflowId,
         userId,
         status: WorkflowRunStatus.RUNNING,
-        variables: opts.variables as object,
+        variables: createWorkflowRunEnvelope(opts.variables, {
+          type: opts.triggerType,
+          payload: opts.triggerPayload,
+        }) as object,
         triggerId: opts.triggerId,
         triggerType: opts.triggerType,
         triggerPayload: opts.triggerPayload as object,

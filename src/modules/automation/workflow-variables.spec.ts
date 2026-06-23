@@ -1,8 +1,11 @@
 import {
+  buildRunScope,
   buildStepOutput,
+  createWorkflowRunEnvelope,
   evaluateWorkflowVariableCondition,
   extractExcelRowsFromTaskResult,
   mergeScopes,
+  parseWorkflowVariables,
   parseTaskResult,
   publishStepOutput,
   resolveOutputKey,
@@ -54,6 +57,32 @@ describe('workflow-variables', () => {
     expect(resolveTemplateString('chat {{telegram.chatId}}', scope)).toBe('chat 99');
   });
 
+  it('buildRunScope supports run envelope with trigger payload', () => {
+    const scope = buildRunScope(
+      createWorkflowRunEnvelope(
+        { API_URL: 'https://example.com' },
+        {
+          type: 'TELEGRAM',
+          payload: { telegram: { userId: '42', chatId: '99' } },
+        },
+      ),
+    );
+    expect(scope.workflow.API_URL).toBe('https://example.com');
+    expect(scope.telegram?.userId).toBe('42');
+    expect(scope.telegram?.chatId).toBe('99');
+  });
+
+  it('parseWorkflowVariables reads vars from run envelope', () => {
+    expect(
+      parseWorkflowVariables(
+        createWorkflowRunEnvelope(
+          { projectId: 'abc' },
+          { type: 'SCHEDULE', payload: { schedule: { kind: 'DAILY' } } },
+        ),
+      ),
+    ).toEqual({ projectId: 'abc' });
+  });
+
   it('parses task result json', () => {
     const p = parseTaskResult(
       JSON.stringify({ stdout: 'out', stderr: 'err', exitCode: 0 }),
@@ -88,6 +117,21 @@ describe('workflow-variables', () => {
     expect(m.steps.a?.stdout).toBe('a');
     expect(m.steps.b?.stdout).toBe('b');
     expect(m.prev?.stdout).toBe('b');
+  });
+
+  it('mergeScopes preserves telegram and schedule scope', () => {
+    const a = {
+      ...scopeFromContext({ base: 1 }, {}),
+      telegram: { userId: '42', chatId: '99' },
+    };
+    const b = {
+      ...scopeFromContext({}, {}),
+      schedule: { cron: '0 8 * * *' },
+    };
+    const m = mergeScopes([a, b]);
+    expect(m.telegram?.userId).toBe('42');
+    expect(m.telegram?.chatId).toBe('99');
+    expect(m.schedule?.cron).toBe('0 8 * * *');
   });
 
   it('steps.*.stdout falls back to result when stdout empty', () => {

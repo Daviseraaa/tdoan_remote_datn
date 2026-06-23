@@ -65,8 +65,8 @@ export function useUserDashboard(enabled: boolean) {
   });
 
   const recentTasks = useQuery({
-    queryKey: queryKeys.tasks(false, { page: 1, limit: 8 }),
-    queryFn: () => tasksApi.listTasks(false, { page: 1, limit: 8 }),
+    queryKey: queryKeys.tasks(false, { page: 1, limit: 100 }),
+    queryFn: () => tasksApi.listTasks(false, { page: 1, limit: 100 }),
     refetchInterval: enabled ? 10_000 : false,
     enabled,
     ...dashboardQueryDefaults,

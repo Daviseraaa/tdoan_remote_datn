@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useWorkflowDetail, useWorkflowMutations } from '@/src/hooks/useWorkflows';
 import { useAgentsList } from '@/src/hooks/useAgents';
 import { apiErrorMessage } from '@/src/lib/api';
@@ -17,9 +17,13 @@ import {
   stepRunsToExecuteResult,
 } from '@/src/lib/workflowRunStatus';
 import * as workflowsApi from '@/src/api/workflows';
+import * as triggersApi from '@/src/api/triggers';
 import {
   type EntryTriggerDraft,
+  defaultEntryTriggerDraft,
+  draftFromWorkflowTrigger,
   persistEntryTrigger,
+  pickEntryTrigger,
 } from '@/src/lib/workflowEntryTrigger';
 
 export type WorkflowSavePayload = {
@@ -46,6 +50,7 @@ export function useWorkflowEditor(workflowId: string) {
   const [draft, setDraft] = useState<Workflow | null>(null);
   const [isDirty, setIsDirty] = useState(false);
   const [defaultAgentId, setDefaultAgentId] = useState('');
+  const [entryTriggerDraft, setEntryTriggerDraft] = useState<EntryTriggerDraft>(defaultEntryTriggerDraft);
   const [error, setError] = useState('');
   const [saveOk, setSaveOk] = useState(false);
   const [running, setRunning] = useState(false);
@@ -61,6 +66,17 @@ export function useWorkflowEditor(workflowId: string) {
   const { data: detail, isFetching: detailLoading, isError: detailError } = useWorkflowDetail(
     workflowId || null,
   );
+  const {
+    data: workflowTriggers,
+    isPending: triggerPending,
+    isFetching: triggerFetching,
+  } = useQuery({
+    queryKey: ['workflow-triggers', workflowId],
+    queryFn: () => triggersApi.listTriggers(workflowId),
+    enabled: Boolean(workflowId),
+    staleTime: 0,
+    refetchOnMount: 'always',
+  });
 
   const agents = useMemo(
     () => filterAgentsByCluster(agentsPage?.items ?? [], 'all'),
@@ -79,6 +95,7 @@ export function useWorkflowEditor(workflowId: string) {
     setExecutionResult(null);
     setRunStatusByStepId({});
     setActiveRunId(null);
+    setEntryTriggerDraft(defaultEntryTriggerDraft());
     setError('');
     setGraphReloadToken((n) => n + 1);
   }, [workflowId]);
@@ -90,6 +107,15 @@ export function useWorkflowEditor(workflowId: string) {
       setGraphReloadToken((n) => n + 1);
     }
   }, [detail, workflowId, isDirty]);
+
+  useEffect(() => {
+    if (!workflowId || triggerPending) return;
+    if (triggerFetching && !(workflowTriggers?.length)) return;
+    if (isDirty) return;
+    setEntryTriggerDraft(
+      draftFromWorkflowTrigger(pickEntryTrigger(workflowTriggers ?? [], workflowId)),
+    );
+  }, [workflowId, workflowTriggers, triggerPending, triggerFetching, isDirty]);
 
   useEffect(() => {
     if (!agents.length) return;
@@ -104,6 +130,11 @@ export function useWorkflowEditor(workflowId: string) {
   }, [agents, detail, workflowId, isDirty, graphReloadToken]);
 
   const markDirty = useCallback(() => setIsDirty(true), []);
+
+  const patchEntryTrigger = useCallback((patch: Partial<EntryTriggerDraft>) => {
+    setEntryTriggerDraft((prev) => ({ ...prev, ...patch }));
+    setIsDirty(true);
+  }, []);
 
   const importFromConfigFile = useCallback(
     (file: WorkflowConfigFile) => {
@@ -174,22 +205,28 @@ export function useWorkflowEditor(workflowId: string) {
             steps: payload.steps,
           },
         });
-        if (payload.entryTrigger) {
-          await persistEntryTrigger(draft.id, payload.entryTrigger);
-          await queryClient.invalidateQueries({ queryKey: ['workflow-triggers'] });
+        let entryTrigger = entryTriggerDraft;
+        if (entryTriggerDraft) {
+          entryTrigger = await persistEntryTrigger(draft.id, entryTriggerDraft);
+          const triggers = await triggersApi.listTriggers(draft.id);
+          queryClient.setQueryData(['workflow-triggers', draft.id], triggers);
+          entryTrigger = draftFromWorkflowTrigger(
+            pickEntryTrigger(triggers, draft.id),
+          );
         }
         setDraft(saved);
+        setEntryTriggerDraft(entryTrigger);
         setIsDirty(false);
         setGraphReloadToken((n) => n + 1);
         setSaveOk(true);
         window.setTimeout(() => setSaveOk(false), 2000);
-        return saved;
+        return { workflow: saved, entryTrigger };
       } catch (err) {
         setError(apiErrorMessage(err));
         return null;
       }
     },
-    [draft, update, queryClient],
+    [draft, update, queryClient, entryTriggerDraft],
   );
 
   const run = useCallback(
@@ -208,7 +245,7 @@ export function useWorkflowEditor(workflowId: string) {
       if (isDirty) {
         const saved = await save(payload);
         if (!saved) return;
-        wf = saved;
+        wf = saved.workflow;
       }
 
       setRunning(true);
@@ -261,6 +298,9 @@ export function useWorkflowEditor(workflowId: string) {
     isDirty,
     markDirty,
     patchMeta,
+    entryTriggerDraft,
+    patchEntryTrigger,
+    triggerLoading: triggerPending || (triggerFetching && !(workflowTriggers?.length)),
     save,
     run,
     deleteActive,

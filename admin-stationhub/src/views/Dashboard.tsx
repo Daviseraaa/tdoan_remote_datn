@@ -30,6 +30,7 @@ import {
   TASK_TREND_RANGES,
   taskTrendRangeLabel,
   taskTrendToChartData,
+  type TaskTrendPoint,
   type TaskTrendRange,
 } from '@/src/lib/taskTrend';
 import {
@@ -51,10 +52,88 @@ const DashboardTaskChart = lazy(
   () => import('@/src/components/dashboard/DashboardTaskChart'),
 );
 
+function buildUserTaskTrend(
+  tasks: Array<{
+    status: string;
+    completedAt?: string | null;
+    updatedAt?: string;
+    createdAt?: string;
+  }>,
+): TaskTrendPoint[] {
+  const bucketMs = 5 * 60 * 1000;
+  const now = Date.now();
+  const start = now - 7 * 24 * 60 * 60 * 1000;
+  const buckets = new Map<number, { completed: number; failed: number }>();
+
+  for (let t = Math.floor(start / bucketMs) * bucketMs; t <= now; t += bucketMs) {
+    buckets.set(t, { completed: 0, failed: 0 });
+  }
+
+  for (const task of tasks) {
+    const at = task.completedAt || task.updatedAt || task.createdAt;
+    if (!at) continue;
+    const ts = new Date(at).getTime();
+    if (!Number.isFinite(ts) || ts < start) continue;
+
+    const key = Math.floor(ts / bucketMs) * bucketMs;
+    const bucket = buckets.get(key);
+    if (!bucket) continue;
+
+    if (task.status === 'COMPLETED') bucket.completed += 1;
+    if (task.status === 'FAILED' || task.status === 'TIMEOUT') bucket.failed += 1;
+  }
+
+  return [...buckets.entries()].map(([ts, counts]) => {
+    const d = new Date(ts);
+    return {
+      at: d.toISOString(),
+      date: `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`,
+      completed: counts.completed,
+      failed: counts.failed,
+    };
+  });
+}
+
 function ChartSkeleton() {
   return (
     <div className="h-full w-full flex items-center justify-center text-on-surface-variant">
       <Loader2 size={24} className="animate-spin text-primary" />
+    </div>
+  );
+}
+
+function MetricCardSkeleton({ withIcon }: { withIcon?: boolean }) {
+  return (
+    <div
+      className="glass-card p-3 sm:p-5 rounded-2xl flex flex-col gap-1.5 sm:gap-2 min-w-0 animate-pulse"
+      aria-hidden
+    >
+      <div className="flex justify-between items-start gap-2">
+        <div className="h-3 w-20 sm:w-24 rounded-md bg-white/10" />
+        {withIcon ? (
+          <div className="h-4 w-4 rounded bg-white/10 shrink-0" />
+        ) : (
+          <div className="h-4 w-10 rounded-full bg-white/5 shrink-0" />
+        )}
+      </div>
+      <div className="h-7 sm:h-9 w-14 sm:w-20 rounded-lg bg-white/10 mt-0.5 sm:mt-1" />
+      <div className="h-2.5 w-28 rounded bg-white/5 mt-1" />
+    </div>
+  );
+}
+
+function EventLogSkeleton() {
+  return (
+    <div className="space-y-4 sm:space-y-5 animate-pulse" aria-hidden>
+      {Array.from({ length: 4 }).map((_, i) => (
+        <div key={i} className="flex gap-3 sm:gap-4 min-w-0">
+          <div className="w-8 h-8 rounded-full bg-white/10 shrink-0" />
+          <div className="flex-1 space-y-2 pb-2 min-w-0">
+            <div className="h-3.5 w-3/4 max-w-[200px] rounded bg-white/10" />
+            <div className="h-2.5 w-1/2 max-w-[140px] rounded bg-white/5" />
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
@@ -217,14 +296,19 @@ export default function Dashboard() {
     }
     const agentsTotal = dash.agentsPreview?.data?.meta.total ?? 0;
     const wfTotal = dash.workflowsCount?.data?.meta.total ?? 0;
+    const userAgents = dash.agentsPreview?.data?.items ?? [];
+    const onlineAgents = userAgents.filter(
+      (agent) => agent.status === 'ONLINE' || agent.status === 'BUSY',
+    ).length;
+    const recentTasks = dash.recentTasks?.data?.items ?? [];
     return {
       totalAgents: String(agentsTotal),
-      onlineAgents: '—',
+      onlineAgents: String(onlineAgents),
       runningTasks: String(
-        dash.recentTasks?.data?.items.filter((t) => t.status === 'RUNNING').length ?? 0,
+        recentTasks.filter((t) => t.status === 'RUNNING').length,
       ),
       failedTasks: String(
-        dash.recentTasks?.data?.items.filter((t) => t.status === 'FAILED').length ?? 0,
+        recentTasks.filter((t) => t.status === 'FAILED' || t.status === 'TIMEOUT').length,
       ).padStart(2, '0'),
       workflows: String(wfTotal),
     };
@@ -233,6 +317,11 @@ export default function Dashboard() {
   const chartData = useMemo(() => {
     if (dash.mode === 'admin' && dash.stats.data?.taskTrend?.length) {
       const filtered = filterTaskTrendByRange(dash.stats.data.taskTrend, taskTrendRange);
+      return taskTrendToChartData(filtered, taskTrendRange);
+    }
+    if (dash.mode === 'user') {
+      const trend = buildUserTaskTrend(dash.recentTasks.data?.items ?? []);
+      const filtered = filterTaskTrendByRange(trend, taskTrendRange);
       return taskTrendToChartData(filtered, taskTrendRange);
     }
     return [{ time: '—', success: 0, failure: 0 }];
@@ -293,9 +382,24 @@ export default function Dashboard() {
               ? ((dash.stats.data.agents.online / dash.stats.data.agents.total) * 100).toFixed(1)
               : 0,
         })
-      : undefined;
+      : dash.mode === 'user'
+        ? t('dashboard.availability', {
+            n:
+              allHealthAgents.length > 0
+                ? ((healthCounts.online / allHealthAgents.length) * 100).toFixed(1)
+                : 0,
+          })
+        : undefined;
 
   const agentsFleetHref = `/agents${agentsPageSearchParams(statusFilter, clusterFilter)}`;
+
+  const isUserDash = dash.mode === 'user';
+  const userAgentsLoading =
+    isUserDash && dash.agentsPreview.isPending && !dash.agentsPreview.data;
+  const userWorkflowsLoading =
+    isUserDash && dash.workflowsCount.isPending && !dash.workflowsCount.data;
+  const userTasksLoading =
+    isUserDash && dash.recentTasks.isPending && !dash.recentTasks.data;
 
   return (
     <motion.div className="space-y-6 sm:space-y-8 pb-12 min-w-0 max-w-full">
@@ -309,44 +413,66 @@ export default function Dashboard() {
       </motion.div>
 
       <section className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
-        <MetricCard
-          label={t('dashboard.totalAgents')}
-          value={metrics.totalAgents}
-          trend={metrics.agentsTrend}
-          subValue={t('dashboard.fleetTotal')}
-        />
-        <MetricCard
-          label={t('dashboard.onlineAgents')}
-          value={
-            dash.mode === 'admin' ? String(dash.stats.data?.agents.online ?? t('common.emDash')) : metrics.onlineAgents
-          }
-          subValue={availability ?? t('dashboard.tenantScope')}
-          colorClass="text-on-surface"
-        />
-        <MetricCard
-          label={t('dashboard.runningTasks')}
-          value={metrics.runningTasks}
-          subValue={t('dashboard.activeNow')}
-          colorClass="text-secondary"
-          icon={Activity}
-        />
-        <MetricCard
-          label={t('dashboard.failedTasks')}
-          value={metrics.failedTasks}
-          trend={metrics.failedTrend}
-          subValue={t('dashboard.last24h')}
-          colorClass="text-error"
-        />
-        <MetricCard
-          label={t('dashboard.workflows')}
-          value={metrics.workflows}
-          subValue={
-            dash.mode === 'admin'
-              ? t('dashboard.workflowsActiveSub', { n: dash.stats.data?.workflows.active ?? 0 })
-              : t('dashboard.total')
-          }
-          colorClass="text-tertiary"
-        />
+        {userAgentsLoading ? (
+          <MetricCardSkeleton />
+        ) : (
+          <MetricCard
+            label={t('dashboard.totalAgents')}
+            value={metrics.totalAgents}
+            trend={metrics.agentsTrend}
+            subValue={t('dashboard.fleetTotal')}
+          />
+        )}
+        {userAgentsLoading ? (
+          <MetricCardSkeleton />
+        ) : (
+          <MetricCard
+            label={t('dashboard.onlineAgents')}
+            value={
+              dash.mode === 'admin'
+                ? String(dash.stats.data?.agents.online ?? t('common.emDash'))
+                : metrics.onlineAgents
+            }
+            subValue={availability ?? t('dashboard.tenantScope')}
+            colorClass="text-on-surface"
+          />
+        )}
+        {userTasksLoading ? (
+          <MetricCardSkeleton withIcon />
+        ) : (
+          <MetricCard
+            label={t('dashboard.runningTasks')}
+            value={metrics.runningTasks}
+            subValue={t('dashboard.activeNow')}
+            colorClass="text-secondary"
+            icon={Activity}
+          />
+        )}
+        {userTasksLoading ? (
+          <MetricCardSkeleton />
+        ) : (
+          <MetricCard
+            label={t('dashboard.failedTasks')}
+            value={metrics.failedTasks}
+            trend={metrics.failedTrend}
+            subValue={t('dashboard.last24h')}
+            colorClass="text-error"
+          />
+        )}
+        {userWorkflowsLoading ? (
+          <MetricCardSkeleton />
+        ) : (
+          <MetricCard
+            label={t('dashboard.workflows')}
+            value={metrics.workflows}
+            subValue={
+              dash.mode === 'admin'
+                ? t('dashboard.workflowsActiveSub', { n: dash.stats.data?.workflows.active ?? 0 })
+                : t('dashboard.total')
+            }
+            colorClass="text-tertiary"
+          />
+        )}
       </section>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6">
@@ -357,7 +483,7 @@ export default function Dashboard() {
               <p className="text-xs text-on-surface-variant mt-0.5">
                 {dash.mode === 'admin'
                   ? `${taskTrendRangeLabel(taskTrendRange)} · ${t('time.filteredFrom7Day')}`
-                  : t('dashboard.adminOnlyChart')}
+                  : `${taskTrendRangeLabel(taskTrendRange)} · ${t('dashboard.tenantScope')}`}
               </p>
             </div>
             <div className="flex flex-wrap p-1 bg-surface-container-high rounded-xl gap-1 w-full sm:w-auto">
@@ -366,13 +492,11 @@ export default function Dashboard() {
                   key={range}
                   type="button"
                   onClick={() => setTaskTrendRange(range)}
-                  disabled={dash.mode !== 'admin'}
                   className={cn(
                     'flex-1 sm:flex-none px-2.5 sm:px-3 py-1.5 rounded-lg font-mono text-[10px] font-bold transition-all min-w-[2.75rem]',
                     range === taskTrendRange
                       ? 'bg-primary text-on-primary shadow-lg shadow-primary/20'
                       : 'text-on-surface-variant hover:text-on-surface',
-                    dash.mode !== 'admin' && 'opacity-40 cursor-not-allowed',
                   )}
                 >
                   {range}
@@ -381,9 +505,13 @@ export default function Dashboard() {
             </div>
           </div>
           <div className="h-[220px] sm:h-[300px] lg:h-[340px] w-full min-w-0">
-            <Suspense fallback={<ChartSkeleton />}>
-              <DashboardTaskChart data={chartData} />
-            </Suspense>
+            {isUserDash && userTasksLoading ? (
+              <ChartSkeleton />
+            ) : (
+              <Suspense fallback={<ChartSkeleton />}>
+                <DashboardTaskChart data={chartData} />
+              </Suspense>
+            )}
           </div>
         </section>
 
@@ -395,28 +523,41 @@ export default function Dashboard() {
             </button>
           </motion.div>
           <div className="flex-1 space-y-4 sm:space-y-5 lg:max-h-none lg:overflow-visible">
-            {(eventLogs.length
-              ? eventLogs
-              : [{ icon: User, color: 'text-on-surface-variant', title: t('dashboard.noRecentEvents'), meta: t('common.emDash') }]
-            ).map((log, i) => (
-              <div key={i} className="flex gap-3 sm:gap-4 group cursor-default min-w-0">
-                <div className="flex flex-col items-center">
-                  <motion.div
-                    className={cn(
-                      'w-8 h-8 rounded-full bg-white/5 flex items-center justify-center shrink-0 transition-all group-hover:scale-110',
-                      log.color,
-                    )}
-                  >
-                    <log.icon size={16} />
-                  </motion.div>
-                  {i < 3 && <div className="w-px h-full bg-white/5 mt-2" />}
+            {isUserDash && userTasksLoading ? (
+              <EventLogSkeleton />
+            ) : (
+              (eventLogs.length
+                ? eventLogs
+                : [
+                    {
+                      icon: User,
+                      color: 'text-on-surface-variant',
+                      title: t('dashboard.noRecentEvents'),
+                      meta: t('common.emDash'),
+                    },
+                  ]
+              ).map((log, i) => (
+                <div key={i} className="flex gap-3 sm:gap-4 group cursor-default min-w-0">
+                  <div className="flex flex-col items-center">
+                    <motion.div
+                      className={cn(
+                        'w-8 h-8 rounded-full bg-white/5 flex items-center justify-center shrink-0 transition-all group-hover:scale-110',
+                        log.color,
+                      )}
+                    >
+                      <log.icon size={16} />
+                    </motion.div>
+                    {i < 3 && <div className="w-px h-full bg-white/5 mt-2" />}
+                  </div>
+                  <div className="flex-1 pb-2 min-w-0">
+                    <p className="text-sm font-semibold text-on-surface truncate">{log.title}</p>
+                    <p className="text-[10px] font-mono text-on-surface-variant opacity-60 mt-0.5 break-words">
+                      {log.meta}
+                    </p>
+                  </div>
                 </div>
-                <div className="flex-1 pb-2 min-w-0">
-                  <p className="text-sm font-semibold text-on-surface truncate">{log.title}</p>
-                  <p className="text-[10px] font-mono text-on-surface-variant opacity-60 mt-0.5 break-words">{log.meta}</p>
-                </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </section>
       </div>

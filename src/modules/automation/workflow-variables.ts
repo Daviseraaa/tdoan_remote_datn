@@ -24,6 +24,16 @@ export type WorkflowRunScope = {
   schedule?: Record<string, unknown>;
 };
 
+export type WorkflowTriggerEnvelope = {
+  type: string;
+  payload: Record<string, unknown>;
+};
+
+export type WorkflowRunEnvelope = {
+  vars: Record<string, unknown>;
+  trigger?: WorkflowTriggerEnvelope;
+};
+
 const TEMPLATE_RE = /\{\{([^}]+)\}\}/g;
 
 /** `excel_data.0.name` hoặc `excel_data[0].name` — hỗ trợ index mảng trong template. */
@@ -65,6 +75,17 @@ function getByPath(root: unknown, path: string): unknown {
     cur = (cur as Record<string, unknown>)[p];
   }
   return cur;
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  return value as Record<string, unknown>;
+}
+
+function isWorkflowRunEnvelope(value: unknown): value is WorkflowRunEnvelope {
+  const rec = asRecord(value);
+  if (!rec) return false;
+  return 'vars' in rec && asRecord(rec.vars) !== null;
 }
 
 function formatValue(value: unknown): string {
@@ -158,10 +179,27 @@ function resolvePath(path: string, scope: WorkflowRunScope): unknown {
 
 /** Scope từ WorkflowRun.variables (workflow + trigger payload). */
 export function buildRunScope(raw: unknown): WorkflowRunScope {
-  const vars =
-    raw && typeof raw === 'object' && !Array.isArray(raw)
-      ? (raw as Record<string, unknown>)
-      : {};
+  if (isWorkflowRunEnvelope(raw)) {
+    const workflow = { ...raw.vars };
+    const triggerPayload = raw.trigger?.payload;
+    const triggerPayloadRecord = asRecord(triggerPayload);
+    const telegram =
+      raw.trigger?.type === 'TELEGRAM'
+        ? asRecord(triggerPayloadRecord?.telegram) ?? triggerPayloadRecord
+        : undefined;
+    const schedule =
+      raw.trigger?.type === 'SCHEDULE'
+        ? asRecord(triggerPayloadRecord?.schedule) ?? triggerPayloadRecord
+        : undefined;
+    return {
+      workflow,
+      steps: {},
+      ...(telegram ? { telegram } : {}),
+      ...(schedule ? { schedule } : {}),
+    };
+  }
+
+  const vars = asRecord(raw) ?? {};
   const { telegram, schedule, ...workflowRest } = vars;
   return {
     workflow: workflowRest,
@@ -172,6 +210,16 @@ export function buildRunScope(raw: unknown): WorkflowRunScope {
     ...(schedule && typeof schedule === 'object' && !Array.isArray(schedule)
       ? { schedule: schedule as Record<string, unknown> }
       : {}),
+  };
+}
+
+export function createWorkflowRunEnvelope(
+  vars: Record<string, unknown>,
+  trigger?: WorkflowTriggerEnvelope,
+): WorkflowRunEnvelope {
+  return {
+    vars,
+    ...(trigger ? { trigger } : {}),
   };
 }
 
@@ -318,8 +366,16 @@ export function buildStepOutput(
 export function mergeScopes(scopes: WorkflowRunScope[]): WorkflowRunScope {
   const workflow: Record<string, unknown> = {};
   const steps: Record<string, StepOutput> = {};
+  let telegram: Record<string, unknown> | undefined;
+  let schedule: Record<string, unknown> | undefined;
   for (const s of scopes) {
     Object.assign(workflow, s.workflow);
+    if (s.telegram && typeof s.telegram === 'object') {
+      telegram = { ...(telegram ?? {}), ...s.telegram };
+    }
+    if (s.schedule && typeof s.schedule === 'object') {
+      schedule = { ...(schedule ?? {}), ...s.schedule };
+    }
     for (const [k, v] of Object.entries(s.steps)) {
       if (steps[k] && steps[k] !== v) {
         // later parent overwrites on join
@@ -331,6 +387,8 @@ export function mergeScopes(scopes: WorkflowRunScope[]): WorkflowRunScope {
     workflow,
     steps,
     prev: pickPrevStep(steps),
+    ...(telegram ? { telegram } : {}),
+    ...(schedule ? { schedule } : {}),
   };
 }
 
@@ -359,10 +417,29 @@ export function publishStepOutput(
 }
 
 export function parseWorkflowVariables(raw: unknown): Record<string, unknown> {
-  if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
-    return raw as Record<string, unknown>;
+  if (isWorkflowRunEnvelope(raw)) {
+    return { ...raw.vars };
   }
-  return {};
+  return asRecord(raw) ?? {};
+}
+
+export function mergeWorkflowRunEnvelopeVars(
+  raw: unknown,
+  varsPatch: Record<string, unknown>,
+): WorkflowRunEnvelope | Record<string, unknown> {
+  if (isWorkflowRunEnvelope(raw)) {
+    return {
+      ...raw,
+      vars: {
+        ...raw.vars,
+        ...varsPatch,
+      },
+    };
+  }
+  return {
+    ...parseWorkflowVariables(raw),
+    ...varsPatch,
+  };
 }
 
 /**

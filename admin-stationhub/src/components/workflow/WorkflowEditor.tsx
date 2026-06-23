@@ -1,5 +1,4 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ReactFlow,
   Background,
@@ -13,7 +12,6 @@ import {
   type Connection,
   type Edge,
   type Node,
-  type NodeDragHandler,
   type OnSelectionChangeParams,
 } from '@xyflow/react';
 import {
@@ -33,17 +31,13 @@ import { workflowNodeTypes } from './workflowNodeTypes';
 import { WorkflowNodePalette } from './WorkflowNodePalette';
 import { WorkflowStepInspector } from './WorkflowStepInspector';
 import { WorkflowTriggerInspector } from './WorkflowTriggerInspector';
-import * as triggersApi from '@/src/api/triggers';
 import {
-  defaultEntryTriggerDraft,
-  draftFromWorkflowTrigger,
   entryTriggerNodeLabel,
   entryTriggerTypeSubtitle,
-  pickEntryTrigger,
   type EntryTriggerDraft,
   type EntryTriggerPatch,
 } from '@/src/lib/workflowEntryTrigger';
-import { parseCommittedTelegramVariableArgNames, parseTelegramVariableArgNames } from '@/src/lib/triggerForm';
+import { parseTelegramVariableArgNames } from '@/src/lib/triggerForm';
 import { WorkflowEdgeInspector } from './WorkflowEdgeInspector';
 import { WorkflowExecutionPanel } from './WorkflowExecutionPanel';
 import { WfEditorShortcutsHint } from './WfEditorShortcutsHint';
@@ -133,9 +127,14 @@ type Props = {
       >
     >,
   ) => void;
+  entryTriggerDraft: EntryTriggerDraft;
+  onEntryTriggerChange: (patch: EntryTriggerPatch) => void;
+  triggerLoading: boolean;
   onDirty: () => void;
   isDirty: boolean;
-  onSave: (payload: WorkflowSavePayload) => Promise<void>;
+  onSave: (
+    payload: WorkflowSavePayload,
+  ) => Promise<{ entryTrigger?: EntryTriggerDraft } | null>;
   onRun: (payload: WorkflowSavePayload) => Promise<void>;
   saving: boolean;
   running: boolean;
@@ -180,6 +179,9 @@ export function WorkflowEditor({
   defaultAgentId,
   onDefaultAgentIdChange,
   onMetaChange,
+  entryTriggerDraft,
+  onEntryTriggerChange,
+  triggerLoading,
   onDirty,
   isDirty,
   onSave,
@@ -201,7 +203,6 @@ export function WorkflowEditor({
   isFullscreen = false,
 }: Props) {
   const isLgUp = useMediaQuery('(min-width: 1024px)');
-  const queryClient = useQueryClient();
   const [propertiesOpen, setPropertiesOpen] = useState(false);
   const [executionOpen, setExecutionOpen] = useState(false);
   const [paletteCollapsed, setPaletteCollapsed] = useState(false);
@@ -210,17 +211,10 @@ export function WorkflowEditor({
   const [rfInstance, setRfInstance] = useState<{ fitView: (o?: { padding?: number }) => void } | null>(
     null,
   );
-  const [entryTrigger, setEntryTrigger] = useState<EntryTriggerDraft>(() => defaultEntryTriggerDraft());
-  const entryTriggerSyncSig = useRef('');
-  const telegramVarNamesRef = useRef<string[]>([]);
+  const entryTrigger = entryTriggerDraft;
   const nodeClipboardRef = useRef<WfNodeClipboard | null>(null);
   const pasteGenerationRef = useRef(0);
-
-  const { data: workflowTriggers } = useQuery({
-    queryKey: ['workflow-triggers', workflow.id],
-    queryFn: () => triggersApi.listTriggers(workflow.id),
-    enabled: Boolean(workflow.id),
-  });
+  const triggerHydrating = triggerLoading;
 
   const graphFp = useMemo(() => workflowGraphFingerprint(workflow), [workflow]);
 
@@ -273,121 +267,32 @@ export function WorkflowEditor({
     if (executionResult || running) setExecutionOpen(true);
   }, [executionResult, running]);
 
-  const applyEntryTriggerToCanvas = useCallback(
-    (draft: EntryTriggerDraft) => {
-      const label = entryTriggerNodeLabel(draft);
-      setNodes((nds) =>
-        nds.map((n) =>
-          n.id === WF_TRIGGER_ID
-            ? {
-                ...n,
-                data: {
-                  ...(n.data as WfNodeData),
-                  label,
-                  config: {
-                    ...(n.data as WfNodeData).config,
-                    triggerType: draft.type,
-                  },
+  const renderNodes = useMemo(
+    () =>
+      nodes.map((n) =>
+        n.id === WF_TRIGGER_ID
+          ? {
+              ...n,
+              data: {
+                ...(n.data as WfNodeData),
+                label: entryTriggerNodeLabel(entryTrigger),
+                config: {
+                  ...(n.data as WfNodeData).config,
+                  triggerType: entryTrigger.type,
                 },
-              }
-            : n,
-        ),
-      );
-    },
-    [setNodes],
+              },
+            }
+          : n,
+      ),
+    [nodes, entryTrigger],
   );
-
-  useEffect(() => {
-    if (!workflow.id) return;
-    const sig = `${workflow.id}|${graphReloadToken}|${(workflowTriggers ?? []).map((tr) => tr.id).join(',')}`;
-    if (entryTriggerSyncSig.current === sig) return;
-    entryTriggerSyncSig.current = sig;
-    const draft = draftFromWorkflowTrigger(pickEntryTrigger(workflowTriggers ?? []));
-    setEntryTrigger(draft);
-    applyEntryTriggerToCanvas(draft);
-    telegramVarNamesRef.current =
-      draft.type === 'TELEGRAM'
-        ? parseTelegramVariableArgNames(draft.variableArgsText)
-        : [];
-  }, [workflow.id, graphReloadToken, workflowTriggers, applyEntryTriggerToCanvas]);
 
   const patchEntryTrigger = useCallback(
     (patch: EntryTriggerPatch) => {
-      if (patch.type === 'MANUAL') {
-        setEntryTrigger((prev) => {
-          if (prev.triggerId) {
-            void triggersApi.deleteTrigger(prev.triggerId).then(() => {
-              void queryClient.invalidateQueries({ queryKey: ['workflow-triggers', workflow.id] });
-            });
-          }
-          const cleared: EntryTriggerDraft = { ...defaultEntryTriggerDraft(), type: 'MANUAL' };
-          applyEntryTriggerToCanvas(cleared);
-          return cleared;
-        });
-        telegramVarNamesRef.current = [];
-        onDirty();
-        return;
-      }
-
-      const { variableArgsCommitted, ...draftPatch } = patch;
-
-      setEntryTrigger((prev) => {
-        const next = { ...prev, ...draftPatch };
-        applyEntryTriggerToCanvas(next);
-        return next;
-      });
-
-      const variableArgsText =
-        patch.variableArgsText ??
-        (variableArgsCommitted ? entryTrigger.variableArgsText : undefined);
-
-      if (variableArgsText !== undefined) {
-        const nextType = patch.type ?? entryTrigger.type;
-        if (nextType === 'TELEGRAM') {
-          const committed = Boolean(variableArgsCommitted);
-          const names = parseCommittedTelegramVariableArgNames(
-            variableArgsText,
-            committed,
-          );
-          const cur = workflow.variables ?? {};
-          const prevManaged = telegramVarNamesRef.current;
-          const nextVars = { ...cur };
-
-          if (committed) {
-            for (const k of prevManaged) {
-              if (!names.includes(k) && k in nextVars) {
-                delete nextVars[k];
-              }
-            }
-          }
-
-          for (const k of names) {
-            if (!(k in nextVars)) nextVars[k] = '';
-          }
-
-          telegramVarNamesRef.current = names;
-
-          const added = names.some((k) => !(k in cur));
-          const removed =
-            committed && prevManaged.some((k) => !names.includes(k) && k in cur);
-          if (added || removed) {
-            onMetaChange({ variables: nextVars });
-          }
-        }
-      }
-
+      onEntryTriggerChange(patch);
       onDirty();
     },
-    [
-      applyEntryTriggerToCanvas,
-      onDirty,
-      queryClient,
-      workflow.id,
-      workflow.variables,
-      entryTrigger.type,
-      entryTrigger.variableArgsText,
-      onMetaChange,
-    ],
+    [onEntryTriggerChange, onDirty],
   );
 
   const currentPayload = useCallback(
@@ -427,8 +332,8 @@ export function WorkflowEditor({
     [setEdges, onDirty, nodes, edges],
   );
 
-  const onNodeDragStop: NodeDragHandler = useCallback(
-    (_, node) => {
+  const onNodeDragStop = useCallback(
+    (_: React.MouseEvent, node: Node) => {
       setNodes((nds) =>
         nds.map((n) => {
           if (!n.selected && n.id !== node.id) return n;
@@ -1021,7 +926,10 @@ export function WorkflowEditor({
     [selectedEdgeId, edges, setEdges, onDirty],
   );
 
-  const handleSave = () => void onSave(currentPayload());
+  const handleSave = async () => {
+    const result = await onSave(currentPayload());
+    if (result?.entryTrigger) onEntryTriggerChange(result.entryTrigger);
+  };
   const handleRun = () => void onRun(currentPayload());
 
   const handleNormalizeLayout = useCallback(() => {
@@ -1248,7 +1156,7 @@ export function WorkflowEditor({
 
           <button
             type="button"
-            disabled={saving}
+            disabled={saving || triggerHydrating}
             onClick={() => void handleSave()}
             className="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl text-xs font-bold bg-primary/20 text-primary border border-primary/30 disabled:opacity-40 shrink-0"
           >
@@ -1258,7 +1166,7 @@ export function WorkflowEditor({
 
           <button
             type="button"
-            disabled={running || saving}
+            disabled={running || saving || triggerHydrating}
             onClick={() => void handleRun()}
             className={cn(
               'flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl text-xs font-bold shrink-0',
@@ -1353,8 +1261,16 @@ export function WorkflowEditor({
 
         <div className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden relative">
           <div className="flex-1 min-h-0 w-full relative">
+          {triggerHydrating ? (
+            <div className="absolute inset-0 z-20 flex items-center justify-center bg-surface/70 backdrop-blur-[2px]">
+              <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-surface-container/90 px-3 py-2 text-xs font-medium text-on-surface-variant">
+                <Loader2 size={14} className="animate-spin text-primary" />
+                {t('workflows.loadingTrigger')}
+              </div>
+            </div>
+          ) : null}
           <ReactFlow
-            nodes={nodes}
+            nodes={renderNodes}
             edges={flowEdges}
             defaultEdgeOptions={{
               type: WF_EDGE_TYPE,
@@ -1506,6 +1422,7 @@ export function WorkflowEditor({
               ) : isTriggerSelected ? (
                 <WorkflowTriggerInspector
                   draft={entryTrigger}
+                  loading={triggerHydrating}
                   workflowActive={workflow.isActive !== false}
                   workflowId={workflow.id}
                   workflowVariables={workflow.variables}

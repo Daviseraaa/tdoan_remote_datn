@@ -65,6 +65,9 @@ export default function WorkflowEditorPage() {
             defaultAgentId={w.defaultAgentId}
             onDefaultAgentIdChange={w.setDefaultAgentId}
             onMetaChange={w.patchMeta}
+            entryTriggerDraft={w.entryTriggerDraft}
+            onEntryTriggerChange={w.patchEntryTrigger}
+            triggerLoading={w.triggerLoading}
             onDirty={w.markDirty}
             isDirty={w.isDirty}
             onSave={w.save}

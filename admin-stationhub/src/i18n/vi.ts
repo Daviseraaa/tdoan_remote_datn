@@ -835,6 +835,7 @@ export const vi = {
     statusRunning: 'Đang chạy',
     statusIdle: 'Rảnh',
     loadingDetail: 'Đang tải chi tiết…',
+    loadingTrigger: 'Đang tải cấu hình kích hoạt…',
     saveWorkflow: 'Lưu',
     normalizeLayout: 'Chuẩn hóa',
     normalizeLayoutHint: 'Sắp xếp lại khoảng cách và nhánh trên canvas',

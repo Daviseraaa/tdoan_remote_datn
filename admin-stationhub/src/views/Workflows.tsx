@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   AlertCircle,
   Filter,
@@ -42,6 +43,7 @@ const RUN_STATUSES = [
 
 export default function Workflows() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [searchParams] = useSearchParams();
   const [tab, setTab] = useState<WorkflowTab>('list');
   const [page, setPage] = useState(1);
@@ -139,6 +141,8 @@ export default function Workflows() {
   };
 
   const openEditor = (id: string) => {
+    queryClient.removeQueries({ queryKey: ['workflow', id], exact: true });
+    queryClient.removeQueries({ queryKey: ['workflow-triggers', id], exact: true });
     navigate(`/workflows/${id}/edit`);
   };
 

@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { CalendarClock, MessageCircle, PlayCircle } from 'lucide-react';
+import { CalendarClock, Loader2, MessageCircle, PlayCircle } from 'lucide-react';
 import type { ScheduleKind, WorkflowTriggerType } from '@/src/api/triggers';
 import {
   type EntryTriggerDraft,
@@ -21,6 +21,7 @@ const labelCls =
 
 type Props = {
   draft: EntryTriggerDraft;
+  loading?: boolean;
   workflowActive: boolean;
   workflowId?: string;
   workflowVariables?: Record<string, unknown>;
@@ -348,6 +349,7 @@ function TelegramConfig({
 
 export function WorkflowTriggerInspector({
   draft,
+  loading = false,
   workflowActive,
   workflowId,
   workflowVariables,
@@ -363,6 +365,21 @@ export function WorkflowTriggerInspector({
       <h3 className="text-sm font-bold text-on-surface px-0.5">{t('workflows.triggerStartTitle')}</h3>
 
       <WfInspectorBlock tone="properties" className="space-y-3">
+        {loading ? (
+          <div className="space-y-3 animate-pulse" aria-busy>
+            <div className="h-3 w-24 rounded bg-white/10" />
+            <div className="flex flex-wrap gap-2">
+              {TRIGGER_TYPES.map((type) => (
+                <div key={type} className="h-16 w-[88px] rounded-xl bg-white/5 border border-white/10" />
+              ))}
+            </div>
+            <div className="flex items-center gap-2 text-xs text-on-surface-variant">
+              <Loader2 size={14} className="animate-spin text-primary" />
+              {t('workflows.loadingTrigger')}
+            </div>
+          </div>
+        ) : (
+          <>
         <div>
           <FieldLabel>{t('workflows.triggerType')}</FieldLabel>
           <div className="mt-2 flex flex-wrap gap-2">
@@ -394,9 +411,11 @@ export function WorkflowTriggerInspector({
             {t('triggers.workflowInactiveHint')}
           </p>
         ) : null}
+          </>
+        )}
       </WfInspectorBlock>
 
-      {draft.type === 'SCHEDULE' || draft.type === 'TELEGRAM' ? (
+      {!loading && (draft.type === 'SCHEDULE' || draft.type === 'TELEGRAM') ? (
         <WfInspectorBlock tone="config" className="space-y-4">
           {draft.type === 'SCHEDULE' ? (
             <ScheduleConfig draft={draft} onChange={onChange} />

@@ -18,6 +18,8 @@ export function useWorkflowDetail(id: string | null) {
     queryKey: queryKeys.workflow(id ?? ''),
     queryFn: () => workflowsApi.getWorkflow(id!),
     enabled: !!id,
+    staleTime: 0,
+    refetchOnMount: 'always',
   });
 }
 
