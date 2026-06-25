@@ -76,14 +76,13 @@ function buildTelegramRunExample(commandsText: string, variableArgsText: string)
   const base = firstCmd.startsWith('/') ? firstCmd : `/${firstCmd}`;
   const cmd = base.split('@')[0] ?? base;
   const argNames = parseTelegramVariableArgNames(variableArgsText);
-  const samples =
+  const plainSamples =
+    argNames.length > 0 ? argNames.map((_, i) => `bien${i + 1}`) : ['bien1', 'bien2'];
+  const quotedSamples =
     argNames.length > 0
-      ? argNames.map((name, i) => {
-          const label = name || `bien${i + 1}`;
-          return /\s/.test(label) ? `"${label}"` : label;
-        })
-      : ['doc', '"Tin nhắn có dấu cách"'];
-  return `${cmd} ${samples.join(' ')}`.trim();
+      ? argNames.map((_, i) => `"biến ${i + 1}"`)
+      : ['"biến 1"', '"biến 2"'];
+  return `${cmd} ${plainSamples.join(' ')}\nhoặc ${cmd} ${quotedSamples.join(' ')}`.trim();
 }
 
 function ScheduleConfig({
@@ -361,7 +360,7 @@ function TelegramConfig({
           value={draft.variableArgsText}
           onChange={(variableArgsText) => onChange({ variableArgsText })}
         />
-        <p className="text-[10px] font-mono text-cyan-300/75 pt-0.5">
+        <p className="whitespace-pre-line text-[10px] font-mono text-cyan-300/75 pt-0.5">
           {t('workflows.triggerTelegramRunExample', {
             example: buildTelegramRunExample(draft.commandsText, draft.variableArgsText),
           })}

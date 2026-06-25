@@ -1,24 +1,32 @@
 /**
  * Tách tham số sau lệnh Telegram.
- * Hỗ trợ dấu nháy đơn/kép: `/run doc "Tin nhắn có dấu"` → `['doc', 'Tin nhắn có dấu']`.
+ * Hỗ trợ quote ASCII và smart quote từ mobile:
+ * `/run doc "Tin nhắn có dấu"` hoặc `/run doc “Tin nhắn có dấu”`
+ * → `['doc', 'Tin nhắn có dấu']`.
  */
 export function tokenizeTelegramCommandArgs(rest: string): string[] {
   const tokens: string[] = [];
   let i = 0;
   const s = rest.trim();
+  const quotePairs: Record<string, string> = {
+    '"': '"',
+    "'": "'",
+    '“': '”',
+    '‘': '’',
+  };
 
   while (i < s.length) {
     while (i < s.length && /\s/.test(s[i])) i += 1;
     if (i >= s.length) break;
 
     const ch = s[i];
-    if (ch === '"' || ch === "'") {
-      const quote = ch;
+    const quoteEnd = quotePairs[ch];
+    if (quoteEnd) {
       i += 1;
       let buf = '';
       while (i < s.length) {
-        if (s[i] === quote) {
-          if (quote === "'" && i + 1 < s.length && s[i + 1] === "'") {
+        if (s[i] === quoteEnd) {
+          if (quoteEnd === "'" && i + 1 < s.length && s[i + 1] === "'") {
             buf += "'";
             i += 2;
             continue;
@@ -26,7 +34,7 @@ export function tokenizeTelegramCommandArgs(rest: string): string[] {
           i += 1;
           break;
         }
-        if (quote === '"' && s[i] === '\\' && i + 1 < s.length) {
+        if ((quoteEnd === '"' || quoteEnd === '”') && s[i] === '\\' && i + 1 < s.length) {
           i += 1;
           buf += s[i];
           i += 1;

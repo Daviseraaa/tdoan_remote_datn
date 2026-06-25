@@ -44,6 +44,24 @@ describe('telegram-command-args', () => {
     });
   });
 
+  it('keeps smart double-quoted phrase as one arg', () => {
+    expect(
+      extractTelegramCommandArgs('/run doc “Tin nhắn tự động”', '/run'),
+    ).toEqual({
+      args: ['doc', 'Tin nhắn tự động'],
+      argsText: 'doc “Tin nhắn tự động”',
+    });
+  });
+
+  it('keeps smart single-quoted phrase as one arg', () => {
+    expect(
+      extractTelegramCommandArgs("/run doc ‘Tin nhắn tự động’", '/run'),
+    ).toEqual({
+      args: ['doc', 'Tin nhắn tự động'],
+      argsText: "doc ‘Tin nhắn tự động’",
+    });
+  });
+
   it('supports escaped double quotes inside double quotes', () => {
     expect(extractTelegramCommandArgs('/run "say \\"hi\\""', '/run')).toEqual({
       args: ['say "hi"'],
