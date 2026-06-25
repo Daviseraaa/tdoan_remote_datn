@@ -22,6 +22,7 @@ const ICONS: Record<TaskType, LucideIcon> = {
   OPEN_APP: AppWindow,
   OPEN_BROWSER: Globe,
   CLOSE_APP: X,
+  FOCUS_APP: AppWindow,
   CHROME_EXTENSION: Puzzle,
   DESKTOP_AUTOMATION: MousePointer2,
   SCREEN_CAPTURE: Camera,

@@ -28,6 +28,11 @@ pub fn draw(app: &mut RecorderApp, ui: &mut Ui) {
                 &mut app.capture_uia,
                 RichText::new("Bắt UIA khi click (Button, TextBox…)").size(13.0),
             );
+            ui.label(
+                RichText::new("Một số app (Zalo PC…) có thể chặn UIA — tắt nếu ghi bị treo.")
+                    .small()
+                    .color(TEXT_DIM),
+            );
             ui.checkbox(
                 &mut app.show_highlight,
                 RichText::new("Hiện viền phần tử khi ghi").size(13.0),

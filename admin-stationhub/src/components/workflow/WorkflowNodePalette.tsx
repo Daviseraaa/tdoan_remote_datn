@@ -25,7 +25,7 @@ const SHELL_TASK_ITEMS: TaskType[] = ['COMMAND', 'SCRIPT', 'SYSTEM_INFO'];
 const NETWORK_TASK_ITEMS: TaskType[] = ['HTTP_REQUEST', 'TELEGRAM_SEND'];
 
 /** Mở app, tự động hóa desktop, chụp màn hình */
-const DESKTOP_TASK_ITEMS: TaskType[] = ['OPEN_APP', 'CLOSE_APP', 'DESKTOP_AUTOMATION', 'SCREEN_CAPTURE'];
+const DESKTOP_TASK_ITEMS: TaskType[] = ['OPEN_APP', 'FOCUS_APP', 'CLOSE_APP', 'DESKTOP_AUTOMATION', 'SCREEN_CAPTURE'];
 
 /** Trình duyệt & extension Chrome */
 const BROWSER_TASK_ITEMS: TaskType[] = ['OPEN_BROWSER', 'CHROME_EXTENSION'];

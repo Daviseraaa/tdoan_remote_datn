@@ -10,24 +10,27 @@ use windows::Win32::Foundation::{COLORREF, HWND, LPARAM, LRESULT, WPARAM};
 use windows::Win32::Graphics::Gdi::CreateSolidBrush;
 use windows::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows::Win32::UI::WindowsAndMessaging::{
-    CreateWindowExW, DefWindowProcW, RegisterClassW, SetLayeredWindowAttributes,
-    SetWindowPos, ShowWindow, CS_HREDRAW, CS_VREDRAW, HWND_TOPMOST, LWA_ALPHA, SW_HIDE,
-    SW_SHOWNOACTIVATE, WINDOW_EX_STYLE, WINDOW_STYLE, WM_DESTROY, WNDCLASSW, WS_EX_LAYERED,
-    WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_EX_TRANSPARENT, WS_POPUP,
+    CreateWindowExW, DefWindowProcW, RegisterClassW, SetLayeredWindowAttributes, SetWindowPos,
+    ShowWindow, CS_HREDRAW, CS_VREDRAW, HWND_TOPMOST, LWA_ALPHA, SW_HIDE, SW_SHOWNOACTIVATE,
+    WINDOW_EX_STYLE, WINDOW_STYLE, WM_DESTROY, WNDCLASSW, WS_EX_LAYERED, WS_EX_NOACTIVATE,
+    WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_EX_TRANSPARENT, WS_POPUP,
 };
 
-use crate::capture::capture_element_at_point;
+use crate::timed::capture_highlight_target_at_point_timed;
 use crate::screen::physical_cursor_point;
-use crate::util::is_interactive_control;
 
 const BAR_PX: i32 = 3;
 const CLASS_NAME: &str = "StationHub_UiaHighlightBar\0";
 const ACCENT_BGR: u32 = 0x00_F8_BD_38; // #38bdf8
+const WORKER_INTERVAL_MS: u64 = 100;
+const CURSOR_MOVE_THRESHOLD_PX: i32 = 3;
 
 static REGISTERED: AtomicBool = AtomicBool::new(false);
 static OVERLAY: Mutex<Option<BorderOverlay>> = Mutex::new(None);
 static WORKER_STARTED: AtomicBool = AtomicBool::new(false);
 static HIGHLIGHT_ACTIVE: AtomicBool = AtomicBool::new(false);
+static LAST_CURSOR: Mutex<Option<(i32, i32)>> = Mutex::new(None);
+static LAST_BOUNDS: Mutex<Option<(i32, i32, i32, i32)>> = Mutex::new(None);
 
 struct BorderOverlay {
     bars: [isize; 4],
@@ -44,7 +47,7 @@ fn hwnd_to_raw(hwnd: HWND) -> isize {
     hwnd.0 as isize
 }
 
-/// Bật thread cập nhật viền theo con trỏ (~15 fps). Thread sống lâu — bật/tắt bằng `HIGHLIGHT_ACTIVE`.
+/// Bật thread cập nhật viền theo con trỏ (~10 fps). Thread sống lâu — bật/tắt bằng `HIGHLIGHT_ACTIVE`.
 pub fn highlight_worker_start() {
     HIGHLIGHT_ACTIVE.store(true, Ordering::SeqCst);
     if WORKER_STARTED.swap(true, Ordering::SeqCst) {
@@ -58,8 +61,14 @@ pub fn highlight_worker_start() {
                 }
             } else {
                 highlight_clear();
+                if let Ok(mut last) = LAST_CURSOR.lock() {
+                    *last = None;
+                }
+                if let Ok(mut bounds) = LAST_BOUNDS.lock() {
+                    *bounds = None;
+                }
             }
-            thread::sleep(Duration::from_millis(66));
+            thread::sleep(Duration::from_millis(WORKER_INTERVAL_MS));
         }
     });
 }
@@ -67,29 +76,31 @@ pub fn highlight_worker_start() {
 pub fn highlight_worker_stop() {
     HIGHLIGHT_ACTIVE.store(false, Ordering::SeqCst);
     highlight_clear();
+    if let Ok(mut last) = LAST_CURSOR.lock() {
+        *last = None;
+    }
+    if let Ok(mut bounds) = LAST_BOUNDS.lock() {
+        *bounds = None;
+    }
 }
 
 /// Vẽ viền tại (x,y). `prefer_physical_cursor` giống capture.
 pub fn highlight_at_point(x: i32, y: i32, prefer_physical_cursor: bool) -> bool {
-    let Some(uia) = capture_element_at_point(x, y, prefer_physical_cursor) else {
-        highlight_clear();
-        return false;
-    };
-    let target = match uia.get("target") {
-        Some(t) => t,
-        None => {
-            highlight_clear();
-            return false;
-        }
-    };
-    if !is_interactive_control(target) {
-        highlight_clear();
-        return false;
+    if cursor_unchanged(x, y) {
+        return last_bounds_visible();
     }
+    store_cursor(x, y);
+
+    let Some(target) = capture_highlight_target_at_point_timed(x, y, prefer_physical_cursor) else {
+        highlight_clear();
+        store_bounds(None);
+        return false;
+    };
     let bounds = match target.get("bounds") {
         Some(b) => b,
         None => {
             highlight_clear();
+            store_bounds(None);
             return false;
         }
     };
@@ -99,10 +110,40 @@ pub fn highlight_at_point(x: i32, y: i32, prefer_physical_cursor: bool) -> bool 
     let bottom = bounds.get("bottom").and_then(|v| v.as_i64()).unwrap_or(0) as i32;
     if right <= left || bottom <= top {
         highlight_clear();
+        store_bounds(None);
         return false;
     }
+    store_bounds(Some((left, top, right, bottom)));
     highlight_rect(left, top, right, bottom);
     true
+}
+
+fn cursor_unchanged(x: i32, y: i32) -> bool {
+    let Ok(guard) = LAST_CURSOR.lock() else {
+        return false;
+    };
+    guard.is_some_and(|(lx, ly)| {
+        (x - lx).abs() <= CURSOR_MOVE_THRESHOLD_PX && (y - ly).abs() <= CURSOR_MOVE_THRESHOLD_PX
+    })
+}
+
+fn store_cursor(x: i32, y: i32) {
+    if let Ok(mut guard) = LAST_CURSOR.lock() {
+        *guard = Some((x, y));
+    }
+}
+
+fn store_bounds(rect: Option<(i32, i32, i32, i32)>) {
+    if let Ok(mut guard) = LAST_BOUNDS.lock() {
+        *guard = rect;
+    }
+}
+
+fn last_bounds_visible() -> bool {
+    let Ok(guard) = LAST_BOUNDS.lock() else {
+        return false;
+    };
+    guard.is_some()
 }
 
 pub fn highlight_clear() {

@@ -141,7 +141,7 @@ export function WorkflowRunDetailDrawer({ runId, fallback, onClose }: Props) {
                   <Loader2 className="animate-spin w-8 h-8" />
                 </div>
               ) : (
-                <div className="flex-1 overflow-y-auto custom-scrollbar p-4 sm:p-6 min-h-0 flex flex-col gap-6">
+                <div className="flex-1 overflow-y-auto custom-scrollbar p-4 sm:p-6 min-h-0 space-y-6">
                   <div className="rounded-xl border border-white/10 overflow-hidden bg-surface-container-low/20 shrink-0">
                     <DetailRow label={t('workflows.historyDetailRunId')}>
                       <span className="font-mono text-xs break-all">{selected?.id ?? runId}</span>
@@ -179,7 +179,7 @@ export function WorkflowRunDetailDrawer({ runId, fallback, onClose }: Props) {
                       <p className="text-[10px] font-mono font-bold uppercase text-emerald-400 px-4 pt-3">
                         {t('workflows.historyDetailVariables')}
                       </p>
-                      <pre className="text-[11px] font-mono text-on-surface whitespace-pre-wrap break-all max-h-48 overflow-y-auto custom-scrollbar p-4 pt-2">
+                      <pre className="text-[11px] font-mono text-on-surface whitespace-pre-wrap break-all p-4 pt-2">
                         {runVariablesText}
                       </pre>
                     </div>

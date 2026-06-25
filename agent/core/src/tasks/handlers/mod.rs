@@ -3,6 +3,7 @@ pub mod close_app;
 pub mod command;
 pub mod desktop;
 pub mod file_operation;
+pub mod focus_app;
 pub mod http_request;
 pub mod open_app;
 pub mod open_browser;

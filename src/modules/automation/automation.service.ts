@@ -290,6 +290,8 @@ function resolveTaskType(stepType: StepType, config: WorkflowStepConfig): TaskTy
       return TaskType.DESKTOP_AUTOMATION;
     case 'OPEN_APP':
       return TaskType.OPEN_APP;
+    case 'FOCUS_APP':
+      return TaskType.FOCUS_APP;
     case 'CLOSE_APP':
       return TaskType.CLOSE_APP;
     case 'SYSTEM_INFO':
@@ -384,6 +386,7 @@ function resolveCommand(taskType: TaskType, config: WorkflowStepConfig): string 
   if (taskType === TaskType.DESKTOP_AUTOMATION) return cmd || '[]';
   if (taskType === CHROME_EXTENSION_TYPE) return cmd || '[]';
   if (taskType === TaskType.HTTP_REQUEST) return cmd || 'https://example.com/api';
+  if (taskType === TaskType.FOCUS_APP) return cmd || 'focus';
   if (taskType === TaskType.CLOSE_APP) return cmd || 'close';
   if (taskType === TaskType.TELEGRAM_SEND) return cmd || 'send';
   return cmd;
@@ -445,6 +448,31 @@ function normalizeCloseAppPayload(
       : [];
     return { mode: 'pids', pids };
   }
+  if (payload.pid != null && typeof payload.pid === 'string') {
+    const resolved = resolveTemplateString(payload.pid, scope).trim();
+    const n = parsePidValue(resolved);
+    if (n != null) return { ...payload, pid: n };
+  }
+  if (typeof payload.processName === 'string') {
+    return {
+      ...payload,
+      processName: resolveTemplateString(payload.processName, scope),
+    };
+  }
+  if (typeof payload.windowTitle === 'string') {
+    return {
+      ...payload,
+      windowTitle: resolveTemplateString(payload.windowTitle, scope),
+    };
+  }
+  return payload;
+}
+
+function normalizeFocusAppPayload(
+  payload: Record<string, unknown> | undefined,
+  scope: ReturnType<typeof buildRunScope>,
+): Record<string, unknown> | undefined {
+  if (!payload) return payload;
   if (payload.pid != null && typeof payload.pid === 'string') {
     const resolved = resolveTemplateString(payload.pid, scope).trim();
     const n = parsePidValue(resolved);
@@ -1098,6 +1126,9 @@ export class AutomationService {
     let payload = resolvePayload(config.payload, scope) as
       | Record<string, unknown>
       | undefined;
+    if (taskType === TaskType.FOCUS_APP) {
+      payload = normalizeFocusAppPayload(payload, scope);
+    }
     if (taskType === TaskType.CLOSE_APP) {
       payload = normalizeCloseAppPayload(payload, scope);
     }
@@ -1159,6 +1190,7 @@ export class AutomationService {
     if (
       taskType !== TaskType.SYSTEM_INFO &&
       taskType !== TaskType.SCREEN_CAPTURE &&
+      taskType !== TaskType.FOCUS_APP &&
       taskType !== TaskType.CLOSE_APP &&
       taskType !== TaskType.TELEGRAM_SEND &&
       taskType !== CHROME_EXTENSION_TYPE &&

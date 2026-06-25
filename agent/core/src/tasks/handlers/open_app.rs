@@ -27,6 +27,24 @@ fn extract_open_target(t: &TaskExecute) -> String {
     t.command.trim().to_string()
 }
 
+fn extract_reuse_existing(t: &TaskExecute) -> bool {
+    t.payload
+        .as_ref()
+        .and_then(|v| v.as_object())
+        .and_then(|p| p.get("reuseExisting"))
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false)
+}
+
+fn extract_maximize_window(t: &TaskExecute) -> bool {
+    t.payload
+        .as_ref()
+        .and_then(|v| v.as_object())
+        .and_then(|p| p.get("maximizeWindow"))
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false)
+}
+
 #[async_trait]
 impl TaskHandler for Handler {
     fn task_type(&self) -> &'static str {
@@ -35,6 +53,8 @@ impl TaskHandler for Handler {
 
     async fn run(&self, ctx: &TaskContext<'_>, task: &TaskExecute) -> TaskOutcome {
         let target = extract_open_target(task);
+        let reuse_existing = extract_reuse_existing(task);
+        let maximize_window = extract_maximize_window(task);
         if target.is_empty() {
             return (
                 false,
@@ -43,7 +63,12 @@ impl TaskHandler for Handler {
                 None,
             );
         }
-        match ctx.platform.open_app().resolve_and_launch(&target).await {
+        match ctx
+            .platform
+            .open_app()
+            .resolve_and_launch(&target, reuse_existing, maximize_window)
+            .await
+        {
             Ok(s) => (
                 true,
                 0,
@@ -51,9 +76,12 @@ impl TaskHandler for Handler {
                 Some(json!({
                     "method": s.method,
                     "launched": s.launched,
+                    "reusedExisting": s.reused_existing,
                     "windowDetected": cfg!(windows),
                     "pid": s.pid,
                     "processName": s.process_name,
+                    "maximized": s.maximized,
+                    "maximizeRequested": maximize_window,
                 })),
             ),
             Err(e) => (false, -1, Some(e), None),

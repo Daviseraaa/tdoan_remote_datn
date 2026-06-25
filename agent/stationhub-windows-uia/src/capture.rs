@@ -4,7 +4,7 @@ use windows::Win32::UI::Accessibility::IUIAutomationElement;
 
 use crate::com::automation;
 use crate::screen::physical_cursor_point;
-use crate::util::element_snapshot;
+use crate::util::{element_snapshot, is_interactive_control};
 
 const MAX_ANCESTORS: usize = 4;
 
@@ -52,4 +52,28 @@ unsafe fn build_capture(
         "target": target,
         "ancestors": ancestors,
     }))
+}
+
+/// Capture nhẹ cho highlight overlay — không walk ancestors.
+pub fn capture_highlight_target_at_point(
+    x: i32,
+    y: i32,
+    prefer_physical_cursor: bool,
+) -> Option<Value> {
+    let (px, py) = if prefer_physical_cursor {
+        physical_cursor_point().unwrap_or((x, y))
+    } else {
+        (x, y)
+    };
+
+    let automation = automation().ok()?;
+    unsafe {
+        let point = POINT { x: px, y: py };
+        let element = automation.ElementFromPoint(point).ok()?;
+        let target = element_snapshot(&element)?;
+        if !is_interactive_control(&target) {
+            return None;
+        }
+        Some(target)
+    }
 }

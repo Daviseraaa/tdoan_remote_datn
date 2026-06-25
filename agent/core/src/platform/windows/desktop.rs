@@ -77,7 +77,7 @@ pub async fn run_steps_json(
                     .get("target")
                     .and_then(|t| t.as_str())
                     .ok_or("openApp.target")?;
-                crate::platform::open_app::open_app_resolve(target)
+                crate::platform::open_app::open_app_resolve(target, false, false)
                     .await
                     .map_err(|e| e)?;
                 outcomes.push(json!({"index": i, "action": action, "ok": true, "detail": target}));

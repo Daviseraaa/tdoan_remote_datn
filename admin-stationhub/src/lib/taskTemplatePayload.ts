@@ -24,6 +24,10 @@ import {
   parseCloseAppForm,
 } from '@/src/lib/closeAppPayload';
 import {
+  buildFocusAppTask,
+  parseFocusAppForm,
+} from '@/src/lib/focusAppPayload';
+import {
   buildTelegramSendTask,
   DEFAULT_TELEGRAM_RECIPIENT,
   parseTelegramSendForm,
@@ -61,30 +65,41 @@ export function parseOpenAppForm(
   command: string | undefined,
   payload: unknown,
   storedMode?: OpenAppMode,
-): { mode: OpenAppMode; value: string } {
+): { mode: OpenAppMode; value: string; reuseExisting: boolean; maximizeWindow: boolean } {
   const p = payload as Record<string, unknown> | null | undefined;
   const cmd = (command ?? '').trim();
+  const reuseExisting = Boolean(p?.reuseExisting);
+  const maximizeWindow = Boolean(p?.maximizeWindow);
 
   const mode: OpenAppMode =
     storedMode ??
     (p && 'query' in p ? 'query' : p && 'app' in p ? 'app' : 'path');
 
   if (mode === 'app') {
-    return { mode, value: p && 'app' in p ? String(p.app ?? '') : cmd };
+    return { mode, value: p && 'app' in p ? String(p.app ?? '') : cmd, reuseExisting, maximizeWindow };
   }
   if (mode === 'query') {
-    return { mode, value: p && 'query' in p ? String(p.query ?? '') : cmd };
+    return { mode, value: p && 'query' in p ? String(p.query ?? '') : cmd, reuseExisting, maximizeWindow };
   }
-  return { mode: 'path', value: p && 'path' in p ? String(p.path ?? '') : cmd };
+  return {
+    mode: 'path',
+    value: p && 'path' in p ? String(p.path ?? '') : cmd,
+    reuseExisting,
+    maximizeWindow,
+  };
 }
 
 export function buildOpenAppTaskConfig(
   mode: OpenAppMode,
   value: string,
+  reuseExisting = false,
+  maximizeWindow = false,
 ): { command: string; payload: Record<string, unknown>; openAppMode: OpenAppMode } {
   const v = value.trim();
   const payload: Record<string, unknown> =
     mode === 'path' ? { path: v } : mode === 'app' ? { app: v } : { query: v };
+  if (reuseExisting) payload.reuseExisting = true;
+  if (maximizeWindow) payload.maximizeWindow = true;
   return { command: v, payload, openAppMode: mode };
 }
 
@@ -96,6 +111,8 @@ export interface TemplateEditorState {
   command: string;
   openAppMode: OpenAppMode;
   openAppValue: string;
+  openAppReuseExisting: boolean;
+  openAppMaximizeWindow: boolean;
   desktopSteps: DesktopStep[];
   chromeSteps: ChromeScriptStep[];
   chromeUrlPattern: string;
@@ -116,6 +133,7 @@ export interface TemplateEditorState {
   openBrowserUrl: string;
   openBrowserPayload: Record<string, unknown>;
   closeAppPayload: Record<string, unknown>;
+  focusAppPayload: Record<string, unknown>;
   telegramSendPayload: Record<string, unknown>;
   timeout: number;
   priority: number;
@@ -133,6 +151,7 @@ export const SELECTABLE_TEMPLATE_TYPES: TaskType[] = [
   'OPEN_APP',
   'OPEN_BROWSER',
   'CLOSE_APP',
+  'FOCUS_APP',
   'CHROME_EXTENSION',
   'DESKTOP_AUTOMATION',
   'SCREEN_CAPTURE',
@@ -148,6 +167,8 @@ export const DEFAULT_TEMPLATE_STATE: TemplateEditorState = {
   command: '',
   openAppMode: 'path',
   openAppValue: '',
+  openAppReuseExisting: false,
+  openAppMaximizeWindow: false,
   desktopSteps: [],
   chromeSteps: [],
   chromeUrlPattern: '',
@@ -168,6 +189,7 @@ export const DEFAULT_TEMPLATE_STATE: TemplateEditorState = {
   openBrowserUrl: 'https://',
   openBrowserPayload: {},
   closeAppPayload: { mode: 'openedInRun' },
+  focusAppPayload: { mode: 'windowTitle' },
   telegramSendPayload: { mode: 'message', chatId: DEFAULT_TELEGRAM_RECIPIENT },
   timeout: 120000,
   priority: 5,
@@ -366,6 +388,8 @@ export function parseTemplateToForm(tpl: TaskTemplate, agent: Agent | null): Tem
     const parsed = parseOpenAppForm(tpl.command ?? '', tpl.payload);
     base.openAppMode = parsed.mode;
     base.openAppValue = parsed.value;
+    base.openAppReuseExisting = parsed.reuseExisting;
+    base.openAppMaximizeWindow = parsed.maximizeWindow;
     return base;
   }
 
@@ -398,6 +422,13 @@ export function parseTemplateToForm(tpl: TaskTemplate, agent: Agent | null): Tem
     const built = buildCloseAppTask(parseCloseAppForm(tpl.payload as Record<string, unknown>));
     base.command = built.command;
     base.closeAppPayload = built.payload;
+    return base;
+  }
+
+  if (tpl.type === 'FOCUS_APP') {
+    const built = buildFocusAppTask(parseFocusAppForm(tpl.payload as Record<string, unknown>));
+    base.command = built.command;
+    base.focusAppPayload = built.payload;
     return base;
   }
 
@@ -456,7 +487,12 @@ export function buildTemplateDto(state: TemplateEditorState): CreateTaskTemplate
     case 'SYSTEM_INFO':
       return { ...base, command: 'collect' };
     case 'OPEN_APP': {
-      const built = buildOpenAppTaskConfig(state.openAppMode, state.openAppValue);
+      const built = buildOpenAppTaskConfig(
+        state.openAppMode,
+        state.openAppValue,
+        state.openAppReuseExisting,
+        state.openAppMaximizeWindow,
+      );
       return { ...base, command: built.command, payload: built.payload, openAppMode: built.openAppMode };
     }
     case 'OPEN_BROWSER': {
@@ -474,6 +510,15 @@ export function buildTemplateDto(state: TemplateEditorState): CreateTaskTemplate
     }
     case 'CLOSE_APP': {
       const built = buildCloseAppTask(parseCloseAppForm(state.closeAppPayload));
+      return {
+        ...base,
+        command: built.command,
+        payload: built.payload,
+        timeout: state.timeout,
+      };
+    }
+    case 'FOCUS_APP': {
+      const built = buildFocusAppTask(parseFocusAppForm(state.focusAppPayload));
       return {
         ...base,
         command: built.command,
@@ -569,6 +614,13 @@ export function validateTemplateState(state: TemplateEditorState): string | null
     case 'OPEN_APP':
       if (!state.openAppValue.trim()) return t('templateWizard.openAppRequired');
       break;
+    case 'FOCUS_APP': {
+      const focus = parseFocusAppForm(state.focusAppPayload);
+      if (focus.mode === 'pid' && !focus.pid.trim()) return t('focusApp.pid');
+      if (focus.mode === 'processName' && !focus.processName.trim()) return t('focusApp.processName');
+      if (focus.mode === 'windowTitle' && !focus.windowTitle.trim()) return t('focusApp.windowTitle');
+      break;
+    }
     case 'OPEN_BROWSER': {
       const url = (state.openBrowserUrl || state.command).trim();
       if (!url || url === 'https://') return t('openBrowser.urlRequired');

@@ -37,12 +37,16 @@ export function newTaskNodeData(
                   ? 'https://example.com/api'
                   : taskType === 'CLOSE_APP'
                     ? 'close'
+                    : taskType === 'FOCUS_APP'
+                      ? 'focus'
                     : taskType === 'TELEGRAM_SEND'
                       ? 'send'
                       : '',
       payload:
         taskType === 'CLOSE_APP'
           ? { mode: 'openedInRun' }
+          : taskType === 'FOCUS_APP'
+            ? { mode: 'windowTitle', windowTitle: '' }
           : taskType === 'OPEN_BROWSER'
           ? { useChromeProfile: false }
           : taskType === 'CHROME_EXTENSION'

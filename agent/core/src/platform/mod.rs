@@ -4,6 +4,7 @@ pub mod chrome_scripts_store;
 pub mod desktop_recordings_store;
 pub mod cloak_runner;
 pub mod close_app;
+pub mod focus_app;
 pub mod open_app;
 pub mod remote;
 pub mod open_browser;
@@ -55,7 +56,12 @@ impl Platform {
 
 #[async_trait]
 pub trait OpenApp: Send + Sync {
-    async fn resolve_and_launch(&self, query: &str) -> Result<OpenAppSuccess, String>;
+    async fn resolve_and_launch(
+        &self,
+        query: &str,
+        reuse_existing: bool,
+        maximize_window: bool,
+    ) -> Result<OpenAppSuccess, String>;
 }
 
 #[async_trait]
@@ -72,8 +78,13 @@ struct DefaultOpenApp;
 
 #[async_trait]
 impl OpenApp for DefaultOpenApp {
-    async fn resolve_and_launch(&self, query: &str) -> Result<OpenAppSuccess, String> {
-        open_app::open_app_resolve(query).await
+    async fn resolve_and_launch(
+        &self,
+        query: &str,
+        reuse_existing: bool,
+        maximize_window: bool,
+    ) -> Result<OpenAppSuccess, String> {
+        open_app::open_app_resolve(query, reuse_existing, maximize_window).await
     }
 }
 

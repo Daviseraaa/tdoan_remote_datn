@@ -125,9 +125,12 @@ function StatusIcon({ status }: { status: WfRunStatus }) {
 function StepOutputBlock({
   output,
   running,
+  expandAll,
 }: {
   output?: WorkflowStepRunOutput;
   running?: boolean;
+  /** Drawer lịch sử: hiển thị hết output, không giới hạn chiều cao */
+  expandAll?: boolean;
 }) {
   const text = formatStepRunOutput(output);
   if (!text) {
@@ -138,7 +141,12 @@ function StepOutputBlock({
     );
   }
   return (
-    <pre className="text-[11px] font-mono text-on-surface whitespace-pre-wrap break-all max-h-40 overflow-y-auto custom-scrollbar rounded-lg bg-black/30 border border-white/10 p-3">
+    <pre
+      className={cn(
+        'text-[11px] font-mono text-on-surface whitespace-pre-wrap break-all rounded-lg bg-black/30 border border-white/10 p-3',
+        !expandAll && 'max-h-40 overflow-y-auto custom-scrollbar',
+      )}
+    >
       {text}
     </pre>
   );
@@ -153,6 +161,7 @@ function PlanRow({
   selected,
   onSelect,
   isRunning,
+  expandOutput,
 }: {
   rowKey: string;
   title: string;
@@ -162,6 +171,7 @@ function PlanRow({
   selected: boolean;
   onSelect: (key: string) => void;
   isRunning?: boolean;
+  expandOutput?: boolean;
 }) {
   const border =
     selected
@@ -227,7 +237,11 @@ function PlanRow({
             <p className="text-[10px] font-mono font-bold uppercase text-primary">
               {t('workflows.executionStepOutput')}
             </p>
-            <StepOutputBlock output={detail?.output} running={isRunning && status === 'running'} />
+            <StepOutputBlock
+              output={detail?.output}
+              running={isRunning && status === 'running'}
+              expandAll={expandOutput}
+            />
           </div>
         ) : null}
       </div>
@@ -240,11 +254,13 @@ function ResultRow({
   workflow,
   selected,
   onSelect,
+  expandOutput,
 }: {
   r: WorkflowStepResult;
   workflow: Workflow | null | undefined;
   selected: boolean;
   onSelect: (key: string) => void;
+  expandOutput?: boolean;
 }) {
   const status: WfRunStatus = r.status === 'completed' ? 'completed' : 'failed';
   const key = `${r.step}-${r.stepId ?? ''}-${r.path ?? ''}`;
@@ -258,6 +274,7 @@ function ResultRow({
       selected={selected}
       onSelect={onSelect}
       isRunning={false}
+      expandOutput={expandOutput}
     />
   );
 }
@@ -377,8 +394,7 @@ export function WorkflowExecutionPanel({
   const stepList = (
     <div
       className={cn(
-        'overflow-y-auto custom-scrollbar p-3 space-y-2',
-        embedded ? 'flex-1 min-h-0' : undefined,
+        embedded ? 'space-y-2' : 'overflow-y-auto custom-scrollbar p-3 space-y-2',
       )}
     >
       {running ? (
@@ -403,6 +419,7 @@ export function WorkflowExecutionPanel({
                 selected={selectedKey === row.key}
                 onSelect={toggleSelect}
                 isRunning={running}
+                expandOutput={embedded}
               />
             </div>
           ))
@@ -420,6 +437,7 @@ export function WorkflowExecutionPanel({
                 selected={selectedKey === row.key}
                 onSelect={toggleSelect}
                 isRunning={running}
+                expandOutput={embedded}
               />
             </div>
           ))
@@ -443,6 +461,7 @@ export function WorkflowExecutionPanel({
                           workflow={workflow}
                           selected={selectedKey === key}
                           onSelect={toggleSelect}
+                          expandOutput={embedded}
                         />
                       </div>
                     );
@@ -458,6 +477,7 @@ export function WorkflowExecutionPanel({
                     workflow={workflow}
                     selected={selectedKey === key}
                     onSelect={toggleSelect}
+                    expandOutput={embedded}
                   />
                 </div>
               );
@@ -468,7 +488,7 @@ export function WorkflowExecutionPanel({
 
   if (embedded) {
     return (
-      <div className="flex flex-col min-h-0 flex-1">
+      <div className="shrink-0 pb-4">
         <p className="text-[10px] font-mono font-bold uppercase text-on-surface-variant px-1 mb-2">
           {t('workflows.executionClickStep')}
         </p>

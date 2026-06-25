@@ -82,6 +82,8 @@ function kindIcon(
       return AppWindow;
     case 'OPEN_BROWSER':
       return Globe;
+    case 'FOCUS_APP':
+      return AppWindow;
     case 'CLOSE_APP':
       return X;
     case 'CHROME_EXTENSION':

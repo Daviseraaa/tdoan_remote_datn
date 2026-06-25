@@ -111,7 +111,7 @@ export function WorkflowVariablesEditor({ variables, onChange, className }: Prop
           return (
             <div
               key={row.id}
-              className="rounded-xl border border-sky-400/15 bg-sky-950/30 p-2 space-y-2"
+              className="space-y-2 rounded-lg px-1 py-1.5 not-last:border-b not-last:border-sky-400/10"
             >
               <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)_auto] gap-2 items-start">
                 <div className="min-w-0">

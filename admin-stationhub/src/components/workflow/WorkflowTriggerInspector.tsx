@@ -6,6 +6,7 @@ import {
   type EntryTriggerPatch,
   entryTriggerTypeSubtitle,
 } from '@/src/lib/workflowEntryTrigger';
+import { isWorkflowEditorEditableTarget } from '@/src/lib/workflowGraph';
 import { SCHEDULE_KINDS, TELEGRAM_EVENTS, parseTelegramVariableArgNames } from '@/src/lib/triggerForm';
 import { cn } from '@/src/lib/utils';
 import { t } from '@/src/i18n/t';
@@ -77,8 +78,11 @@ function buildTelegramRunExample(commandsText: string, variableArgsText: string)
   const argNames = parseTelegramVariableArgNames(variableArgsText);
   const samples =
     argNames.length > 0
-      ? argNames.map((_, i) => `bien${i + 1}`)
-      : ['bien1', 'bien2'];
+      ? argNames.map((name, i) => {
+          const label = name || `bien${i + 1}`;
+          return /\s/.test(label) ? `"${label}"` : label;
+        })
+      : ['doc', '"Tin nhắn có dấu cách"'];
   return `${cmd} ${samples.join(' ')}`.trim();
 }
 
@@ -381,7 +385,15 @@ export function WorkflowTriggerInspector({
     workflowVarKeysProp ?? Object.keys(workflowVariables ?? {});
 
   return (
-    <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-3 custom-scrollbar min-w-0 w-full">
+    <div
+      className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-3 custom-scrollbar min-w-0 w-full"
+      onKeyDownCapture={(e) => {
+        if (isWorkflowEditorEditableTarget(e.target)) e.stopPropagation();
+      }}
+      onKeyUpCapture={(e) => {
+        if (isWorkflowEditorEditableTarget(e.target)) e.stopPropagation();
+      }}
+    >
       <h3 className="text-sm font-bold text-on-surface px-0.5">{t('workflows.triggerStartTitle')}</h3>
 
       <WfInspectorBlock tone="properties" className="space-y-3">

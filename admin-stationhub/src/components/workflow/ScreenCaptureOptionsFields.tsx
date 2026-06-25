@@ -69,7 +69,17 @@ export function ScreenCaptureOptionsFields({
         <input
           type="checkbox"
           checked={sendTg}
-          onChange={(e) => patch({ sendTelegram: e.target.checked })}
+          onChange={(e) =>
+            patch({
+              sendTelegram: e.target.checked,
+              ...(e.target.checked
+                ? {
+                    chatId: (p.chatId?.trim() || DEFAULT_TELEGRAM_RECIPIENT),
+                    telegramSendAs: p.telegramSendAs ?? 'photo',
+                  }
+                : {}),
+            })
+          }
         />
         {t('screenCapture.sendTelegram')}
       </label>

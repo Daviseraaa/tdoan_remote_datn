@@ -13,6 +13,7 @@ import { VAR_CONDITION_MODES, isVarConditionMode } from '@/src/types/api';
 import { Trash2 } from 'lucide-react';
 import type { WfNodeData } from '@/src/lib/workflowGraph';
 import { WF_TRIGGER_ID } from '@/src/lib/workflowGraph';
+import { isWorkflowEditorEditableTarget } from '@/src/lib/workflowGraph';
 import { t } from '@/src/i18n/t';
 import { WfAgentSelect } from './WfAgentSelect';
 import { WfInspectorBlock } from './WfInspectorLayout';
@@ -31,6 +32,7 @@ import {
 } from './ScreenCaptureOptionsFields';
 import { OpenBrowserConfigFields } from './OpenBrowserConfigFields';
 import { CloseAppConfigFields } from './CloseAppConfigFields';
+import { FocusAppConfigFields } from './FocusAppConfigFields';
 import { TelegramSendConfigFields } from './TelegramSendConfigFields';
 import { HttpRequestConfigFields } from './HttpRequestConfigFields';
 import { WfOpenAppConfigFields } from './WfOpenAppConfigFields';
@@ -148,7 +150,15 @@ export function WorkflowStepInspector({
   ) : null;
 
   return (
-    <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-3 custom-scrollbar min-w-0 w-full">
+    <div
+      className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-3 custom-scrollbar min-w-0 w-full"
+      onKeyDownCapture={(e) => {
+        if (isWorkflowEditorEditableTarget(e.target)) e.stopPropagation();
+      }}
+      onKeyUpCapture={(e) => {
+        if (isWorkflowEditorEditableTarget(e.target)) e.stopPropagation();
+      }}
+    >
       <WfWorkflowVariablesEditorSection
         workflowId={workflowId}
         workflowVariables={workflowVariables}
@@ -495,6 +505,16 @@ export function WorkflowStepInspector({
             />
           ) : null}
 
+          {data.taskType === 'FOCUS_APP' ? (
+            <FocusAppConfigFields
+              compact
+              payload={(cfg.payload as Record<string, unknown>) ?? {}}
+              onChange={({ command, payload }) =>
+                patchConfig({ command, payload, taskType: 'FOCUS_APP' })
+              }
+            />
+          ) : null}
+
           {data.taskType === 'TELEGRAM_SEND' ? (
             <TelegramSendConfigFields
               compact
@@ -509,6 +529,7 @@ export function WorkflowStepInspector({
           data.taskType !== 'COMMAND' &&
           data.taskType !== 'SCRIPT' &&
           data.taskType !== 'OPEN_APP' &&
+          data.taskType !== 'FOCUS_APP' &&
           data.taskType !== 'CHROME_EXTENSION' &&
           data.taskType !== 'SCREEN_CAPTURE' &&
           data.taskType !== 'HTTP_REQUEST' &&
@@ -552,8 +573,10 @@ export function WorkflowStepInspector({
             <WfOpenAppConfigFields
               mode={openAppForm.mode}
               value={openAppForm.value}
-              onChange={(mode, value) => {
-                const built = buildOpenAppTaskConfig(mode, value);
+              reuseExisting={openAppForm.reuseExisting}
+              maximizeWindow={openAppForm.maximizeWindow}
+              onChange={(mode, value, reuseExisting, maximizeWindow) => {
+                const built = buildOpenAppTaskConfig(mode, value, reuseExisting, maximizeWindow);
                 patchConfig({
                   command: built.command,
                   payload: built.payload,

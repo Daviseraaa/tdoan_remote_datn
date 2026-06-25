@@ -95,6 +95,7 @@ export const vi = {
     OPEN_APP: 'Mở ứng dụng',
     OPEN_BROWSER: 'Mở trình duyệt',
     CLOSE_APP: 'Đóng ứng dụng',
+    FOCUS_APP: 'Focus ứng dụng',
     CHROME_EXTENSION: 'Chrome extension (DOM)',
     DESKTOP_AUTOMATION: 'Tự động hóa desktop',
     SCREEN_CAPTURE: 'Chụp màn hình',
@@ -108,6 +109,8 @@ export const vi = {
       'Mở URL bằng CloakBrowser (stealth) hoặc Chrome thật (giữ đăng nhập). Cần cloak-runner trên agent.',
     CLOSE_APP_desc:
       'Đóng app hoặc trình duyệt đã mở — theo PID, tên process, tiêu đề cửa sổ, hoặc tất cả app mở trong workflow.',
+    FOCUS_APP_desc:
+      'Đưa một app/cửa sổ trên Windows lên foreground theo PID, tên process hoặc tiêu đề cửa sổ.',
     CHROME_EXTENSION_desc:
       'Snapshot DOM / click / fill trên Chrome thật qua extension + Native Messaging. Cần cài extension và CHROME_EXTENSION_ENABLED=true.',
     DESKTOP_AUTOMATION_desc: 'Chuỗi bước chuột, phím, mở app trên Windows.',
@@ -154,6 +157,23 @@ export const vi = {
     windowTitle: 'Tiêu đề cửa sổ (chứa)',
     openedInRunHint:
       'Đóng tất cả app/browser đã mở bởi OPEN_APP hoặc OPEN_BROWSER trong lần chạy workflow này.',
+  },
+  focusApp: {
+    subtitle: 'Đưa cửa sổ / app trên agent Windows lên trước màn hình.',
+    mode: 'Cách focus',
+    mode_pid: 'Theo PID',
+    mode_processName: 'Theo tên process',
+    mode_windowTitle: 'Theo tiêu đề cửa sổ',
+    pid: 'PID process',
+    pidHint: 'Dùng {{steps.<key>.json.pid}} hoặc {{steps.<key>.json.runnerPid}} từ bước OPEN_APP/OPEN_BROWSER.',
+    processName: 'Tên process',
+    windowTitle: 'Tiêu đề cửa sổ (chứa)',
+  },
+  openApp: {
+    reuseExisting: 'Nếu cửa sổ đã tồn tại thì không mở mới, chỉ focus vào đó',
+    maximizeWindow: 'Phóng to cửa sổ sau khi mở',
+    maximizeWindowHint:
+      'Tương đương bấm nút ô vuông trên thanh tiêu đề Windows (maximize). Chỉ hỗ trợ trên agent Windows.',
   },
   openBrowser: {
     subtitle: 'Mở trang web trên agent — URL, loại trình duyệt và tuỳ chọn nâng cao.',
@@ -832,8 +852,7 @@ export const vi = {
     scheduleTelegramNotifyBot: 'Bot thông báo Telegram',
     scheduleTelegramNotifyChatId: 'Chat ID nhận thông báo',
     scheduleTelegramNotifyChatIdPlaceholder: 'Ví dụ: 123456789 hoặc -1001234567890',
-    scheduleTelegramNotifyHint:
-      'Nếu nhập bot và chat ID, workflow chạy theo lịch sẽ gửi message tiến trình Telegram giống khi khởi chạy từ Telegram.',
+    scheduleTelegramNotifyHint: '',
     triggerSaveHint: 'Lưu workflow để áp dụng cấu hình trigger. Xem danh sách tại',
     startsOnRun: 'Chạy khi bấm Run',
     never: 'Chưa bao giờ',

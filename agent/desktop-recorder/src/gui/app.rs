@@ -263,18 +263,28 @@ impl eframe::App for RecorderApp {
         let eng = engine();
         self.sync_exclude_rect(ctx, &eng);
         self.poll_stop_hotkey(ctx, &eng);
+        if eng.take_listener_failed() {
+            self.show_toast(
+                "Hook chuột/phím bị lỗi — khởi động lại app hoặc chạy với quyền admin.",
+                false,
+            );
+            if matches!(self.busy, BusyMode::Recording) {
+                engine().cancel();
+                self.busy = BusyMode::None;
+            }
+        }
         self.poll_replay();
         self.poll_toast();
 
         self.place_left_center(ctx);
 
-        if self.last_refresh.elapsed().as_secs() >= 2 && !self.is_busy() {
+        if self.list_open && self.last_refresh.elapsed().as_secs() >= 5 && !self.is_busy() {
             self.refresh_list();
             self.last_refresh = Instant::now();
         }
 
         if self.is_busy() {
-            ctx.request_repaint_after(Duration::from_millis(150));
+            ctx.request_repaint_after(Duration::from_millis(250));
         }
         if self.toast.is_some() {
             ctx.request_repaint_after(Duration::from_millis(200));

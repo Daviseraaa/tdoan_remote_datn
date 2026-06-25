@@ -49,6 +49,25 @@ export function OpenAppTemplateForm({ state, onChange }: Props) {
           placeholder={t(mode.phKey)}
           className="w-full px-4 py-3 rounded-xl bg-surface-container-low border border-white/10 font-mono text-sm"
         />
+        <label className="mt-3 flex items-center gap-2 text-sm text-on-surface-variant">
+          <input
+            type="checkbox"
+            checked={state.openAppReuseExisting}
+            onChange={(e) => onChange({ openAppReuseExisting: e.target.checked })}
+            className="h-4 w-4 rounded border-white/15 bg-surface-container-low"
+          />
+          <span>{t('openApp.reuseExisting')}</span>
+        </label>
+        <label className="mt-3 flex items-center gap-2 text-sm text-on-surface-variant">
+          <input
+            type="checkbox"
+            checked={state.openAppMaximizeWindow}
+            onChange={(e) => onChange({ openAppMaximizeWindow: e.target.checked })}
+            className="h-4 w-4 rounded border-white/15 bg-surface-container-low"
+          />
+          <span>{t('openApp.maximizeWindow')}</span>
+        </label>
+        <p className="mt-1 text-[10px] text-on-surface-variant/70">{t('openApp.maximizeWindowHint')}</p>
       </div>
       <TemplateAdvancedFields
         timeout={state.timeout}

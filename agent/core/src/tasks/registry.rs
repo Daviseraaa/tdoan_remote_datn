@@ -68,6 +68,7 @@ static HANDLERS: &[&dyn TaskHandler] = &[
     &handlers::open_app::Handler,
     &handlers::open_browser::Handler,
     &handlers::close_app::Handler,
+    &handlers::focus_app::Handler,
     &handlers::desktop::Handler,
     &handlers::chrome_extension::Handler,
     &handlers::screen_capture::Handler,
@@ -86,6 +87,8 @@ pub fn supported_task_types(platform: &Platform, _cfg: &AgentConfig) -> Vec<&'st
                 cfg!(windows) && crate::config::settings::chrome_extension_enabled_now()
             } else if *t == "SCREEN_CAPTURE" {
                 cfg!(windows) && _cfg.screen_capture_enabled
+            } else if *t == "FOCUS_APP" {
+                cfg!(windows)
             } else {
                 true
             }

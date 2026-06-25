@@ -27,6 +27,7 @@ export type TaskType =
   | 'OPEN_APP'
   | 'OPEN_BROWSER'
   | 'CLOSE_APP'
+  | 'FOCUS_APP'
   | 'CHROME_EXTENSION'
   | 'DESKTOP_AUTOMATION'
   | 'SCREEN_CAPTURE'
@@ -638,6 +639,7 @@ export interface CreateTaskTemplateDto {
   type: TaskType;
   agentId: string;
   command: string;
+  openAppMode?: 'path' | 'app' | 'query';
   timeout?: number;
   priority?: number;
   payload?: Record<string, unknown>;

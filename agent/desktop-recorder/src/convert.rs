@@ -13,7 +13,11 @@ pub struct RecorderState {
     modifiers: ModifierState,
     /// Gắn metadata UIA vào bước click (Windows).
     capture_uia: bool,
+    scroll_pending: Option<(String, i64)>,
+    scroll_deadline: Option<Instant>,
 }
+
+const SCROLL_DEBOUNCE_MS: u64 = 120;
 
 #[derive(Default, Clone, Copy)]
 struct ModifierState {
@@ -33,10 +37,13 @@ impl RecorderState {
             text_buf: String::new(),
             modifiers: ModifierState::default(),
             capture_uia,
+            scroll_pending: None,
+            scroll_deadline: None,
         }
     }
 
     pub fn flush_and_take_steps(&mut self) -> Vec<Value> {
+        self.flush_scroll();
         self.flush_text();
         std::mem::take(&mut self.steps)
     }
@@ -56,6 +63,7 @@ impl RecorderState {
     }
 
     fn push_step(&mut self, step: Value) {
+        self.flush_scroll();
         self.flush_text();
         self.maybe_delay();
         self.steps.push(step);
@@ -75,6 +83,7 @@ impl RecorderState {
         if keys.is_empty() {
             return;
         }
+        self.flush_scroll();
         self.flush_text();
         self.maybe_delay();
         self.steps.push(json!({
@@ -278,7 +287,44 @@ impl RecorderState {
         }
     }
 
+    fn flush_scroll(&mut self) {
+        let Some((direction, amount)) = self.scroll_pending.take() else {
+            return;
+        };
+        self.scroll_deadline = None;
+        self.push_step(json!({
+            "action": "scroll",
+            "direction": direction,
+            "amount": amount,
+        }));
+    }
+
+    fn queue_scroll(&mut self, direction: String, delta: i64) {
+        let amount = delta.max(1).min(20);
+        if let Some((ref dir, ref mut total)) = self.scroll_pending {
+            if *dir == direction {
+                *total = (*total + amount).min(20);
+                self.scroll_deadline = Some(Instant::now() + Duration::from_millis(SCROLL_DEBOUNCE_MS));
+                return;
+            }
+            self.flush_scroll();
+        }
+        self.scroll_pending = Some((direction, amount));
+        self.scroll_deadline = Some(Instant::now() + Duration::from_millis(SCROLL_DEBOUNCE_MS));
+    }
+
+    fn maybe_flush_scroll_deadline(&mut self) {
+        let due = self
+            .scroll_deadline
+            .is_some_and(|deadline| Instant::now() >= deadline);
+        if due {
+            self.flush_scroll();
+        }
+    }
+
     pub fn on_event(&mut self, event: Event) {
+        self.maybe_flush_scroll_deadline();
+
         match event.event_type {
             EventType::MouseMove { x, y } => {
                 self.mouse_x = x;
@@ -308,7 +354,7 @@ impl RecorderState {
                 #[cfg(windows)]
                 if self.capture_uia {
                     if let Some(uia) =
-                        stationhub_windows_uia::capture_element_at_point(x, y, true)
+                        stationhub_windows_uia::capture_element_at_point_timed(x, y, true)
                     {
                         step["uia"] = uia;
                     }
@@ -328,12 +374,7 @@ impl RecorderState {
                 } else {
                     ("right", delta_x as i64)
                 };
-                let amount = amount.max(1).min(20);
-                self.push_step(json!({
-                    "action": "scroll",
-                    "direction": direction,
-                    "amount": amount,
-                }));
+                self.queue_scroll(direction.to_string(), amount);
             }
             EventType::KeyPress(key) => self.on_key_press(key, event.name.as_deref()),
             EventType::KeyRelease(key) => {

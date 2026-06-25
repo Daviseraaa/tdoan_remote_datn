@@ -18,11 +18,25 @@ const inputCls =
 type Props = {
   mode: OpenAppMode;
   value: string;
-  onChange: (mode: OpenAppMode, value: string) => void;
+  reuseExisting: boolean;
+  maximizeWindow: boolean;
+  onChange: (
+    mode: OpenAppMode,
+    value: string,
+    reuseExisting: boolean,
+    maximizeWindow: boolean,
+  ) => void;
   className?: string;
 };
 
-export function WfOpenAppConfigFields({ mode, value, onChange, className }: Props) {
+export function WfOpenAppConfigFields({
+  mode,
+  value,
+  reuseExisting,
+  maximizeWindow,
+  onChange,
+  className,
+}: Props) {
   const active = MODES.find((m) => m.id === mode) ?? MODES[0];
 
   return (
@@ -36,7 +50,7 @@ export function WfOpenAppConfigFields({ mode, value, onChange, className }: Prop
             <button
               key={m.id}
               type="button"
-              onClick={() => onChange(m.id, value)}
+              onClick={() => onChange(m.id, value, reuseExisting, maximizeWindow)}
               className={cn(
                 'px-3 py-2 rounded-xl text-xs font-bold border transition-all',
                 mode === m.id
@@ -55,12 +69,29 @@ export function WfOpenAppConfigFields({ mode, value, onChange, className }: Prop
         </label>
         <input
           value={value}
-          onChange={(e) => onChange(mode, e.target.value)}
+          onChange={(e) => onChange(mode, e.target.value, reuseExisting, maximizeWindow)}
           placeholder={t(active.phKey)}
           className={inputCls}
         />
       </div>
-      <p className="text-[10px] text-on-surface-variant/70">{t('taskType.OPEN_APP_desc')}</p>
+      <label className="flex items-center gap-2 text-sm text-on-surface-variant">
+        <input
+          type="checkbox"
+          checked={reuseExisting}
+          onChange={(e) => onChange(mode, value, e.target.checked, maximizeWindow)}
+          className="h-4 w-4 rounded border-white/15 bg-surface-container-low"
+        />
+        <span>{t('openApp.reuseExisting')}</span>
+      </label>
+      <label className="flex items-center gap-2 text-sm text-on-surface-variant">
+        <input
+          type="checkbox"
+          checked={maximizeWindow}
+          onChange={(e) => onChange(mode, value, reuseExisting, e.target.checked)}
+          className="h-4 w-4 rounded border-white/15 bg-surface-container-low"
+        />
+        <span>{t('openApp.maximizeWindow')}</span>
+      </label>
     </div>
   );
 }

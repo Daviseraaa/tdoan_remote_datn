@@ -16,6 +16,7 @@ import { SystemInfoTemplateForm } from '@/src/components/taskTemplate/SystemInfo
 import { OpenAppTemplateForm } from '@/src/components/taskTemplate/OpenAppTemplateForm';
 import { OpenBrowserTemplateForm } from '@/src/components/taskTemplate/OpenBrowserTemplateForm';
 import { CloseAppTemplateForm } from '@/src/components/taskTemplate/CloseAppTemplateForm';
+import { FocusAppTemplateForm } from '@/src/components/taskTemplate/FocusAppTemplateForm';
 import { TelegramSendTemplateForm } from '@/src/components/taskTemplate/TelegramSendTemplateForm';
 import { DesktopAutomationBuilder } from '@/src/components/taskTemplate/DesktopAutomationBuilder';
 import { ChromeExtensionBuilder } from '@/src/components/taskTemplate/ChromeExtensionBuilder';
@@ -425,6 +426,8 @@ export default function TaskTemplateEditor() {
                   <OpenBrowserTemplateForm state={form} onChange={patch} />
                 ) : form.type === 'CLOSE_APP' ? (
                   <CloseAppTemplateForm state={form} onChange={patch} />
+                ) : form.type === 'FOCUS_APP' ? (
+                  <FocusAppTemplateForm state={form} onChange={patch} />
                 ) : form.type === 'TELEGRAM_SEND' ? (
                   <TelegramSendTemplateForm state={form} onChange={patch} />
                 ) : form.type === 'SCREEN_CAPTURE' ? (

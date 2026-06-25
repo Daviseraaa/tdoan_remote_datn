@@ -4,21 +4,25 @@ use rdev::{listen, Event, EventType};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
 use std::thread;
+use std::time::{Duration, Instant};
+
+const STOP_STATE_LOCK_TIMEOUT: Duration = Duration::from_secs(3);
 
 /// Hình chữ nhật pixel vật lý (left, top, right, bottom) — bỏ qua ghi input trong vùng app.
 type ExcludePhys = (i32, i32, i32, i32);
 
 pub struct RecordEngine {
-    active: Mutex<Option<ActiveRecorder>>,
+    session: Mutex<Option<RecordingSession>>,
     stop_requested: AtomicBool,
     hotkey_stop: AtomicBool,
     recording: AtomicBool,
     step_count_cache: AtomicUsize,
     exclude_phys: Mutex<Option<ExcludePhys>>,
+    listener_failed: AtomicBool,
 }
 
-struct ActiveRecorder {
-    state: RecorderState,
+struct RecordingSession {
+    state: Arc<Mutex<RecorderState>>,
     draft_name: String,
     capture_uia: bool,
     show_highlight: bool,
@@ -31,12 +35,13 @@ pub fn engine() -> Arc<RecordEngine> {
     ENGINE
         .get_or_init(|| {
             let eng = Arc::new(RecordEngine {
-                active: Mutex::new(None),
+                session: Mutex::new(None),
                 stop_requested: AtomicBool::new(false),
                 hotkey_stop: AtomicBool::new(false),
                 recording: AtomicBool::new(false),
                 step_count_cache: AtomicUsize::new(0),
                 exclude_phys: Mutex::new(None),
+                listener_failed: AtomicBool::new(false),
             });
             eng.clone().ensure_listener();
             eng
@@ -48,12 +53,21 @@ impl RecordEngine {
     fn ensure_listener(self: Arc<Self>) {
         LISTENER_STARTED.get_or_init(|| {
             let eng = self.clone();
+            let eng_err = self.clone();
             thread::spawn(move || {
-                let _ = listen(move |event| {
+                if let Err(e) = listen(move |event| {
                     eng.on_event(event);
-                });
+                }) {
+                    eprintln!("[desktop-recorder] global hook failed: {e:?}");
+                    eng_err.listener_failed.store(true, Ordering::SeqCst);
+                }
             });
         });
+    }
+
+    /// Hook listener đã chết — GUI có thể hiện toast.
+    pub fn take_listener_failed(&self) -> bool {
+        self.listener_failed.swap(false, Ordering::SeqCst)
     }
 
     /// Cập nhật vùng cửa sổ app (pixel vật lý) — gọi mỗi frame từ GUI.
@@ -100,15 +114,35 @@ impl RecordEngine {
             return;
         }
 
-        let Ok(mut guard) = self.active.try_lock() else {
-            // GUI đang dừng/lưu — không chặn thread listener.
+        // MouseMove flood hook — chỉ cần khi đang ghi, xử lý trong state.
+        if matches!(event.event_type, EventType::MouseMove { .. }) {
+            let state_arc = self.current_state_arc();
+            let Some(state_arc) = state_arc else {
+                return;
+            };
+            if let Ok(mut state) = state_arc.try_lock() {
+                state.on_event(event);
+            }
+            return;
+        }
+
+        let state_arc = self.current_state_arc();
+        let Some(state_arc) = state_arc else {
             return;
         };
-        if let Some(rec) = guard.as_mut() {
-            rec.state.on_event(event);
-            self.step_count_cache
-                .store(rec.state.step_count(), Ordering::Relaxed);
-        }
+        let step_count = {
+            let Ok(mut state) = state_arc.try_lock() else {
+                return;
+            };
+            state.on_event(event);
+            state.step_count()
+        };
+        self.step_count_cache.store(step_count, Ordering::Relaxed);
+    }
+
+    fn current_state_arc(&self) -> Option<Arc<Mutex<RecorderState>>> {
+        let guard = self.session.try_lock().ok()?;
+        guard.as_ref().map(|s| s.state.clone())
     }
 
     pub fn is_recording(&self) -> bool {
@@ -125,10 +159,17 @@ impl RecordEngine {
         capture_uia: bool,
         show_highlight: bool,
     ) -> Result<(), String> {
+        if self.listener_failed.load(Ordering::SeqCst) {
+            return Err(
+                "Hook chuột/phím không khả dụng — khởi động lại app hoặc chạy với quyền admin."
+                    .into(),
+            );
+        }
+
         #[cfg(windows)]
         stationhub_windows_uia::enable_per_monitor_v2();
 
-        let mut guard = self.active.lock().map_err(|_| "lock poisoned")?;
+        let mut guard = self.session.lock().map_err(|_| "lock poisoned")?;
         if guard.is_some() {
             return Err("Đang ghi một bản ghi khác.".into());
         }
@@ -139,8 +180,8 @@ impl RecordEngine {
         if show_highlight {
             stationhub_windows_uia::highlight_worker_start();
         }
-        *guard = Some(ActiveRecorder {
-            state: RecorderState::new(capture_uia),
+        *guard = Some(RecordingSession {
+            state: Arc::new(Mutex::new(RecorderState::new(capture_uia))),
             draft_name: name,
             capture_uia,
             show_highlight,
@@ -149,9 +190,9 @@ impl RecordEngine {
         Ok(())
     }
 
-    fn stop_highlight(rec: &ActiveRecorder) {
+    fn stop_highlight(session: &RecordingSession) {
         #[cfg(windows)]
-        if rec.show_highlight {
+        if session.show_highlight {
             stationhub_windows_uia::highlight_worker_stop();
         }
     }
@@ -159,26 +200,42 @@ impl RecordEngine {
     pub fn stop_and_save(&self) -> Result<SavedRecording, String> {
         self.stop_requested.store(true, Ordering::SeqCst);
         self.recording.store(false, Ordering::SeqCst);
-        let mut guard = self.active.lock().map_err(|_| "lock poisoned")?;
-        let Some(mut rec) = guard.take() else {
+        let mut guard = self.session.lock().map_err(|_| "lock poisoned")?;
+        let Some(session) = guard.take() else {
             return Err("Không có phiên ghi đang chạy.".into());
         };
-        Self::stop_highlight(&rec);
+        Self::stop_highlight(&session);
         self.step_count_cache.store(0, Ordering::Relaxed);
-        let steps = rec.state.flush_and_take_steps();
+        let deadline = Instant::now() + STOP_STATE_LOCK_TIMEOUT;
+        let mut state = loop {
+            match session.state.try_lock() {
+                Ok(guard) => break guard,
+                Err(_) if Instant::now() < deadline => {
+                    thread::sleep(Duration::from_millis(10));
+                }
+                Err(_) => {
+                    return Err(
+                        "Không dừng được phiên ghi — UIA có thể đang treo (vd. Zalo). \
+                         Tắt «Bắt UIA» / «Hiện viền» rồi thử lại."
+                            .into(),
+                    );
+                }
+            }
+        };
+        let steps = state.flush_and_take_steps();
         if steps.is_empty() {
             return Err("Không có bước nào được ghi.".into());
         }
-        save_recording(&rec.draft_name, &steps, rec.capture_uia).map_err(|e| e.to_string())
+        save_recording(&session.draft_name, &steps, session.capture_uia).map_err(|e| e.to_string())
     }
 
     pub fn cancel(&self) {
         self.stop_requested.store(true, Ordering::SeqCst);
         self.recording.store(false, Ordering::SeqCst);
         self.step_count_cache.store(0, Ordering::Relaxed);
-        if let Ok(mut guard) = self.active.lock() {
-            if let Some(rec) = guard.take() {
-                Self::stop_highlight(&rec);
+        if let Ok(mut guard) = self.session.lock() {
+            if let Some(session) = guard.take() {
+                Self::stop_highlight(&session);
             }
         }
     }

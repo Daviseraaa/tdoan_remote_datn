@@ -25,6 +25,31 @@ describe('telegram-command-args', () => {
       argsText: '',
     });
   });
+
+  it('keeps double-quoted phrase as one arg', () => {
+    expect(
+      extractTelegramCommandArgs('/run doc "Tin nhắn có dấu"', '/run'),
+    ).toEqual({
+      args: ['doc', 'Tin nhắn có dấu'],
+      argsText: 'doc "Tin nhắn có dấu"',
+    });
+  });
+
+  it('keeps single-quoted phrase as one arg', () => {
+    expect(
+      extractTelegramCommandArgs("/run doc 'Tin nhắn có dấu'", '/run'),
+    ).toEqual({
+      args: ['doc', 'Tin nhắn có dấu'],
+      argsText: "doc 'Tin nhắn có dấu'",
+    });
+  });
+
+  it('supports escaped double quotes inside double quotes', () => {
+    expect(extractTelegramCommandArgs('/run "say \\"hi\\""', '/run')).toEqual({
+      args: ['say "hi"'],
+      argsText: '"say \\"hi\\""',
+    });
+  });
 });
 
 describe('applyTelegramVariableBindings', () => {
